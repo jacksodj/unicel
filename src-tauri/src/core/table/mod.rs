@@ -1,4 +1,5 @@
-// Table system with SQL queries
+// Table/Sheet management
 
-// TODO: Implement table metadata
-// TODO: Implement SQL query system with unit awareness
+pub mod sheet;
+
+pub use sheet::{CellAddr, DependencyGraph, Sheet, SheetError};
