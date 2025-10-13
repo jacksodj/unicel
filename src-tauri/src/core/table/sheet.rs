@@ -448,8 +448,12 @@ impl<'a> SheetEvaluator<'a> {
                 Err(EvalError::InvalidOperation("Ranges can only be used in functions".to_string()))
             }
 
-            Expr::Function { name, .. } => {
-                Err(EvalError::FunctionNotImplemented(name.clone()))
+            Expr::Function { name, args } => {
+                match name.to_uppercase().as_str() {
+                    "SUM" => self.eval_sum(args),
+                    "AVERAGE" => self.eval_average(args),
+                    _ => Err(EvalError::FunctionNotImplemented(name.clone())),
+                }
             }
         }
     }
@@ -504,6 +508,115 @@ impl<'a> SheetEvaluator<'a> {
             op(left.value, right_value_converted),
             left.unit.clone(),
         ))
+    }
+
+    /// Evaluate SUM function
+    fn eval_sum(&self, args: &[Expr]) -> Result<EvalResult, EvalError> {
+        if args.is_empty() {
+            return Ok(EvalResult::new(0.0, crate::core::units::Unit::dimensionless()));
+        }
+
+        // Collect all values from arguments (including ranges)
+        let values = self.collect_values(args)?;
+
+        if values.is_empty() {
+            return Ok(EvalResult::new(0.0, crate::core::units::Unit::dimensionless()));
+        }
+
+        // All values should have compatible units
+        let first = &values[0];
+        let mut sum = first.value;
+        let result_unit = first.unit.clone();
+
+        for val in &values[1..] {
+            if !val.unit.is_compatible(&result_unit) {
+                return Err(EvalError::IncompatibleUnits {
+                    operation: "SUM".to_string(),
+                    left: result_unit.to_string(),
+                    right: val.unit.to_string(),
+                });
+            }
+
+            // Convert to result unit if needed
+            let converted_value = if val.unit.is_equal(&result_unit) {
+                val.value
+            } else {
+                self.library.convert(val.value, val.unit.canonical(), result_unit.canonical())
+                    .ok_or_else(|| EvalError::IncompatibleUnits {
+                        operation: "SUM".to_string(),
+                        left: result_unit.to_string(),
+                        right: val.unit.to_string(),
+                    })?
+            };
+
+            sum += converted_value;
+        }
+
+        Ok(EvalResult::new(sum, result_unit))
+    }
+
+    /// Evaluate AVERAGE function
+    fn eval_average(&self, args: &[Expr]) -> Result<EvalResult, EvalError> {
+        if args.is_empty() {
+            return Err(EvalError::InvalidOperation("AVERAGE requires at least one argument".to_string()));
+        }
+
+        // Collect all values from arguments (including ranges)
+        let values = self.collect_values(args)?;
+
+        if values.is_empty() {
+            return Err(EvalError::InvalidOperation("AVERAGE requires at least one value".to_string()));
+        }
+
+        // Calculate sum
+        let sum_result = self.eval_sum(args)?;
+
+        // Divide by count
+        let count = values.len() as f64;
+        Ok(EvalResult::new(sum_result.value / count, sum_result.unit))
+    }
+
+    /// Collect values from arguments (expanding ranges)
+    fn collect_values(&self, args: &[Expr]) -> Result<Vec<EvalResult>, EvalError> {
+        let mut values = Vec::new();
+
+        for arg in args {
+            match arg {
+                Expr::Range { start, end } => {
+                    // Extract range bounds
+                    let (start_col, start_row) = match start.as_ref() {
+                        Expr::CellRef { col, row } => (col.clone(), *row),
+                        _ => return Err(EvalError::InvalidOperation("Range must use cell references".to_string())),
+                    };
+
+                    let (end_col, end_row) = match end.as_ref() {
+                        Expr::CellRef { col, row } => (col.clone(), *row),
+                        _ => return Err(EvalError::InvalidOperation("Range must use cell references".to_string())),
+                    };
+
+                    // For simplicity, only support single-column ranges for now
+                    if start_col != end_col {
+                        return Err(EvalError::InvalidOperation("Only single-column ranges supported in MLP".to_string()));
+                    }
+
+                    // Iterate through rows
+                    for row in start_row..=end_row {
+                        let addr = CellAddr::new(&start_col, row);
+                        if let Some(cell) = self.sheet.get(&addr) {
+                            if let Some(value) = cell.as_number() {
+                                values.push(EvalResult::new(value, cell.storage_unit().clone()));
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    // Evaluate single expression
+                    values.push(self.eval(arg)?);
+                }
+            }
+        }
+
+        Ok(values)
     }
 }
 
@@ -612,5 +725,64 @@ mod tests {
         assert_eq!(refs.len(), 2);
         assert!(refs.contains(&CellAddr::new("A", 1)));
         assert!(refs.contains(&CellAddr::new("B", 2)));
+    }
+
+    #[test]
+    fn test_sum_function() {
+        let mut sheet = Sheet::new();
+
+        // Set up cells A1-A3
+        sheet.set(CellAddr::new("A", 1), Cell::new(10.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+        sheet.set(CellAddr::new("A", 2), Cell::new(20.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+        sheet.set(CellAddr::new("A", 3), Cell::new(30.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+
+        // Evaluate SUM(A1:A3)
+        let (value, unit) = sheet.evaluate_formula("=SUM(A1:A3)").unwrap();
+        assert_eq!(value, 60.0);
+        assert_eq!(unit.canonical(), "m");
+    }
+
+    #[test]
+    fn test_sum_with_individual_args() {
+        let mut sheet = Sheet::new();
+
+        // Set up cells
+        sheet.set(CellAddr::new("A", 1), Cell::new(10.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+        sheet.set(CellAddr::new("A", 2), Cell::new(20.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+
+        // Evaluate SUM(A1, A2)
+        let (value, unit) = sheet.evaluate_formula("=SUM(A1, A2)").unwrap();
+        assert_eq!(value, 30.0);
+        assert_eq!(unit.canonical(), "m");
+    }
+
+    #[test]
+    fn test_average_function() {
+        let mut sheet = Sheet::new();
+
+        // Set up cells A1-A4
+        sheet.set(CellAddr::new("A", 1), Cell::new(10.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+        sheet.set(CellAddr::new("A", 2), Cell::new(20.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+        sheet.set(CellAddr::new("A", 3), Cell::new(30.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+        sheet.set(CellAddr::new("A", 4), Cell::new(40.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+
+        // Evaluate AVERAGE(A1:A4)
+        let (value, unit) = sheet.evaluate_formula("=AVERAGE(A1:A4)").unwrap();
+        assert_eq!(value, 25.0);
+        assert_eq!(unit.canonical(), "m");
+    }
+
+    #[test]
+    fn test_sum_with_unit_conversion() {
+        let mut sheet = Sheet::new();
+
+        // Set up cells with different but compatible units
+        sheet.set(CellAddr::new("A", 1), Cell::new(100.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+        sheet.set(CellAddr::new("A", 2), Cell::new(50.0, Unit::simple("cm", BaseDimension::Length))).unwrap();
+
+        // Evaluate SUM(A1, A2) - should convert cm to m
+        let (value, unit) = sheet.evaluate_formula("=SUM(A1, A2)").unwrap();
+        assert_eq!(value, 100.5); // 100m + 0.5m
+        assert_eq!(unit.canonical(), "m");
     }
 }
