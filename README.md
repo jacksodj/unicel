@@ -35,7 +35,7 @@ Units are data, not formatting. Values stored as `(number, unit)` tuples enable 
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/unicel.git
+git clone https://github.com/jacksodj/unicel.git
 cd unicel
 
 # Install dependencies
@@ -100,18 +100,26 @@ npm run lint
 
 ## Implementation Status
 
-**Current Phase**: Phase 0 - Foundation (Weeks 1-2)
+**Current Phase**: Phase 1 - Core Unit System (Week 3 of 24)
 
+**Phase 0 - Foundation:** ✅ Complete
 - [x] Project setup
 - [x] Core data structures defined
 - [x] Technology stack selected
-- [ ] Unit system implementation
-- [ ] Formula engine
-- [ ] Table system
-- [ ] UI implementation
-- [ ] MCP integration
+- [x] Project plan and task tracking created
 
-See [Unit Aware Spreadsheet Design.md](./Unit%20Aware%20Spreadsheet%20Design.md) for full roadmap.
+**Phase 1 - Core Unit System:** ⏳ In Progress (0/14 tasks)
+- [ ] Unit struct with canonical form
+- [ ] Dimension system
+- [ ] Basic unit library
+- [ ] Conversion system
+
+**Overall Progress:** 5/117 tasks (4.3%)
+
+See detailed tracking in:
+- [PROJECT_PLAN.md](./PROJECT_PLAN.md) - Complete implementation plan with timeline
+- [TASKS.md](./TASKS.md) - Detailed task checklist (mark tasks as you complete them)
+- [Design Document](./requirements/Unit%20Aware%20Spreadsheet%20Design.md) - Full technical specification
 
 ## Contributing
 
@@ -123,14 +131,24 @@ This project is dual-licensed under MIT OR Apache-2.0. See [LICENSE-MIT](./LICEN
 
 ## Documentation
 
-- [CLAUDE.md](./CLAUDE.md) - Guidance for Claude Code
-- [Design Document](./Unit%20Aware%20Spreadsheet%20Design.md) - Comprehensive design specification
-- [MLP Requirements](./MLP%20Requirements%20-%20Unit%20Conversion.pdf) - Original requirements
+**Planning & Tracking:**
+- [PROJECT_PLAN.md](./PROJECT_PLAN.md) - 24-week implementation plan with phases and deliverables
+- [TASKS.md](./TASKS.md) - Detailed task checklist for tracking progress
+
+**Architecture & Design:**
+- [CLAUDE.md](./CLAUDE.md) - Development guidance for Claude Code
+- [Design Document](./requirements/Unit%20Aware%20Spreadsheet%20Design.md) - Complete technical specification
+- [MLP Requirements](./requirements/MLP%20Requirements%20-%20Unit%20Conversion.pdf) - Original requirements
+
+**Use Cases:**
+- [AWS Pricing](./requirements/use%20cases/AWS%20Pricing%20Use%20Case.md)
+- [Construction Estimator](./requirements/use%20cases/Construction%20Estimator%20Use%20Case.md)
+- [Investment Portfolio](./requirements/use%20cases/Investment%20Portfolio%20Use%20Case.md)
 
 ## Community
 
-- GitHub Issues: [Report bugs or request features](https://github.com/yourusername/unicel/issues)
-- Discussions: [Ask questions and share ideas](https://github.com/yourusername/unicel/discussions)
+- GitHub Issues: [Report bugs or request features](https://github.com/jacksodj/unicel/issues)
+- Discussions: [Ask questions and share ideas](https://github.com/jacksodj/unicel/discussions)
 
 ## Acknowledgments
 
