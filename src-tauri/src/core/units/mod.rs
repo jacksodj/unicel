@@ -1,4 +1,13 @@
 // Unit system with dimensional analysis
+//
+// Design Philosophy:
+// - Storage vs Display: Values are always stored in their original units (non-destructive).
+//   Display conversion is applied on-the-fly based on user preferences (Metric/Imperial toggle).
+// - Dimensional Analysis: Operations check unit compatibility automatically.
+// - Unit Cancellation: Compound units simplify automatically (e.g., mi/hr ÷ hr → mi).
+//
+// For MLP, we use a simplified direct-lookup conversion system rather than graph pathfinding.
+// This is sufficient for Tier 1 units and keeps the implementation straightforward.
 
 mod library;
 mod parser;

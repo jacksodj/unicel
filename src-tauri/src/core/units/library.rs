@@ -79,6 +79,43 @@ impl UnitLibrary {
         self.units.contains_key(symbol)
     }
 
+    /// Convert a value from one unit to another
+    /// Returns None if units are not compatible or conversion doesn't exist
+    pub fn convert(&self, value: f64, from: &str, to: &str) -> Option<f64> {
+        // If same unit, no conversion needed
+        if from == to {
+            return Some(value);
+        }
+
+        // Check if both units exist
+        let from_unit = self.get(from)?;
+        let to_unit = self.get(to)?;
+
+        // Check if units are compatible
+        if !from_unit.is_compatible(to_unit) {
+            return None;
+        }
+
+        // Get conversion factor
+        let factor = self.get_conversion(from, to)?;
+
+        // Apply conversion
+        Some(factor.convert(value))
+    }
+
+    /// Check if two units are compatible (can be converted)
+    pub fn can_convert(&self, from: &str, to: &str) -> bool {
+        if from == to {
+            return true;
+        }
+
+        if let (Some(from_unit), Some(to_unit)) = (self.get(from), self.get(to)) {
+            from_unit.is_compatible(to_unit)
+        } else {
+            false
+        }
+    }
+
     // === Length Units ===
     fn add_length_units(&mut self) {
         // Metric
@@ -308,5 +345,99 @@ mod tests {
         // Days to hours
         let day_to_hr = library.get_conversion("day", "hr").unwrap();
         assert_eq!(day_to_hr.convert(1.0), 24.0);
+    }
+
+    #[test]
+    fn test_library_convert_method() {
+        let library = UnitLibrary::new();
+
+        // Test length conversions
+        assert_eq!(library.convert(1.0, "m", "cm").unwrap(), 100.0);
+        assert_eq!(library.convert(100.0, "cm", "m").unwrap(), 1.0);
+        assert!((library.convert(1.0, "m", "ft").unwrap() - 3.28084).abs() < 0.0001);
+
+        // Test mass conversions
+        assert_eq!(library.convert(1.0, "kg", "g").unwrap(), 1000.0);
+        assert_eq!(library.convert(1000.0, "g", "kg").unwrap(), 1.0);
+
+        // Test time conversions
+        assert_eq!(library.convert(1.0, "hr", "min").unwrap(), 60.0);
+        assert_eq!(library.convert(60.0, "min", "hr").unwrap(), 1.0);
+
+        // Test temperature conversions
+        assert_eq!(library.convert(0.0, "C", "F").unwrap(), 32.0);
+        assert_eq!(library.convert(100.0, "C", "F").unwrap(), 212.0);
+        assert_eq!(library.convert(0.0, "C", "K").unwrap(), 273.15);
+
+        // Test currency conversions
+        assert_eq!(library.convert(100.0, "EUR", "USD").unwrap(), 108.0);
+        assert_eq!(library.convert(100.0, "GBP", "USD").unwrap(), 127.0);
+    }
+
+    #[test]
+    fn test_identity_conversion() {
+        let library = UnitLibrary::new();
+
+        // Converting a unit to itself should return the same value
+        assert_eq!(library.convert(42.0, "m", "m").unwrap(), 42.0);
+        assert_eq!(library.convert(100.0, "kg", "kg").unwrap(), 100.0);
+        assert_eq!(library.convert(25.5, "USD", "USD").unwrap(), 25.5);
+    }
+
+    #[test]
+    fn test_incompatible_conversion() {
+        let library = UnitLibrary::new();
+
+        // Cannot convert between different dimensions
+        assert!(library.convert(1.0, "m", "kg").is_none());
+        assert!(library.convert(1.0, "s", "m").is_none());
+        assert!(library.convert(1.0, "USD", "kg").is_none());
+    }
+
+    #[test]
+    fn test_unknown_unit_conversion() {
+        let library = UnitLibrary::new();
+
+        // Unknown units should return None
+        assert!(library.convert(1.0, "xyz", "m").is_none());
+        assert!(library.convert(1.0, "m", "xyz").is_none());
+        assert!(library.convert(1.0, "abc", "xyz").is_none());
+    }
+
+    #[test]
+    fn test_can_convert() {
+        let library = UnitLibrary::new();
+
+        // Compatible units
+        assert!(library.can_convert("m", "ft"));
+        assert!(library.can_convert("kg", "lb"));
+        assert!(library.can_convert("C", "F"));
+
+        // Same unit
+        assert!(library.can_convert("m", "m"));
+
+        // Incompatible units
+        assert!(!library.can_convert("m", "kg"));
+        assert!(!library.can_convert("s", "USD"));
+
+        // Unknown units
+        assert!(!library.can_convert("xyz", "m"));
+    }
+
+    #[test]
+    fn test_conversion_accuracy() {
+        let library = UnitLibrary::new();
+
+        // Test round-trip conversions (should be close to original)
+        let original = 100.0;
+        let converted_ft = library.convert(original, "m", "ft").unwrap();
+        let back_to_m = library.convert(converted_ft, "ft", "m").unwrap();
+        assert!((original - back_to_m).abs() < 0.0001);
+
+        // Test temperature round-trip
+        let temp_c = 25.0;
+        let temp_f = library.convert(temp_c, "C", "F").unwrap();
+        let back_to_c = library.convert(temp_f, "F", "C").unwrap();
+        assert!((temp_c - back_to_c).abs() < 0.0001);
     }
 }
