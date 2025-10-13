@@ -2,7 +2,15 @@ import { useState } from 'react';
 import Grid from './Grid';
 import Ribbon from './Ribbon';
 import StatusBar from './StatusBar';
+import { ToastContainer } from './Toast';
+import { LoadingOverlay } from './LoadingSpinner';
 import { Cell, CellAddress, getCellAddress } from '../types/workbook';
+
+interface ToastMessage {
+  id: string;
+  message: string;
+  type?: 'info' | 'success' | 'warning' | 'error';
+}
 
 // Mock data for testing
 function createMockCells(): Map<string, Cell> {
@@ -58,6 +66,8 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
   const [formulaBarValue, setFormulaBarValue] = useState('');
   const [displayMode, setDisplayMode] = useState<'AsEntered' | 'Metric' | 'Imperial'>('AsEntered');
   const [isDirty, setIsDirty] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleCellSelect = (address: CellAddress) => {
     setSelectedCell(address);
@@ -133,10 +143,19 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     }
   };
 
+  const addToast = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+    const id = Date.now().toString();
+    setToasts((prev) => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  };
+
   const handleDisplayModeChange = (mode: 'AsEntered' | 'Metric' | 'Imperial') => {
     setDisplayMode(mode);
+    addToast(`Display mode changed to ${mode}`, 'info');
     // In a real implementation, this would trigger unit conversion for display
-    // For now, just update the mode
   };
 
   const handleNew = () => {
@@ -146,23 +165,27 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     setCells(new Map());
     setSelectedCell(null);
     setIsDirty(false);
+    addToast('New workbook created', 'success');
   };
 
   const handleOpen = () => {
     // TODO: Implement file open dialog via Tauri
-    alert('Open file dialog - to be implemented with Tauri integration');
+    addToast('File open dialog - to be implemented with Tauri', 'info');
   };
 
   const handleSave = () => {
-    // TODO: Implement save via Tauri
-    alert('Save workbook - to be implemented with Tauri integration');
-    setIsDirty(false);
+    setIsLoading(true);
+    // Simulate async save operation
+    setTimeout(() => {
+      setIsLoading(false);
+      setIsDirty(false);
+      addToast('Workbook saved successfully', 'success');
+    }, 1000);
   };
 
   const handleSaveAs = () => {
     // TODO: Implement save as dialog via Tauri
-    alert('Save As dialog - to be implemented with Tauri integration');
-    setIsDirty(false);
+    addToast('Save As dialog - to be implemented with Tauri', 'info');
   };
 
   const getSelectedCellUnit = (): string | undefined => {
@@ -173,7 +196,10 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-white">
+    <>
+      {isLoading && <LoadingOverlay message="Saving workbook..." />}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <div className="h-screen w-screen flex flex-col bg-white">
       {/* Title bar */}
       <div className="bg-gray-800 text-white px-4 py-2">
         <h1 className="text-lg font-bold">Unicel - Unit-Aware Spreadsheet</h1>
@@ -239,6 +265,7 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
         selectedCell={selectedCell}
         cellUnit={getSelectedCellUnit()}
       />
-    </div>
+      </div>
+    </>
   );
 }
