@@ -3,7 +3,7 @@
 > This file tracks all tasks. Mark [x] when complete. Auto-generated from PROJECT_PLAN.md
 
 **Current Phase:** Phase 5 - Basic UI
-**Week:** 15 of 24
+**Week:** 18 of 24
 **Updated:** 2025-10-13
 
 ---
@@ -125,12 +125,12 @@
 - [x] 5.9: Handle Enter/Escape keys
 - [x] 5.10: Add formula bar
 
-### Week 17: Ribbon & Controls
-- [ ] 5.11: Create ribbon component
-- [ ] 5.12: Add display toggle button (Metric/Imperial)
-- [ ] 5.13: Add file menu (New, Open, Save, Save As)
-- [ ] 5.14: Implement status bar
-- [ ] 5.15: Add unit indicator icons
+### Week 17: Ribbon & Controls ✅ COMPLETE
+- [x] 5.11: Create ribbon component
+- [x] 5.12: Add display toggle button (Metric/Imperial)
+- [x] 5.13: Add file menu (New, Open, Save, Save As)
+- [x] 5.14: Implement status bar
+- [x] 5.15: Add unit indicator icons
 
 ### Week 18: UI Polish
 - [ ] 5.16: Add warning indicators (orange cells)
@@ -220,13 +220,13 @@
 - **Phase 2:** ✅ Complete (22/22 tasks)
 - **Phase 3:** ✅ Complete (15/15 tasks)
 - **Phase 4:** ✅ Complete (10/10 tasks)
-- **Phase 5:** ⏳ In Progress (10/20 tasks)
+- **Phase 5:** ⏳ In Progress (15/20 tasks)
 - **Phase 6:** ⏸ Not Started (0/10 tasks)
 - **Phase 7:** ⏸ Not Started (0/10 tasks)
 - **Phase 8:** ⏸ Not Started (0/5 tasks)
 - **Phase 9:** ⏸ Not Started (0/6 tasks)
 
-**Overall Progress:** 76/126 tasks (60.3%)
+**Overall Progress:** 81/126 tasks (64.3%)
 
 ---
 

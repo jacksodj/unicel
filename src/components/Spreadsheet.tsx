@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import Grid from './Grid';
+import Ribbon from './Ribbon';
+import StatusBar from './StatusBar';
 import { Cell, CellAddress, getCellAddress } from '../types/workbook';
 
 // Mock data for testing
@@ -54,6 +56,8 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
   const [selectedCell, setSelectedCell] = useState<CellAddress | null>(null);
   const [editingCell, setEditingCell] = useState<CellAddress | null>(null);
   const [formulaBarValue, setFormulaBarValue] = useState('');
+  const [displayMode, setDisplayMode] = useState<'AsEntered' | 'Metric' | 'Imperial'>('AsEntered');
+  const [isDirty, setIsDirty] = useState(false);
 
   const handleCellSelect = (address: CellAddress) => {
     setSelectedCell(address);
@@ -113,6 +117,7 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     const newCells = new Map(cells);
     newCells.set(cellAddr, newCell);
     setCells(newCells);
+    setIsDirty(true);
 
     setEditingCell(null);
     setSelectedCell(address);
@@ -128,23 +133,62 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     }
   };
 
+  const handleDisplayModeChange = (mode: 'AsEntered' | 'Metric' | 'Imperial') => {
+    setDisplayMode(mode);
+    // In a real implementation, this would trigger unit conversion for display
+    // For now, just update the mode
+  };
+
+  const handleNew = () => {
+    if (isDirty && !confirm('You have unsaved changes. Create new workbook?')) {
+      return;
+    }
+    setCells(new Map());
+    setSelectedCell(null);
+    setIsDirty(false);
+  };
+
+  const handleOpen = () => {
+    // TODO: Implement file open dialog via Tauri
+    alert('Open file dialog - to be implemented with Tauri integration');
+  };
+
+  const handleSave = () => {
+    // TODO: Implement save via Tauri
+    alert('Save workbook - to be implemented with Tauri integration');
+    setIsDirty(false);
+  };
+
+  const handleSaveAs = () => {
+    // TODO: Implement save as dialog via Tauri
+    alert('Save As dialog - to be implemented with Tauri integration');
+    setIsDirty(false);
+  };
+
+  const getSelectedCellUnit = (): string | undefined => {
+    if (!selectedCell) return undefined;
+    const cellAddr = getCellAddress(selectedCell.col, selectedCell.row);
+    const cell = cells.get(cellAddr);
+    return cell?.storageUnit || cell?.displayUnit;
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col bg-white">
-      {/* Header */}
-      <div className="bg-gray-800 text-white px-4 py-2 flex items-center justify-between">
-        <h1 className="text-xl font-bold">Unicel - Unit-Aware Spreadsheet</h1>
-        <div className="flex gap-4">
-          <button className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm">
-            New
-          </button>
-          <button className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm">
-            Open
-          </button>
-          <button className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm">
-            Save
-          </button>
-        </div>
+      {/* Title bar */}
+      <div className="bg-gray-800 text-white px-4 py-2">
+        <h1 className="text-lg font-bold">Unicel - Unit-Aware Spreadsheet</h1>
       </div>
+
+      {/* Ribbon */}
+      <Ribbon
+        displayMode={displayMode}
+        onDisplayModeChange={handleDisplayModeChange}
+        onNew={handleNew}
+        onOpen={handleOpen}
+        onSave={handleSave}
+        onSaveAs={handleSaveAs}
+        isDirty={isDirty}
+      />
 
       {/* Formula bar */}
       <div className="border-b border-gray-300 p-2 bg-gray-50">
@@ -188,12 +232,13 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
       </div>
 
       {/* Status bar */}
-      <div className="border-t border-gray-300 bg-gray-100 px-4 py-1 text-xs text-gray-600">
-        <div className="flex justify-between">
-          <span>Ready</span>
-          <span>Display: As Entered | Auto-Calculate: On</span>
-        </div>
-      </div>
+      <StatusBar
+        displayMode={displayMode}
+        autoRecalculate={true}
+        cellCount={cells.size}
+        selectedCell={selectedCell}
+        cellUnit={getSelectedCellUnit()}
+      />
     </div>
   );
 }
