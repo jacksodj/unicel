@@ -1,4 +1,7 @@
 // Formula parsing and evaluation
 
-// TODO: Implement formula parser with pest
-// TODO: Implement unit-aware evaluator
+pub mod ast;
+pub mod parser;
+
+pub use ast::Expr;
+pub use parser::{parse_formula, ParseError};

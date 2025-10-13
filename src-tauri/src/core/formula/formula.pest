@@ -1,0 +1,51 @@
+// Formula grammar for unit-aware spreadsheet
+// Supports: arithmetic operations, cell references, and literal units
+
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+
+// Main formula rule (optionally starts with =)
+formula = { SOI ~ "="? ~ expr ~ EOI }
+
+// Expressions with precedence
+expr = { term ~ (add_op ~ term)* }
+term = { factor ~ (mul_op ~ factor)* }
+factor = { unary_op? ~ primary }
+
+// Operators
+add_op = { "+" | "-" }
+mul_op = { "*" | "/" }
+unary_op = { "-" | "+" }
+
+// Primary expressions
+primary = _{
+    "(" ~ expr ~ ")" |
+    function_call |
+    cell_ref |
+    number_with_unit |
+    number
+}
+
+// Numbers
+number = @{ float | integer }
+integer = @{ ASCII_DIGIT+ }
+float = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* | "." ~ ASCII_DIGIT+ }
+
+// Number with unit (e.g., "100m", "5.5kg")
+number_with_unit = { number ~ unit }
+
+// Unit identifier
+unit = @{ ASCII_ALPHA+ }
+
+// Cell reference (e.g., A1, B12, AA100)
+cell_ref = @{ col_ref ~ row_ref }
+col_ref = @{ ASCII_ALPHA+ }
+row_ref = @{ ASCII_DIGIT+ }
+
+// Function call (e.g., SUM(A1:A10))
+function_call = { function_name ~ "(" ~ arg_list? ~ ")" }
+function_name = @{ ASCII_ALPHA+ }
+arg_list = { arg ~ ("," ~ arg)* }
+arg = { range | expr }
+
+// Cell range (e.g., A1:B10)
+range = { cell_ref ~ ":" ~ cell_ref }
