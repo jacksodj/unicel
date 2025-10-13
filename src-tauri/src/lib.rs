@@ -6,7 +6,7 @@ pub mod mcp;
 
 // Re-export main types
 pub use core::{
-    cell::Cell,
+    cell::{Cell, CellValue},
     units::Unit,
     workbook::Workbook,
 };
