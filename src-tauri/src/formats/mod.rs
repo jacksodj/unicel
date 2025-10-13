@@ -1,4 +1,7 @@
 // File format handlers
 
-pub mod json;
 pub mod excel;
+pub mod json;
+
+// Re-export main types
+pub use json::{SerializationError, WorkbookFile};

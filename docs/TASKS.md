@@ -2,8 +2,8 @@
 
 > This file tracks all tasks. Mark [x] when complete. Auto-generated from PROJECT_PLAN.md
 
-**Current Phase:** Phase 4 - File Format
-**Week:** 13 of 24
+**Current Phase:** Phase 5 - Basic UI
+**Week:** 15 of 24
 **Updated:** 2025-10-13
 
 ---
@@ -93,19 +93,19 @@
 
 ## Phase 4: File Format (Weeks 13-14)
 
-### Week 13: JSON Serialization
-- [ ] 4.1: Implement JSON serialization for Cell
-- [ ] 4.2: Implement JSON serialization for Sheet
-- [ ] 4.3: Implement JSON serialization for Workbook
-- [ ] 4.4: Add version metadata
-- [ ] 4.5: Create .usheet file format handler
+### Week 13: JSON Serialization ✅ COMPLETE
+- [x] 4.1: Implement JSON serialization for Cell
+- [x] 4.2: Implement JSON serialization for Sheet
+- [x] 4.3: Implement JSON serialization for Workbook
+- [x] 4.4: Add version metadata
+- [x] 4.5: Create .usheet file format handler
 
-### Week 14: File I/O
-- [ ] 4.6: Implement workbook save
-- [ ] 4.7: Implement workbook load
-- [ ] 4.8: Add error handling for corrupt files
-- [ ] 4.9: Test round-trip (save → load → verify)
-- [ ] 4.10: Implement dirty flag tracking
+### Week 14: File I/O ✅ COMPLETE
+- [x] 4.6: Implement workbook save
+- [x] 4.7: Implement workbook load
+- [x] 4.8: Add error handling for corrupt files
+- [x] 4.9: Test round-trip (save → load → verify)
+- [x] 4.10: Implement dirty flag tracking
 
 ---
 
@@ -219,14 +219,14 @@
 - **Phase 1:** ✅ Complete (14/14 tasks)
 - **Phase 2:** ✅ Complete (22/22 tasks)
 - **Phase 3:** ✅ Complete (15/15 tasks)
-- **Phase 4:** ⏸ Not Started (0/10 tasks)
+- **Phase 4:** ✅ Complete (10/10 tasks)
 - **Phase 5:** ⏸ Not Started (0/20 tasks)
 - **Phase 6:** ⏸ Not Started (0/10 tasks)
 - **Phase 7:** ⏸ Not Started (0/10 tasks)
 - **Phase 8:** ⏸ Not Started (0/5 tasks)
 - **Phase 9:** ⏸ Not Started (0/6 tasks)
 
-**Overall Progress:** 56/126 tasks (44.4%)
+**Overall Progress:** 66/126 tasks (52.4%)
 
 ---
 
