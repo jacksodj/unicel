@@ -1,5 +1,11 @@
 // Unit system with dimensional analysis
 
+mod library;
+mod parser;
+
+pub use library::{ConversionFactor, UnitLibrary};
+pub use parser::{parse_unit, ParseError};
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
