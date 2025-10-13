@@ -3,7 +3,7 @@
 > This file tracks all tasks. Mark [x] when complete. Auto-generated from PROJECT_PLAN.md
 
 **Current Phase:** Phase 2 - Cell & Formula Engine
-**Week:** 7 of 24
+**Week:** 8 of 24
 **Updated:** 2025-10-13
 
 ---
@@ -41,12 +41,12 @@
 - [x] 2.4: Create cell tests
 - [x] 2.5: Add CellValue type for calculations
 
-### Week 7: Formula Parser (Simplified)
-- [ ] 2.6: Define formula grammar with pest (basic arithmetic)
-- [ ] 2.7: Implement tokenizer
-- [ ] 2.8: Build basic AST (Add, Subtract, Multiply, Divide, CellRef)
-- [ ] 2.9: Write parser tests
-- [ ] 2.10: Add literal unit support in formulas
+### Week 7: Formula Parser (Simplified) ✅ COMPLETE
+- [x] 2.6: Define formula grammar with pest (basic arithmetic)
+- [x] 2.7: Implement tokenizer
+- [x] 2.8: Build basic AST (Add, Subtract, Multiply, Divide, CellRef)
+- [x] 2.9: Write parser tests
+- [x] 2.10: Add literal unit support in formulas
 
 ### Week 8: Unit-Aware Operations
 - [ ] 2.11: Implement Add operation (compatible units)
@@ -217,7 +217,7 @@
 
 - **Phase 0:** ✅ Complete (5/5 tasks)
 - **Phase 1:** ✅ Complete (14/14 tasks)
-- **Phase 2:** ⏳ In Progress (5/22 tasks)
+- **Phase 2:** ⏳ In Progress (10/22 tasks)
 - **Phase 3:** ⏸ Not Started (0/15 tasks)
 - **Phase 4:** ⏸ Not Started (0/10 tasks)
 - **Phase 5:** ⏸ Not Started (0/20 tasks)
@@ -226,7 +226,7 @@
 - **Phase 8:** ⏸ Not Started (0/5 tasks)
 - **Phase 9:** ⏸ Not Started (0/6 tasks)
 
-**Overall Progress:** 24/126 tasks (19.0%)
+**Overall Progress:** 29/126 tasks (23.0%)
 
 ---
 
