@@ -3,7 +3,7 @@
 > This file tracks all tasks. Mark [x] when complete. Auto-generated from PROJECT_PLAN.md
 
 **Current Phase:** Phase 2 - Cell & Formula Engine
-**Week:** 8 of 24
+**Week:** 9 of 24
 **Updated:** 2025-10-13
 
 ---
@@ -48,13 +48,13 @@
 - [x] 2.9: Write parser tests
 - [x] 2.10: Add literal unit support in formulas
 
-### Week 8: Unit-Aware Operations
-- [ ] 2.11: Implement Add operation (compatible units)
-- [ ] 2.12: Implement Subtract operation
-- [ ] 2.13: Implement Multiply operation (compound units)
-- [ ] 2.14: Implement Divide operation (compound units + cancellation)
-- [ ] 2.15: Add warning system for incompatible operations
-- [ ] 2.16: Test all operations extensively
+### Week 8: Unit-Aware Operations ✅ COMPLETE
+- [x] 2.11: Implement Add operation (compatible units)
+- [x] 2.12: Implement Subtract operation
+- [x] 2.13: Implement Multiply operation (compound units)
+- [x] 2.14: Implement Divide operation (compound units + cancellation)
+- [x] 2.15: Add warning system for incompatible operations
+- [x] 2.16: Test all operations extensively
 
 ### Week 9: Formula Evaluation & Dependencies
 - [ ] 2.17: Implement formula evaluator
@@ -217,7 +217,7 @@
 
 - **Phase 0:** ✅ Complete (5/5 tasks)
 - **Phase 1:** ✅ Complete (14/14 tasks)
-- **Phase 2:** ⏳ In Progress (10/22 tasks)
+- **Phase 2:** ⏳ In Progress (16/22 tasks)
 - **Phase 3:** ⏸ Not Started (0/15 tasks)
 - **Phase 4:** ⏸ Not Started (0/10 tasks)
 - **Phase 5:** ⏸ Not Started (0/20 tasks)
@@ -226,7 +226,7 @@
 - **Phase 8:** ⏸ Not Started (0/5 tasks)
 - **Phase 9:** ⏸ Not Started (0/6 tasks)
 
-**Overall Progress:** 29/126 tasks (23.0%)
+**Overall Progress:** 35/126 tasks (27.8%)
 
 ---
 
