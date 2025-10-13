@@ -3,7 +3,7 @@
 > This file tracks all tasks. Mark [x] when complete. Auto-generated from PROJECT_PLAN.md
 
 **Current Phase:** Phase 2 - Cell & Formula Engine
-**Week:** 6 of 24
+**Week:** 7 of 24
 **Updated:** 2025-10-13
 
 ---
@@ -34,12 +34,12 @@
 
 ## Phase 2: Cell & Formula Engine (Weeks 6-9)
 
-### Week 6: Cell Structure
-- [ ] 2.1: Implement Cell struct with all fields
-- [ ] 2.2: Add cell creation and modification methods
-- [ ] 2.3: Implement cell display logic
-- [ ] 2.4: Create cell tests
-- [ ] 2.5: Add CellValue type for calculations
+### Week 6: Cell Structure ✅ COMPLETE
+- [x] 2.1: Implement Cell struct with all fields
+- [x] 2.2: Add cell creation and modification methods
+- [x] 2.3: Implement cell display logic
+- [x] 2.4: Create cell tests
+- [x] 2.5: Add CellValue type for calculations
 
 ### Week 7: Formula Parser (Simplified)
 - [ ] 2.6: Define formula grammar with pest (basic arithmetic)
@@ -217,7 +217,7 @@
 
 - **Phase 0:** ✅ Complete (5/5 tasks)
 - **Phase 1:** ✅ Complete (14/14 tasks)
-- **Phase 2:** ⏸ Not Started (0/22 tasks)
+- **Phase 2:** ⏳ In Progress (5/22 tasks)
 - **Phase 3:** ⏸ Not Started (0/15 tasks)
 - **Phase 4:** ⏸ Not Started (0/10 tasks)
 - **Phase 5:** ⏸ Not Started (0/20 tasks)
@@ -226,7 +226,7 @@
 - **Phase 8:** ⏸ Not Started (0/5 tasks)
 - **Phase 9:** ⏸ Not Started (0/6 tasks)
 
-**Overall Progress:** 19/126 tasks (15.1%)
+**Overall Progress:** 24/126 tasks (19.0%)
 
 ---
 
