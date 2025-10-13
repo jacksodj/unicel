@@ -2,8 +2,8 @@
 
 > This file tracks all tasks. Mark [x] when complete. Auto-generated from PROJECT_PLAN.md
 
-**Current Phase:** Phase 1 - Core Unit System
-**Week:** 4 of 24
+**Current Phase:** Phase 2 - Cell & Formula Engine
+**Week:** 6 of 24
 **Updated:** 2025-10-13
 
 ---
@@ -17,18 +17,18 @@
 - [x] 1.4: Implement unit parsing (basic, no disambiguation yet)
 - [x] 1.5: Write unit equality tests
 
-### Week 4: Unit Library ⏳ IN PROGRESS
+### Week 4: Unit Library ✅ COMPLETE
 - [x] 1.6: Build unit library with Tier 1 units (Length, Mass, Time, Temp, Currency)
 - [x] 1.7: Define conversion factors (hardcoded for MLP)
 - [x] 1.8: Create unit library tests
-- [ ] 1.9: Implement unit.to_string() for display
+- [x] 1.9: Implement unit.to_string() for display
 
-### Week 5: Basic Conversion System
-- [ ] 1.10: Create ConversionGraph struct
-- [ ] 1.11: Implement direct conversion lookup
-- [ ] 1.12: Add conversion between compatible units
-- [ ] 1.13: Test conversion accuracy
-- [ ] 1.14: Implement storage vs display separation (basic)
+### Week 5: Basic Conversion System ✅ COMPLETE
+- [x] 1.10: Create ConversionGraph struct (Simplified: using direct HashMap for MLP)
+- [x] 1.11: Implement direct conversion lookup
+- [x] 1.12: Add conversion between compatible units
+- [x] 1.13: Test conversion accuracy
+- [x] 1.14: Implement storage vs display separation (basic)
 
 ---
 
@@ -216,7 +216,7 @@
 ## Progress Summary
 
 - **Phase 0:** ✅ Complete (5/5 tasks)
-- **Phase 1:** ⏳ In Progress (8/14 tasks)
+- **Phase 1:** ✅ Complete (14/14 tasks)
 - **Phase 2:** ⏸ Not Started (0/22 tasks)
 - **Phase 3:** ⏸ Not Started (0/15 tasks)
 - **Phase 4:** ⏸ Not Started (0/10 tasks)
@@ -226,7 +226,7 @@
 - **Phase 8:** ⏸ Not Started (0/5 tasks)
 - **Phase 9:** ⏸ Not Started (0/6 tasks)
 
-**Overall Progress:** 13/126 tasks (10.3%)
+**Overall Progress:** 19/126 tasks (15.1%)
 
 ---
 
