@@ -3,24 +3,24 @@
 > This file tracks all tasks. Mark [x] when complete. Auto-generated from PROJECT_PLAN.md
 
 **Current Phase:** Phase 1 - Core Unit System
-**Week:** 3 of 24
-**Updated:** 2025-01-15
+**Week:** 4 of 24
+**Updated:** 2025-10-13
 
 ---
 
 ## Phase 1: Core Unit System (Weeks 3-5)
 
-### Week 3: Unit Fundamentals ⏳ IN PROGRESS
-- [ ] 1.1: Define Unit struct with canonical form
-- [ ] 1.2: Implement Dimension enum (Simple dimensions only for MLP)
-- [ ] 1.3: Create BaseDimension enum (Length, Mass, Time, Temperature, Currency)
-- [ ] 1.4: Implement unit parsing (basic, no disambiguation yet)
-- [ ] 1.5: Write unit equality tests
+### Week 3: Unit Fundamentals ✅ COMPLETE
+- [x] 1.1: Define Unit struct with canonical form
+- [x] 1.2: Implement Dimension enum (Simple dimensions only for MLP)
+- [x] 1.3: Create BaseDimension enum (Length, Mass, Time, Temperature, Currency)
+- [x] 1.4: Implement unit parsing (basic, no disambiguation yet)
+- [x] 1.5: Write unit equality tests
 
-### Week 4: Unit Library
-- [ ] 1.6: Build unit library with Tier 1 units (Length, Mass, Time, Temp, Currency)
-- [ ] 1.7: Define conversion factors (hardcoded for MLP)
-- [ ] 1.8: Create unit library tests
+### Week 4: Unit Library ⏳ IN PROGRESS
+- [x] 1.6: Build unit library with Tier 1 units (Length, Mass, Time, Temp, Currency)
+- [x] 1.7: Define conversion factors (hardcoded for MLP)
+- [x] 1.8: Create unit library tests
 - [ ] 1.9: Implement unit.to_string() for display
 
 ### Week 5: Basic Conversion System
@@ -216,7 +216,7 @@
 ## Progress Summary
 
 - **Phase 0:** ✅ Complete (5/5 tasks)
-- **Phase 1:** ⏳ In Progress (0/14 tasks)
+- **Phase 1:** ⏳ In Progress (8/14 tasks)
 - **Phase 2:** ⏸ Not Started (0/22 tasks)
 - **Phase 3:** ⏸ Not Started (0/15 tasks)
 - **Phase 4:** ⏸ Not Started (0/10 tasks)
@@ -226,7 +226,7 @@
 - **Phase 8:** ⏸ Not Started (0/5 tasks)
 - **Phase 9:** ⏸ Not Started (0/6 tasks)
 
-**Overall Progress:** 5/126 tasks (4.0%)
+**Overall Progress:** 13/126 tasks (10.3%)
 
 ---
 
