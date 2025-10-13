@@ -117,8 +117,8 @@ npm run lint
 **Overall Progress:** 5/117 tasks (4.3%)
 
 See detailed tracking in:
-- [PROJECT_PLAN.md](./PROJECT_PLAN.md) - Complete implementation plan with timeline
-- [TASKS.md](./TASKS.md) - Detailed task checklist (mark tasks as you complete them)
+- [PROJECT_PLAN.md](./docs/PROJECT_PLAN.md) - Complete implementation plan with timeline
+- [TASKS.md](./docs/TASKS.md) - Detailed task checklist (mark tasks as you complete them)
 - [Design Document](./requirements/Unit%20Aware%20Spreadsheet%20Design.md) - Full technical specification
 
 ## Contributing
@@ -132,8 +132,8 @@ This project is dual-licensed under MIT OR Apache-2.0. See [LICENSE-MIT](./LICEN
 ## Documentation
 
 **Planning & Tracking:**
-- [PROJECT_PLAN.md](./PROJECT_PLAN.md) - 24-week implementation plan with phases and deliverables
-- [TASKS.md](./TASKS.md) - Detailed task checklist for tracking progress
+- [PROJECT_PLAN.md](./docs/PROJECT_PLAN.md) - 24-week implementation plan with phases and deliverables
+- [TASKS.md](./docs/TASKS.md) - Detailed task checklist for tracking progress
 
 **Architecture & Design:**
 - [CLAUDE.md](./CLAUDE.md) - Development guidance for Claude Code
