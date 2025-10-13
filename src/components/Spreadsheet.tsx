@@ -50,29 +50,82 @@ interface SpreadsheetProps {
 }
 
 export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) {
-  const [cells] = useState<Map<string, Cell>>(createMockCells());
+  const [cells, setCells] = useState<Map<string, Cell>>(createMockCells());
   const [selectedCell, setSelectedCell] = useState<CellAddress | null>(null);
+  const [editingCell, setEditingCell] = useState<CellAddress | null>(null);
+  const [formulaBarValue, setFormulaBarValue] = useState('');
 
   const handleCellSelect = (address: CellAddress) => {
     setSelectedCell(address);
+    setEditingCell(null); // Stop editing when selecting a different cell
+
+    // Update formula bar
+    const cellAddr = getCellAddress(address.col, address.row);
+    const cell = cells.get(cellAddr);
+    if (cell?.formula) {
+      setFormulaBarValue(cell.formula);
+    } else if (cell?.value.type === 'number') {
+      const unit = cell.storageUnit;
+      setFormulaBarValue(unit ? `${cell.value.value} ${unit}` : `${cell.value.value}`);
+    } else {
+      setFormulaBarValue('');
+    }
   };
 
-  const getSelectedCellInfo = (): string => {
-    if (!selectedCell) return 'No cell selected';
-
-    const address = getCellAddress(selectedCell.col, selectedCell.row);
-    const cell = cells.get(address);
-
-    if (!cell) return `${address}: Empty`;
-
-    let info = `${address}: `;
-    if (cell.formula) {
-      info += cell.formula;
-    } else if (cell.value.type === 'number') {
-      info += `${cell.value.value} ${cell.displayUnit || cell.storageUnit}`;
+  const parseInputValue = (input: string): Cell => {
+    // Check if it's a formula
+    if (input.startsWith('=')) {
+      return {
+        value: { type: 'empty' },
+        storageUnit: '',
+        formula: input,
+      };
     }
 
-    return info;
+    // Parse number with optional unit
+    const match = input.trim().match(/^([-+]?\d+\.?\d*)\s*(.*)$/);
+    if (match && match[1] !== undefined) {
+      const value = parseFloat(match[1]);
+      const unit = (match[2] || '').trim();
+      return {
+        value: { type: 'number', value },
+        storageUnit: unit,
+      };
+    }
+
+    // Empty or invalid
+    return {
+      value: { type: 'empty' },
+      storageUnit: '',
+    };
+  };
+
+  const handleCellEdit = (address: CellAddress, value: string) => {
+    if (value === '') {
+      // Cancel edit
+      setEditingCell(null);
+      return;
+    }
+
+    const cellAddr = getCellAddress(address.col, address.row);
+    const newCell = parseInputValue(value);
+
+    const newCells = new Map(cells);
+    newCells.set(cellAddr, newCell);
+    setCells(newCells);
+
+    setEditingCell(null);
+    setSelectedCell(address);
+  };
+
+  const handleCellDoubleClick = (address: CellAddress) => {
+    setEditingCell(address);
+  };
+
+  const handleFormulaBarEdit = () => {
+    if (selectedCell) {
+      handleCellEdit(selectedCell, formulaBarValue);
+    }
   };
 
   return (
@@ -101,10 +154,16 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
           </span>
           <input
             type="text"
-            className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
-            value={getSelectedCellInfo()}
-            readOnly
-            placeholder="Select a cell..."
+            className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={formulaBarValue}
+            onChange={(e) => setFormulaBarValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleFormulaBarEdit();
+              }
+            }}
+            placeholder="Select a cell to edit..."
+            disabled={!selectedCell}
           />
         </div>
       </div>
@@ -121,7 +180,10 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
         <Grid
           cells={cells}
           selectedCell={selectedCell}
+          editingCell={editingCell}
           onCellSelect={handleCellSelect}
+          onCellEdit={handleCellEdit}
+          onCellDoubleClick={handleCellDoubleClick}
         />
       </div>
 

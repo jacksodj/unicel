@@ -111,19 +111,19 @@
 
 ## Phase 5: Basic UI (Weeks 15-18)
 
-### Week 15: Grid Component
-- [ ] 5.1: Create basic grid component (HTML table for MLP)
-- [ ] 5.2: Implement cell rendering
-- [ ] 5.3: Add cell selection
-- [ ] 5.4: Implement scroll behavior
-- [ ] 5.5: Show cell values with units
+### Week 15: Grid Component ✅ COMPLETE
+- [x] 5.1: Create basic grid component (HTML table for MLP)
+- [x] 5.2: Implement cell rendering
+- [x] 5.3: Add cell selection
+- [x] 5.4: Implement scroll behavior
+- [x] 5.5: Show cell values with units
 
-### Week 16: Cell Editing
-- [ ] 5.6: Implement cell editor
-- [ ] 5.7: Add input parsing (value + unit)
-- [ ] 5.8: Show edit vs display mode
-- [ ] 5.9: Handle Enter/Escape keys
-- [ ] 5.10: Add formula bar
+### Week 16: Cell Editing ✅ COMPLETE
+- [x] 5.6: Implement cell editor
+- [x] 5.7: Add input parsing (value + unit)
+- [x] 5.8: Show edit vs display mode
+- [x] 5.9: Handle Enter/Escape keys
+- [x] 5.10: Add formula bar
 
 ### Week 17: Ribbon & Controls
 - [ ] 5.11: Create ribbon component
@@ -220,13 +220,13 @@
 - **Phase 2:** ✅ Complete (22/22 tasks)
 - **Phase 3:** ✅ Complete (15/15 tasks)
 - **Phase 4:** ✅ Complete (10/10 tasks)
-- **Phase 5:** ⏸ Not Started (0/20 tasks)
+- **Phase 5:** ⏳ In Progress (10/20 tasks)
 - **Phase 6:** ⏸ Not Started (0/10 tasks)
 - **Phase 7:** ⏸ Not Started (0/10 tasks)
 - **Phase 8:** ⏸ Not Started (0/5 tasks)
 - **Phase 9:** ⏸ Not Started (0/6 tasks)
 
-**Overall Progress:** 66/126 tasks (52.4%)
+**Overall Progress:** 76/126 tasks (60.3%)
 
 ---
 
