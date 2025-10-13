@@ -190,7 +190,11 @@ impl DependencyGraph {
 }
 
 /// A spreadsheet sheet
+#[derive(Debug)]
 pub struct Sheet {
+    /// Sheet name
+    name: String,
+
     /// Cell storage
     cells: HashMap<CellAddr, Cell>,
 
@@ -203,16 +207,77 @@ pub struct Sheet {
 
 impl Sheet {
     pub fn new() -> Self {
+        Self::with_name("Sheet1")
+    }
+
+    pub fn with_name(name: impl Into<String>) -> Self {
         Self {
+            name: name.into(),
             cells: HashMap::new(),
             dependencies: DependencyGraph::new(),
             library: UnitLibrary::new(),
         }
     }
 
+    /// Get the sheet name
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Set the sheet name
+    pub fn set_name(&mut self, name: impl Into<String>) {
+        self.name = name.into();
+    }
+
     /// Get a cell
     pub fn get(&self, addr: &CellAddr) -> Option<&Cell> {
         self.cells.get(addr)
+    }
+
+    /// Get a mutable reference to a cell
+    pub fn get_mut(&mut self, addr: &CellAddr) -> Option<&mut Cell> {
+        self.cells.get_mut(addr)
+    }
+
+    /// Get cells in a range (single column only for MLP)
+    pub fn get_range(&self, start: &CellAddr, end: &CellAddr) -> Vec<(CellAddr, &Cell)> {
+        let mut result = Vec::new();
+
+        // For MLP, only support single-column ranges
+        if start.col != end.col {
+            return result;
+        }
+
+        for row in start.row..=end.row {
+            let addr = CellAddr::new(&start.col, row);
+            if let Some(cell) = self.get(&addr) {
+                result.push((addr, cell));
+            }
+        }
+
+        result
+    }
+
+    /// Remove a cell
+    pub fn remove(&mut self, addr: &CellAddr) -> Option<Cell> {
+        self.dependencies.remove_dependencies(addr);
+        self.cells.remove(addr)
+    }
+
+    /// Clear all cells
+    pub fn clear(&mut self) {
+        self.cells.clear();
+        self.dependencies = DependencyGraph::new();
+    }
+
+    /// Get all non-empty cell addresses
+    pub fn cell_addresses(&self) -> Vec<CellAddr> {
+        self.cells.keys().cloned().collect()
+    }
+
+    /// Get the count of non-empty cells
+    pub fn cell_count(&self) -> usize {
+        self.cells.len()
     }
 
     /// Set a cell with a direct value

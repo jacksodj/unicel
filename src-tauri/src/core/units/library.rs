@@ -31,6 +31,7 @@ impl ConversionFactor {
 }
 
 /// Unit library containing all predefined units
+#[derive(Debug)]
 pub struct UnitLibrary {
     units: HashMap<String, Unit>,
     conversions: HashMap<(String, String), ConversionFactor>,
