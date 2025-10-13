@@ -225,14 +225,27 @@ The MLP focuses on delivering the core innovation with enough polish to be genui
 - [ ] 7.4: Test edge cases (zero, negative, very large numbers)
 - [ ] 7.5: Add error handling tests
 
-#### Week 22: Examples & Documentation
-- [ ] 7.6: Create simple example workbook (basic conversions)
-- [ ] 7.7: Create formula examples workbook
-- [ ] 7.8: Create mixed units workbook (imperial + metric)
-- [ ] 7.9: Write user guide (basic)
-- [ ] 7.10: Create demo video
+#### Week 22: Use Case Examples & Documentation
+- [ ] 7.6: Create Construction Estimator example workbook
+  - [ ] Material list with dimensional calculations (sqft, board feet)
+  - [ ] Cost calculations with automatic unit cancellation
+  - [ ] Metric/Imperial display toggle demonstration
+  - [ ] Notes explaining key formulas
+- [ ] 7.7: Create AWS Cost Estimator example workbook
+  - [ ] EC2/RDS instance pricing with compound units
+  - [ ] Data transfer calculations (GB/mo × $/GB)
+  - [ ] Multi-region comparison (USD vs EUR)
+  - [ ] Scaling scenario projections
+- [ ] 7.8: Create Investment Portfolio Tracker example workbook
+  - [ ] Stock positions with shares and cost basis
+  - [ ] Multi-currency holdings (USD, EUR, GBP)
+  - [ ] Return calculations with proper unit handling
+  - [ ] Asset allocation summary
+- [ ] 7.9: Create basic tutorial workbook (unit conversion primer)
+- [ ] 7.10: Write user guide with screenshots
+- [ ] 7.11: Create demo video showcasing all three examples
 
-**Deliverable:** Well-tested app with examples
+**Deliverable:** Well-tested app with professional example workbooks
 
 ---
 
@@ -299,6 +312,168 @@ These are valuable features for subsequent releases:
 - Internal MCP server
 - External MCP clients
 - AI assistant integration
+
+---
+
+## Example Workbooks for MLP Launch
+
+The three use case example workbooks will demonstrate real-world applications of the unit-aware system to new users. These simplified versions focus on core functionality (no MCP, no live data) but show the key value propositions.
+
+### 1. Construction Estimator (`construction-estimator.usheet`)
+
+**Purpose:** Show dimensional analysis and automatic unit handling
+
+**Key Features Demonstrated:**
+- **Area calculations:** `18ft * 9ft = 162 sqft` (automatic unit multiplication)
+- **Volume calculations:** `450 sqft * 4in = 150 cuft` (dimension handling)
+- **Unit cancellation:** `935 sqft * $4.80/sqft = $4,488` (sqft cancels)
+- **Waste factors:** `850 sqft * 1.10 = 935 sqft` (dimensionless multipliers)
+- **Metric/Imperial toggle:** Show same materials in feet vs meters
+- **Mixed units:** `18ft 6in` properly handled
+
+**Sample Data:**
+```
+Sheet: Material Estimate
+├─ 2x4 Studs: 145 pieces @ $4.25/piece = $616.25
+├─ Drywall: 42 sheets @ $12.75/sheet = $535.50
+├─ Flooring: 850 sqft @ $4.80/sqft = $4,080.00
+├─ Concrete: 5.56 cuyd @ $120/cuyd = $667.20
+└─ Total: $12,847.50
+
+Sheet: Room Dimensions
+├─ Living Room: 18ft × 14ft × 9ft = 576 sqft walls
+├─ Kitchen: 12ft × 10ft × 9ft = 396 sqft walls
+└─ Formulas show automatic dimensional analysis
+```
+
+**Formulas to Include:**
+- `=Length * Width` → sqft
+- `=Area * Depth` → cuft
+- `=Volume / 27` → cuyd (cu ft to cu yd conversion)
+- `=Price/sqft * Area` → total cost
+
+### 2. AWS Cost Estimator (`aws-cost-estimator.usheet`)
+
+**Purpose:** Show compound units and complex calculations
+
+**Key Features Demonstrated:**
+- **Compound units:** `GB/mo`, `$/GB`, `requests/mo`
+- **Unit cancellation:** `2000 GB/mo * $0.085/GB = $170/mo` (GB cancels)
+- **Nested compound units:** `50M requests/mo * $0.20/M requests = $10/mo`
+- **Multi-region pricing:** EUR vs USD with conversion factor
+- **Per-unit cost calculations:** `$550.66/mo / 10,000 users = $0.055/user/mo`
+- **Scaling projections:** Show cost at 1x, 5x, 10x scale
+
+**Sample Data:**
+```
+Sheet: Current Infrastructure
+├─ EC2 (4× t3.medium): $121.48/mo
+├─ RDS (db.r6g.large): $182.50/mo
+├─ S3 Storage: 500GB @ $0.023/GB-mo = $11.50/mo
+├─ CloudFront: 2000 GB/mo @ $0.085/GB = $170.00/mo
+├─ Lambda: 50M requests/mo @ $0.20/M = $10.00/mo
+└─ Total: $495.48/mo
+
+Sheet: Scaling Scenarios
+├─ Current (1,000 users): $495.48/mo = $0.50/user/mo
+├─ 5x Scale (5,000 users): $1,247.40/mo = $0.25/user/mo
+├─ 10x Scale (10,000 users): $2,482.50/mo = $0.25/user/mo
+└─ Formulas show automatic scaling calculations
+
+Sheet: Multi-Region Comparison
+├─ US East (Virginia): $495.48/mo
+├─ EU West (Ireland): €468.50/mo = $505.98/mo (@ 1.08 EUR/USD)
+├─ Asia Pacific (Mumbai): $445.74/mo (-10% cheaper)
+└─ Currency conversion formulas with exchange rates
+```
+
+**Formulas to Include:**
+- `=Quantity * Price_per_unit` (with various compound units)
+- `=Data_GB * Transfer_rate_$/GB`
+- `=Requests * Price_per_million_requests / 1M`
+- `=Total_cost / Number_of_users`
+
+### 3. Investment Portfolio Tracker (`investment-portfolio.usheet`)
+
+**Purpose:** Show financial calculations and multi-currency
+
+**Key Features Demonstrated:**
+- **Share arithmetic:** `150 shares * $180.23/share = $27,034.50`
+- **Return calculations:** `(Current - Cost) / Cost = %`
+- **Multi-currency:** EUR and GBP positions converted to USD
+- **Compound return units:** `$/share`, `shares`, `%/year`
+- **Dividend calculations:** `shares * $/share = $`
+- **Asset allocation percentages:** `Position_value / Total_value`
+
+**Sample Data:**
+```
+Sheet: Holdings
+├─ AAPL: 150 shares @ $180.23/share = $27,034.50 (+23.9%)
+├─ MSFT: 85 shares @ $378.85/share = $32,202.25 (+35.3%)
+├─ VOW3.DE: 100 shares @ €92.30/share = $9,968.40 (@ 1.08 USD/EUR)
+├─ 7203.T: 500 shares @ ¥2,140/share = $7,163.33 (@ 150 JPY/USD)
+└─ Total: $76,368.48 (+21.7%)
+
+Sheet: Dashboard
+├─ Total Value: $76,368.48
+├─ Total Invested: $62,764.00
+├─ Total Gain: $13,604.48 (+21.7%)
+└─ Asset Allocation: 35.4% US, 10.4% Intl, 54.2% Crypto
+
+Sheet: Performance
+├─ Best Performer: MSFT +35.3%
+├─ Worst Performer: GLD +4.0%
+├─ YTD Return: +18.2%
+└─ Formulas show proper return calculations
+```
+
+**Formulas to Include:**
+- `=Shares * Price_per_share`
+- `=(Current_value - Cost_basis) / Cost_basis` (return %)
+- `=Foreign_price * Exchange_rate` (multi-currency)
+- `=Position_value / Total_portfolio_value` (allocation %)
+- `=Dividend_per_share * Shares` (dividend income)
+
+### Example Workbook Implementation Notes
+
+**For Week 22 Implementation:**
+1. **Start simple:** Use hardcoded values (no live data, no MCP)
+2. **Add notes/comments:** Explain what each formula demonstrates
+3. **Visual polish:** Use cell colors to highlight key calculations
+4. **Progressive complexity:** Start with simple formulas, build up
+5. **Show errors:** Include 1-2 examples of incompatible unit warnings
+6. **Documentation:** Each workbook should have a "README" sheet explaining it
+
+**File Locations:**
+```
+examples/
+├── construction-estimator.usheet
+├── aws-cost-estimator.usheet
+├── investment-portfolio.usheet
+└── unit-conversion-tutorial.usheet
+```
+
+**README Sheet Template:**
+```
+=== Example: [Name] ===
+
+Purpose: [What this demonstrates]
+
+Key Features:
+1. [Feature 1]
+2. [Feature 2]
+3. [Feature 3]
+
+How to Use:
+1. [Step 1]
+2. [Step 2]
+3. [Step 3]
+
+Try This:
+- [Exercise 1]
+- [Exercise 2]
+- [Exercise 3]
+```
 
 ---
 

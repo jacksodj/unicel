@@ -168,12 +168,25 @@
 - [ ] 7.4: Test edge cases (zero, negative, very large numbers)
 - [ ] 7.5: Add error handling tests
 
-### Week 22: Examples & Documentation
-- [ ] 7.6: Create simple example workbook (basic conversions)
-- [ ] 7.7: Create formula examples workbook
-- [ ] 7.8: Create mixed units workbook (imperial + metric)
-- [ ] 7.9: Write user guide (basic)
-- [ ] 7.10: Create demo video
+### Week 22: Use Case Examples & Documentation
+- [ ] 7.6: Create Construction Estimator example workbook
+  - [ ] Material list with dimensional calculations (sqft, board feet)
+  - [ ] Cost calculations with automatic unit cancellation
+  - [ ] Metric/Imperial display toggle demonstration
+  - [ ] Notes explaining key formulas
+- [ ] 7.7: Create AWS Cost Estimator example workbook
+  - [ ] EC2/RDS instance pricing with compound units
+  - [ ] Data transfer calculations (GB/mo × $/GB)
+  - [ ] Multi-region comparison (USD vs EUR)
+  - [ ] Scaling scenario projections
+- [ ] 7.8: Create Investment Portfolio Tracker example workbook
+  - [ ] Stock positions with shares and cost basis
+  - [ ] Multi-currency holdings (USD, EUR, GBP)
+  - [ ] Return calculations with proper unit handling
+  - [ ] Asset allocation summary
+- [ ] 7.9: Create basic tutorial workbook (unit conversion primer)
+- [ ] 7.10: Write user guide with screenshots
+- [ ] 7.11: Create demo video showcasing all three examples
 
 ---
 
@@ -213,7 +226,7 @@
 - **Phase 8:** ⏸ Not Started (0/5 tasks)
 - **Phase 9:** ⏸ Not Started (0/6 tasks)
 
-**Overall Progress:** 5/117 tasks (4.3%)
+**Overall Progress:** 5/126 tasks (4.0%)
 
 ---
 
