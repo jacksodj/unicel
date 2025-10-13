@@ -339,9 +339,33 @@ pub fn set_display_mode_impl(state: &AppState, mode: String) -> Result<(), Strin
     Ok(())
 }
 
-/// Format a unit string for better display (e.g., "ft*ft" → "ft²")
+/// Format a unit string for better display (e.g., "ft^2" → "ft²", "ft*ft" → "ft²")
 fn format_unit_display(unit: &str) -> String {
-    // Check for squared units (same unit multiplied)
+    // Check for ^2 notation (preferred internal format)
+    if let Some(pos) = unit.find("^2") {
+        let base = &unit[..pos];
+        let rest = &unit[pos + 2..];
+        // Convert ^2 to superscript ²
+        if rest.is_empty() {
+            return format!("{}²", base);
+        } else {
+            return format!("{}²{}", base, format_unit_display(rest));
+        }
+    }
+
+    // Check for ^3 notation
+    if let Some(pos) = unit.find("^3") {
+        let base = &unit[..pos];
+        let rest = &unit[pos + 2..];
+        // Convert ^3 to superscript ³
+        if rest.is_empty() {
+            return format!("{}³", base);
+        } else {
+            return format!("{}³{}", base, format_unit_display(rest));
+        }
+    }
+
+    // Check for squared units (same unit multiplied) - legacy support
     if let Some(pos) = unit.find('*') {
         let left = &unit[..pos];
         let right = &unit[pos + 1..];

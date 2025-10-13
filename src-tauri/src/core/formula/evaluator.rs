@@ -1,7 +1,8 @@
 // Formula evaluator with unit-aware operations
 
 use super::ast::Expr;
-use crate::core::units::{BaseDimension, Unit, UnitLibrary};
+use crate::core::units::{BaseDimension, Dimension, Unit, UnitLibrary};
+use std::collections::HashMap;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -199,7 +200,7 @@ impl<'a> Evaluator<'a> {
         ))
     }
 
-    /// Multiply two values (creates compound units)
+    /// Multiply two values (creates compound units with cancellation)
     fn eval_multiply(&self, left: &Expr, right: &Expr) -> Result<EvalResult, EvalError> {
         let left_result = self.eval(left)?;
         let right_result = self.eval(right)?;
@@ -219,15 +220,10 @@ impl<'a> Evaluator<'a> {
             return Ok(EvalResult::new(value, left_result.unit.clone()));
         }
 
-        // For MLP: create a simple compound unit representation
-        // Format: "left*right" (e.g., "m*m" for area)
-        let compound_symbol = format!("{}*{}", left_result.unit.canonical(), right_result.unit.canonical());
+        // Multiply units with cancellation
+        let result_unit = multiply_units_with_cancellation(&left_result.unit, &right_result.unit);
 
-        // For now, create compound units for common cases
-        // Full compound unit support will be added post-MLP
-        let compound_unit = create_compound_unit(&left_result.unit, &right_result.unit, &compound_symbol);
-
-        Ok(EvalResult::new(value, compound_unit))
+        Ok(EvalResult::new(value, result_unit))
     }
 
     /// Divide two values (creates compound units with cancellation)
@@ -277,21 +273,6 @@ impl<'a> Evaluator<'a> {
     }
 }
 
-// Helper function to create compound units for multiplication
-fn create_compound_unit(left: &Unit, right: &Unit, symbol: &str) -> Unit {
-    // For simple dimensions, create compound unit
-    if let (Some(left_dim), Some(right_dim)) = (left.dimension().as_simple(), right.dimension().as_simple()) {
-        Unit::compound(
-            symbol.to_string(),
-            vec![(left_dim.clone(), 1), (right_dim.clone(), 1)],
-            vec![],
-        )
-    } else {
-        // Fallback: create custom dimension
-        Unit::simple(symbol, BaseDimension::Custom(symbol.to_string()))
-    }
-}
-
 // Helper function to create compound units for division
 fn create_division_unit(left: &Unit, right: &Unit, symbol: &str) -> Unit {
     // For simple dimensions, create compound unit
@@ -304,6 +285,179 @@ fn create_division_unit(left: &Unit, right: &Unit, symbol: &str) -> Unit {
     } else {
         // Fallback: create custom dimension
         Unit::simple(symbol, BaseDimension::Custom(symbol.to_string()))
+    }
+}
+
+// Helper function to multiply units with dimensional cancellation
+fn multiply_units_with_cancellation(left: &Unit, right: &Unit) -> Unit {
+    // Extract dimensions from both units
+    let (mut num_dims, mut den_dims) = extract_dimensions(left);
+    let (right_num, right_den) = extract_dimensions(right);
+
+    // Add right's numerator to our numerator
+    for (dim, power) in right_num {
+        *num_dims.entry(dim).or_insert(0) += power;
+    }
+
+    // Add right's denominator to our denominator
+    for (dim, power) in right_den {
+        *den_dims.entry(dim).or_insert(0) += power;
+    }
+
+    // Cancel out matching dimensions
+    let keys: Vec<_> = num_dims.keys().cloned().collect();
+    for dim in keys {
+        let num_power = num_dims.get(&dim).copied().unwrap_or(0);
+        let den_power = den_dims.get(&dim).copied().unwrap_or(0);
+
+        if num_power > 0 && den_power > 0 {
+            let cancel = num_power.min(den_power);
+            let new_num = num_power - cancel;
+            let new_den = den_power - cancel;
+
+            if new_num == 0 {
+                num_dims.remove(&dim);
+            } else {
+                num_dims.insert(dim.clone(), new_num);
+            }
+
+            if new_den == 0 {
+                den_dims.remove(&dim);
+            } else {
+                den_dims.insert(dim.clone(), new_den);
+            }
+        }
+    }
+
+    // Remove zero powers
+    num_dims.retain(|_, &mut p| p != 0);
+    den_dims.retain(|_, &mut p| p != 0);
+
+    // Build result unit
+    build_unit_from_dimensions(num_dims, den_dims)
+}
+
+// Extract dimensions from a unit into numerator and denominator maps
+fn extract_dimensions(unit: &Unit) -> (HashMap<BaseDimension, i32>, HashMap<BaseDimension, i32>) {
+    let mut numerator = HashMap::new();
+    let mut denominator = HashMap::new();
+
+    match unit.dimension() {
+        Dimension::Dimensionless => {},
+        Dimension::Simple(base) => {
+            numerator.insert(base.clone(), 1);
+        },
+        Dimension::Compound { numerator: num, denominator: den } => {
+            for (base, power) in num {
+                *numerator.entry(base.clone()).or_insert(0) += power;
+            }
+            for (base, power) in den {
+                *denominator.entry(base.clone()).or_insert(0) += power;
+            }
+        },
+    }
+
+    (numerator, denominator)
+}
+
+// Build a unit from dimension maps
+fn build_unit_from_dimensions(
+    numerator: HashMap<BaseDimension, i32>,
+    denominator: HashMap<BaseDimension, i32>,
+) -> Unit {
+    // If no dimensions, return dimensionless
+    if numerator.is_empty() && denominator.is_empty() {
+        return Unit::dimensionless();
+    }
+
+    // If only one dimension in numerator and no denominator, return simple unit
+    if numerator.len() == 1 && denominator.is_empty() {
+        let (base, power) = numerator.iter().next().unwrap();
+        if *power == 1 {
+            // Get the standard symbol for this dimension
+            let symbol = get_standard_symbol(base);
+            return Unit::simple(symbol, base.clone());
+        }
+    }
+
+    // Build compound unit symbol
+    let symbol = build_unit_symbol(&numerator, &denominator);
+
+    // Convert to Vec format for Dimension::Compound
+    let num_vec: Vec<_> = numerator.into_iter().collect();
+    let den_vec: Vec<_> = denominator.into_iter().collect();
+
+    if den_vec.is_empty() && num_vec.len() == 1 {
+        // Simple unit (possibly with power)
+        let (base, power) = &num_vec[0];
+        if *power == 1 {
+            let symbol = get_standard_symbol(base);
+            Unit::simple(symbol, base.clone())
+        } else {
+            Unit::compound(symbol, num_vec, vec![])
+        }
+    } else {
+        Unit::compound(symbol, num_vec, den_vec)
+    }
+}
+
+// Build unit symbol string from dimensions
+fn build_unit_symbol(numerator: &HashMap<BaseDimension, i32>, denominator: &HashMap<BaseDimension, i32>) -> String {
+    let mut parts = Vec::new();
+
+    // Build numerator
+    let mut num_symbols: Vec<_> = numerator.iter().map(|(d, p)| (get_standard_symbol(d), p)).collect();
+    num_symbols.sort();
+
+    for (symbol, power) in num_symbols {
+        if *power == 1 {
+            parts.push(symbol);
+        } else {
+            parts.push(format!("{}^{}", symbol, power));
+        }
+    }
+
+    let num_str = if parts.is_empty() {
+        String::new()
+    } else {
+        parts.join("*")
+    };
+
+    // Build denominator
+    let mut den_symbols: Vec<_> = denominator.iter().map(|(d, p)| (get_standard_symbol(d), p)).collect();
+    den_symbols.sort();
+
+    let mut den_parts = Vec::new();
+    for (symbol, power) in den_symbols {
+        if *power == 1 {
+            den_parts.push(symbol);
+        } else {
+            den_parts.push(format!("{}^{}", symbol, power));
+        }
+    }
+
+    if den_parts.is_empty() {
+        num_str
+    } else {
+        let den_str = den_parts.join("*");
+        if num_str.is_empty() {
+            format!("1/{}", den_str)
+        } else {
+            format!("{}/{}", num_str, den_str)
+        }
+    }
+}
+
+// Get standard symbol for a base dimension
+fn get_standard_symbol(base: &BaseDimension) -> String {
+    match base {
+        BaseDimension::Length => "m".to_string(),
+        BaseDimension::Mass => "kg".to_string(),
+        BaseDimension::Time => "s".to_string(),
+        BaseDimension::Currency => "USD".to_string(),
+        BaseDimension::Temperature => "C".to_string(),
+        BaseDimension::DigitalStorage => "B".to_string(),
+        BaseDimension::Custom(name) => name.clone(),
     }
 }
 
@@ -393,8 +547,8 @@ mod tests {
         );
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 50.0);
-        // Result should be m*m (area)
-        assert_eq!(result.unit.canonical(), "m*m");
+        // Result should be m^2 (area, simplified)
+        assert_eq!(result.unit.canonical(), "m^2");
     }
 
     #[test]
