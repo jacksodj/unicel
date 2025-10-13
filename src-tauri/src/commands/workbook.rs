@@ -209,17 +209,50 @@ pub fn parse_cell_input(input: &str) -> Result<Cell, String> {
 }
 
 pub fn parse_unit(unit_str: &str) -> Unit {
-    // Map common units to their dimensions
-    let dimension = match unit_str {
+    // Check if it's a compound unit with division (e.g., "USD/ft", "mi/hr")
+    if let Some(pos) = unit_str.find('/') {
+        let numerator_str = &unit_str[..pos];
+        let denominator_str = &unit_str[pos + 1..];
+
+        let num_dim = get_base_dimension(numerator_str);
+        let den_dim = get_base_dimension(denominator_str);
+
+        return Unit::compound(
+            unit_str.to_string(),
+            vec![(num_dim, 1)],
+            vec![(den_dim, 1)],
+        );
+    }
+
+    // Check if it's a compound unit with multiplication (e.g., "ft*ft", "kg*m")
+    if let Some(pos) = unit_str.find('*') {
+        let left_str = &unit_str[..pos];
+        let right_str = &unit_str[pos + 1..];
+
+        let left_dim = get_base_dimension(left_str);
+        let right_dim = get_base_dimension(right_str);
+
+        return Unit::compound(
+            unit_str.to_string(),
+            vec![(left_dim.clone(), 1), (right_dim, 1)],
+            vec![],
+        );
+    }
+
+    // Simple unit
+    let dimension = get_base_dimension(unit_str);
+    Unit::simple(unit_str, dimension)
+}
+
+fn get_base_dimension(unit_str: &str) -> BaseDimension {
+    match unit_str {
         "m" | "cm" | "mm" | "km" | "in" | "ft" | "yd" | "mi" => BaseDimension::Length,
         "g" | "kg" | "mg" | "oz" | "lb" => BaseDimension::Mass,
         "s" | "min" | "hr" | "h" | "day" => BaseDimension::Time,
         "C" | "F" | "K" => BaseDimension::Temperature,
-        "USD" | "EUR" | "GBP" => BaseDimension::Currency,
+        "USD" | "EUR" | "GBP" | "$" => BaseDimension::Currency,
         _ => BaseDimension::Custom(unit_str.to_string()),
-    };
-
-    Unit::simple(unit_str, dimension)
+    }
 }
 
 // Workbook operations (library functions, not Tauri commands)

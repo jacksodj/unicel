@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Cell, CellAddress, getCellAddress, colNumberToLetter } from '../types/workbook';
+import { Cell, CellAddress, getCellAddress, colNumberToLetter, colLetterToNumber } from '../types/workbook';
 
 interface GridProps {
   cells: Map<string, Cell>;
@@ -23,6 +23,8 @@ export default function Grid({
   editingCell,
 }: GridProps) {
   const [editValue, setEditValue] = useState('');
+  const [isFormulaMode, setIsFormulaMode] = useState(false);
+  const [pickerCell, setPickerCell] = useState<CellAddress | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Initialize edit value and focus input when editing starts
@@ -30,7 +32,10 @@ export default function Grid({
     if (editingCell) {
       const address = getCellAddress(editingCell.col, editingCell.row);
       const cell = cells.get(address);
-      setEditValue(getEditValue(cell));
+      const value = getEditValue(cell);
+      setEditValue(value);
+      setIsFormulaMode(value.startsWith('='));
+      setPickerCell(null);
 
       // Focus after a brief delay to ensure input is rendered
       setTimeout(() => {
@@ -48,12 +53,15 @@ export default function Grid({
   const rows = Array.from({ length: rowCount }, (_, i) => i + 1);
 
   const handleCellClick = (col: string, row: number) => {
-    // If clicking on already selected cell, start editing
-    if (selectedCell?.col === col && selectedCell?.row === row && onCellDoubleClick) {
+    // In formula mode with cell picker active, clicking should pick the cell
+    if (isFormulaMode && editingCell && pickerCell) {
+      insertCellReference(col, row);
+      return;
+    }
+
+    // Single click now starts editing immediately
+    if (onCellDoubleClick) {
       onCellDoubleClick({ col, row });
-    } else if (onCellSelect) {
-      // Otherwise, just select the cell
-      onCellSelect({ col, row });
     }
   };
 
@@ -92,13 +100,97 @@ export default function Grid({
     return '';
   };
 
+  const insertCellReference = (col: string, row: number) => {
+    const cellRef = getCellAddress(col, row);
+    setEditValue((prev) => prev + cellRef);
+    setPickerCell(null);
+    // Return focus to input
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const movePicker = (deltaCol: number, deltaRow: number) => {
+    if (!editingCell) return;
+
+    const currentCol = pickerCell?.col || editingCell.col;
+    const currentRow = pickerCell?.row || editingCell.row;
+
+    const currentColNum = colLetterToNumber(currentCol);
+    const newColNum = Math.max(1, Math.min(colCount, currentColNum + deltaCol));
+    const newRow = Math.max(1, Math.min(rowCount, currentRow + deltaRow));
+
+    setPickerCell({
+      col: colNumberToLetter(newColNum),
+      row: newRow,
+    });
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent, col: string, row: number) => {
-    if (e.key === 'Enter' && onCellEdit) {
-      onCellEdit({ col, row }, editValue);
+    // Handle formula mode with cell picker
+    if (isFormulaMode && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       e.preventDefault();
-    } else if (e.key === 'Escape' && onCellEdit) {
-      onCellEdit({ col, row }, ''); // Cancel edit
-      e.preventDefault();
+
+      // Initialize picker if not already active
+      if (!pickerCell) {
+        setPickerCell({ col, row });
+      }
+
+      // Move picker
+      switch (e.key) {
+        case 'ArrowUp':
+          movePicker(0, -1);
+          break;
+        case 'ArrowDown':
+          movePicker(0, 1);
+          break;
+        case 'ArrowLeft':
+          movePicker(-1, 0);
+          break;
+        case 'ArrowRight':
+          movePicker(1, 0);
+          break;
+      }
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      // In formula mode with picker active, insert cell reference
+      if (isFormulaMode && pickerCell) {
+        insertCellReference(pickerCell.col, pickerCell.row);
+        e.preventDefault();
+        return;
+      }
+
+      // Otherwise, save and navigate to next cell
+      if (onCellEdit) {
+        onCellEdit({ col, row }, editValue);
+        // Navigate to next row in same column
+        const nextRow = row + 1;
+        if (nextRow <= rowCount && onCellDoubleClick) {
+          setTimeout(() => onCellDoubleClick({ col, row: nextRow }), 50);
+        }
+        e.preventDefault();
+      }
+    } else if (e.key === 'Escape') {
+      if (pickerCell) {
+        // Cancel picker mode
+        setPickerCell(null);
+        e.preventDefault();
+      } else if (onCellEdit) {
+        // Cancel edit
+        onCellEdit({ col, row }, '');
+        e.preventDefault();
+      }
+    }
+  };
+
+  const handleInputChange = (value: string) => {
+    setEditValue(value);
+    // Detect formula mode when user types =
+    if (value.startsWith('=') && !isFormulaMode) {
+      setIsFormulaMode(true);
+    } else if (!value.startsWith('=') && isFormulaMode) {
+      setIsFormulaMode(false);
+      setPickerCell(null);
     }
   };
 
@@ -133,6 +225,7 @@ export default function Grid({
                 const cell = cells.get(address);
                 const isSelected = isCellSelected(col, row);
                 const isEditing = isCellEditing(col, row);
+                const isPicker = pickerCell?.col === col && pickerCell?.row === row;
                 const hasWarning = cell?.warning !== undefined;
 
                 return (
@@ -142,6 +235,7 @@ export default function Grid({
                       border border-gray-300 min-w-[100px] h-8 px-0 text-sm
                       ${!isEditing && 'cursor-pointer hover:bg-blue-50'}
                       ${isSelected ? 'bg-blue-100 ring-2 ring-blue-500' : ''}
+                      ${isPicker ? 'bg-green-200 ring-2 ring-green-500' : ''}
                       ${hasWarning ? 'bg-orange-50' : ''}
                     `}
                     onClick={() => !isEditing && handleCellClick(col, row)}
@@ -154,7 +248,7 @@ export default function Grid({
                         type="text"
                         className="w-full h-full px-2 border-none focus:outline-none bg-white"
                         value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
+                        onChange={(e) => handleInputChange(e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, col, row)}
                       />
                     ) : (
