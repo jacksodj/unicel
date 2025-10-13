@@ -1,0 +1,46 @@
+[package]
+name = "unicel"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Unit-aware spreadsheet application"
+
+[lib]
+name = "unicel_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[[bin]]
+name = "unicel"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { workspace = true }
+
+[dependencies]
+# Workspace dependencies
+tauri = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rusqlite = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+pest = { workspace = true }
+pest_derive = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Additional dependencies
+uuid = { version = "1.11", features = ["v4", "serde"] }
+indexmap = "2.7"
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
