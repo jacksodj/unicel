@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Grid from './Grid';
 import Ribbon from './Ribbon';
 import StatusBar from './StatusBar';
 import { ToastContainer } from './Toast';
 import { LoadingOverlay } from './LoadingSpinner';
 import { Cell, CellAddress, getCellAddress } from '../types/workbook';
+import { tauriApi, convertCellData } from '../api/tauri';
 
 interface ToastMessage {
   id: string;
@@ -68,6 +69,36 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
   const [isDirty, setIsDirty] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [workbookName, setWorkbookName] = useState('Untitled');
+
+  // Initialize workbook on mount
+  useEffect(() => {
+    const initWorkbook = async () => {
+      try {
+        await tauriApi.createWorkbook('Untitled');
+        await loadCellsFromBackend();
+        addToast('Workbook initialized', 'success');
+      } catch (error) {
+        addToast(`Failed to initialize: ${error}`, 'error');
+      }
+    };
+    initWorkbook();
+  }, []);
+
+  const loadCellsFromBackend = async () => {
+    try {
+      const cellsData = await tauriApi.getSheetCells();
+      const newCells = new Map<string, Cell>();
+
+      for (const [address, cellData] of cellsData) {
+        newCells.set(address, convertCellData(cellData));
+      }
+
+      setCells(newCells);
+    } catch (error) {
+      addToast(`Failed to load cells: ${error}`, 'error');
+    }
+  };
 
   const handleCellSelect = (address: CellAddress) => {
     setSelectedCell(address);
@@ -86,35 +117,9 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     }
   };
 
-  const parseInputValue = (input: string): Cell => {
-    // Check if it's a formula
-    if (input.startsWith('=')) {
-      return {
-        value: { type: 'empty' },
-        storageUnit: '',
-        formula: input,
-      };
-    }
+  // Removed parseInputValue - now handled by backend
 
-    // Parse number with optional unit
-    const match = input.trim().match(/^([-+]?\d+\.?\d*)\s*(.*)$/);
-    if (match && match[1] !== undefined) {
-      const value = parseFloat(match[1]);
-      const unit = (match[2] || '').trim();
-      return {
-        value: { type: 'number', value },
-        storageUnit: unit,
-      };
-    }
-
-    // Empty or invalid
-    return {
-      value: { type: 'empty' },
-      storageUnit: '',
-    };
-  };
-
-  const handleCellEdit = (address: CellAddress, value: string) => {
+  const handleCellEdit = async (address: CellAddress, value: string) => {
     if (value === '') {
       // Cancel edit
       setEditingCell(null);
@@ -122,15 +127,24 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     }
 
     const cellAddr = getCellAddress(address.col, address.row);
-    const newCell = parseInputValue(value);
 
-    const newCells = new Map(cells);
-    newCells.set(cellAddr, newCell);
-    setCells(newCells);
-    setIsDirty(true);
+    try {
+      // Send to backend
+      const cellData = await tauriApi.setCell(cellAddr, value);
+      const newCell = convertCellData(cellData);
 
-    setEditingCell(null);
-    setSelectedCell(address);
+      // Update local state
+      const newCells = new Map(cells);
+      newCells.set(cellAddr, newCell);
+      setCells(newCells);
+      setIsDirty(true);
+
+      setEditingCell(null);
+      setSelectedCell(address);
+    } catch (error) {
+      addToast(`Failed to set cell: ${error}`, 'error');
+      setEditingCell(null);
+    }
   };
 
   const handleCellDoubleClick = (address: CellAddress) => {
@@ -158,34 +172,83 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     // In a real implementation, this would trigger unit conversion for display
   };
 
-  const handleNew = () => {
+  const handleNew = async () => {
     if (isDirty && !confirm('You have unsaved changes. Create new workbook?')) {
       return;
     }
-    setCells(new Map());
-    setSelectedCell(null);
-    setIsDirty(false);
-    addToast('New workbook created', 'success');
-  };
 
-  const handleOpen = () => {
-    // TODO: Implement file open dialog via Tauri
-    addToast('File open dialog - to be implemented with Tauri', 'info');
-  };
-
-  const handleSave = () => {
-    setIsLoading(true);
-    // Simulate async save operation
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      setIsLoading(true);
+      await tauriApi.createWorkbook('Untitled');
+      setCells(new Map());
+      setSelectedCell(null);
       setIsDirty(false);
-      addToast('Workbook saved successfully', 'success');
-    }, 1000);
+      setWorkbookName('Untitled');
+      addToast('New workbook created', 'success');
+    } catch (error) {
+      addToast(`Failed to create workbook: ${error}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSaveAs = () => {
-    // TODO: Implement save as dialog via Tauri
-    addToast('Save As dialog - to be implemented with Tauri', 'info');
+  const handleOpen = async () => {
+    try {
+      const filePath = await tauriApi.openFileDialog();
+      if (!filePath) return;
+
+      setIsLoading(true);
+      await tauriApi.loadWorkbook(filePath);
+      await loadCellsFromBackend();
+
+      const info = await tauriApi.getWorkbookInfo();
+      setWorkbookName(info.name);
+      setIsDirty(false);
+
+      addToast('Workbook loaded successfully', 'success');
+    } catch (error) {
+      addToast(`Failed to open workbook: ${error}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+
+      // Check if we have a current file
+      const currentFile = await tauriApi.getCurrentFile();
+      if (currentFile) {
+        await tauriApi.saveWorkbook(currentFile);
+        setIsDirty(false);
+        addToast('Workbook saved successfully', 'success');
+      } else {
+        // No current file, do Save As
+        await handleSaveAs();
+      }
+    } catch (error) {
+      addToast(`Failed to save workbook: ${error}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveAs = async () => {
+    try {
+      const filePath = await tauriApi.saveFileDialog();
+      if (!filePath) return;
+
+      setIsLoading(true);
+      await tauriApi.saveWorkbook(filePath);
+      setIsDirty(false);
+
+      addToast('Workbook saved successfully', 'success');
+    } catch (error) {
+      addToast(`Failed to save workbook: ${error}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getSelectedCellUnit = (): string | undefined => {
@@ -202,7 +265,10 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
       <div className="h-screen w-screen flex flex-col bg-white">
       {/* Title bar */}
       <div className="bg-gray-800 text-white px-4 py-2">
-        <h1 className="text-lg font-bold">Unicel - Unit-Aware Spreadsheet</h1>
+        <h1 className="text-lg font-bold">
+          Unicel - {workbookName}
+          {isDirty && ' *'}
+        </h1>
       </div>
 
       {/* Ribbon */}
