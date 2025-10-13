@@ -72,11 +72,14 @@ pub fn cell_to_data(cell: &Cell) -> CellData {
         },
     };
 
+    let storage_unit = cell.storage_unit().canonical().to_string();
+    let display_unit_canonical = cell.display_unit().canonical().to_string();
+
     CellData {
         value,
-        storage_unit: cell.storage_unit().canonical().to_string(),
-        display_unit: if cell.display_unit().canonical() != cell.storage_unit().canonical() {
-            Some(cell.display_unit().canonical().to_string())
+        storage_unit: format_unit_display(&storage_unit),
+        display_unit: if display_unit_canonical != storage_unit {
+            Some(format_unit_display(&display_unit_canonical))
         } else {
             None
         },
@@ -95,13 +98,19 @@ pub fn cell_to_data_with_mode(cell: &Cell, mode: &DisplayMode) -> CellData {
 
     // Convert value if we have a different display unit
     let (display_value, display_unit_final) = if let Some(target_unit) = display_unit_str {
-        let library = UnitLibrary::new();
         if let Some(original_value) = cell.as_number() {
-            if let Some(converted) = library.convert(original_value, &storage_unit, &target_unit) {
-                (CellValueData::Number { value: converted }, Some(target_unit))
+            // Try to convert compound units
+            if let Some(converted) = convert_compound_unit(original_value, &storage_unit, &target_unit) {
+                (CellValueData::Number { value: converted }, Some(format_unit_display(&target_unit)))
             } else {
-                // Conversion failed, use original
-                (CellValueData::Number { value: original_value }, None)
+                // Try simple conversion
+                let library = UnitLibrary::new();
+                if let Some(converted) = library.convert(original_value, &storage_unit, &target_unit) {
+                    (CellValueData::Number { value: converted }, Some(format_unit_display(&target_unit)))
+                } else {
+                    // Conversion failed, use original
+                    (CellValueData::Number { value: original_value }, None)
+                }
             }
         } else {
             // Not a number, use original
@@ -122,11 +131,52 @@ pub fn cell_to_data_with_mode(cell: &Cell, mode: &DisplayMode) -> CellData {
 
     CellData {
         value: display_value,
-        storage_unit,
+        storage_unit: format_unit_display(&storage_unit),
         display_unit: display_unit_final,
         formula: cell.formula().map(|s| s.to_string()),
         warning: cell.warning().map(|s| s.to_string()),
     }
+}
+
+/// Convert compound unit values (e.g., 10 ft*ft → m*m)
+fn convert_compound_unit(value: f64, from_unit: &str, to_unit: &str) -> Option<f64> {
+    use crate::core::units::UnitLibrary;
+
+    let library = UnitLibrary::new();
+
+    // Handle multiplication (e.g., ft*ft)
+    if let (Some(from_pos), Some(to_pos)) = (from_unit.find('*'), to_unit.find('*')) {
+        let from_left = &from_unit[..from_pos];
+        let from_right = &from_unit[from_pos + 1..];
+        let to_left = &to_unit[..to_pos];
+        let to_right = &to_unit[to_pos + 1..];
+
+        // Get conversion factors for each component
+        let factor_left = library.convert(1.0, from_left, to_left)?;
+        let factor_right = library.convert(1.0, from_right, to_right)?;
+
+        // For multiplication, multiply the factors
+        let combined_factor = factor_left * factor_right;
+        return Some(value * combined_factor);
+    }
+
+    // Handle division (e.g., mi/hr)
+    if let (Some(from_pos), Some(to_pos)) = (from_unit.find('/'), to_unit.find('/')) {
+        let from_left = &from_unit[..from_pos];
+        let from_right = &from_unit[from_pos + 1..];
+        let to_left = &to_unit[..to_pos];
+        let to_right = &to_unit[to_pos + 1..];
+
+        // Get conversion factors for each component
+        let factor_left = library.convert(1.0, from_left, to_left)?;
+        let factor_right = library.convert(1.0, from_right, to_right)?;
+
+        // For division, divide the factors
+        let combined_factor = factor_left / factor_right;
+        return Some(value * combined_factor);
+    }
+
+    None
 }
 
 pub fn parse_cell_input(input: &str) -> Result<Cell, String> {
@@ -289,8 +339,40 @@ pub fn set_display_mode_impl(state: &AppState, mode: String) -> Result<(), Strin
     Ok(())
 }
 
+/// Format a unit string for better display (e.g., "ft*ft" → "ft²")
+fn format_unit_display(unit: &str) -> String {
+    // Check for squared units (same unit multiplied)
+    if let Some(pos) = unit.find('*') {
+        let left = &unit[..pos];
+        let right = &unit[pos + 1..];
+
+        if left == right {
+            // Same unit squared: ft*ft → ft²
+            return format!("{}²", left);
+        } else {
+            // Different units: keep with · symbol
+            return format!("{}·{}", left, right);
+        }
+    }
+
+    // Check for division
+    if let Some(pos) = unit.find('/') {
+        let left = &unit[..pos];
+        let right = &unit[pos + 1..];
+        return format!("{}/{}", left, right);
+    }
+
+    // No compound unit, return as-is
+    unit.to_string()
+}
+
 /// Get the preferred display unit for a given storage unit based on display mode
 fn get_display_unit_for_mode(storage_unit: &str, mode: &DisplayMode) -> Option<String> {
+    // Handle compound units (e.g., "ft*ft", "m/s")
+    if storage_unit.contains('*') || storage_unit.contains('/') {
+        return get_compound_display_unit(storage_unit, mode);
+    }
+
     match mode {
         DisplayMode::AsEntered => None, // Use storage unit as-is
         DisplayMode::Metric => match storage_unit {
@@ -317,5 +399,32 @@ fn get_display_unit_for_mode(storage_unit: &str, mode: &DisplayMode) -> Option<S
             // Everything else stays as-is
             _ => None,
         },
+    }
+}
+
+/// Get display unit for compound units based on display mode
+fn get_compound_display_unit(storage_unit: &str, mode: &DisplayMode) -> Option<String> {
+    if let Some(pos) = storage_unit.find('*') {
+        let left = &storage_unit[..pos];
+        let right = &storage_unit[pos + 1..];
+
+        // Convert each component
+        let left_converted = get_display_unit_for_mode(left, mode).unwrap_or_else(|| left.to_string());
+        let right_converted = get_display_unit_for_mode(right, mode).unwrap_or_else(|| right.to_string());
+
+        // Return compound unit
+        Some(format!("{}*{}", left_converted, right_converted))
+    } else if let Some(pos) = storage_unit.find('/') {
+        let left = &storage_unit[..pos];
+        let right = &storage_unit[pos + 1..];
+
+        // Convert each component
+        let left_converted = get_display_unit_for_mode(left, mode).unwrap_or_else(|| left.to_string());
+        let right_converted = get_display_unit_for_mode(right, mode).unwrap_or_else(|| right.to_string());
+
+        // Return compound unit
+        Some(format!("{}/{}", left_converted, right_converted))
+    } else {
+        None
     }
 }

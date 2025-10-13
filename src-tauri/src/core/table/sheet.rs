@@ -42,7 +42,7 @@ impl CellAddr {
 
         for ch in s.chars() {
             if ch.is_ascii_alphabetic() {
-                col.push(ch);
+                col.push(ch.to_ascii_uppercase());
             } else if ch.is_ascii_digit() {
                 row.push(ch);
             }
