@@ -48,7 +48,11 @@ export default function Grid({
   const rows = Array.from({ length: rowCount }, (_, i) => i + 1);
 
   const handleCellClick = (col: string, row: number) => {
-    if (onCellSelect) {
+    // If clicking on already selected cell, start editing
+    if (selectedCell?.col === col && selectedCell?.row === row && onCellDoubleClick) {
+      onCellDoubleClick({ col, row });
+    } else if (onCellSelect) {
+      // Otherwise, just select the cell
       onCellSelect({ col, row });
     }
   };

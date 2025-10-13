@@ -10,10 +10,19 @@ use crate::core::{
 };
 use crate::formats::json::WorkbookFile;
 
+/// Display mode for unit display
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DisplayMode {
+    AsEntered,
+    Metric,
+    Imperial,
+}
+
 /// Application state
 pub struct AppState {
     pub workbook: Mutex<Option<Workbook>>,
     pub current_file: Mutex<Option<String>>,
+    pub display_mode: Mutex<DisplayMode>,
 }
 
 impl Default for AppState {
@@ -21,6 +30,7 @@ impl Default for AppState {
         Self {
             workbook: Mutex::new(None),
             current_file: Mutex::new(None),
+            display_mode: Mutex::new(DisplayMode::AsEntered),
         }
     }
 }
@@ -70,6 +80,50 @@ pub fn cell_to_data(cell: &Cell) -> CellData {
         } else {
             None
         },
+        formula: cell.formula().map(|s| s.to_string()),
+        warning: cell.warning().map(|s| s.to_string()),
+    }
+}
+
+pub fn cell_to_data_with_mode(cell: &Cell, mode: &DisplayMode) -> CellData {
+    use crate::core::units::UnitLibrary;
+
+    let storage_unit = cell.storage_unit().canonical().to_string();
+
+    // Determine display unit based on mode
+    let display_unit_str = get_display_unit_for_mode(&storage_unit, mode);
+
+    // Convert value if we have a different display unit
+    let (display_value, display_unit_final) = if let Some(target_unit) = display_unit_str {
+        let library = UnitLibrary::new();
+        if let Some(original_value) = cell.as_number() {
+            if let Some(converted) = library.convert(original_value, &storage_unit, &target_unit) {
+                (CellValueData::Number { value: converted }, Some(target_unit))
+            } else {
+                // Conversion failed, use original
+                (CellValueData::Number { value: original_value }, None)
+            }
+        } else {
+            // Not a number, use original
+            (match cell.value() {
+                CellValue::Empty => CellValueData::Empty,
+                CellValue::Number(n) => CellValueData::Number { value: *n },
+                CellValue::Error(e) => CellValueData::Error { message: e.clone() },
+            }, None)
+        }
+    } else {
+        // No conversion needed
+        (match cell.value() {
+            CellValue::Empty => CellValueData::Empty,
+            CellValue::Number(n) => CellValueData::Number { value: *n },
+            CellValue::Error(e) => CellValueData::Error { message: e.clone() },
+        }, None)
+    };
+
+    CellData {
+        value: display_value,
+        storage_unit,
+        display_unit: display_unit_final,
         formula: cell.formula().map(|s| s.to_string()),
         warning: cell.warning().map(|s| s.to_string()),
     }
@@ -142,6 +196,7 @@ pub fn get_workbook_info_impl(state: &AppState) -> Result<WorkbookInfo, String> 
 pub fn get_sheet_cells_impl(state: &AppState) -> Result<Vec<(String, CellData)>, String> {
     let workbook_guard = state.workbook.lock().unwrap();
     let workbook = workbook_guard.as_ref().ok_or("No workbook loaded")?;
+    let display_mode = state.display_mode.lock().unwrap().clone();
 
     let sheet = workbook.active_sheet();
     let cells: Vec<(String, CellData)> = sheet
@@ -149,7 +204,7 @@ pub fn get_sheet_cells_impl(state: &AppState) -> Result<Vec<(String, CellData)>,
         .into_iter()
         .filter_map(|addr| {
             sheet.get(&addr).map(|cell| {
-                (addr.to_string(), cell_to_data(cell))
+                (addr.to_string(), cell_to_data_with_mode(cell, &display_mode))
             })
         })
         .collect();
@@ -168,12 +223,27 @@ pub fn set_cell_impl(
     let addr = CellAddr::from_string(&address).map_err(|e| e.to_string())?;
     let cell = parse_cell_input(&value)?;
 
+    // Set the cell
     workbook
         .active_sheet_mut()
-        .set(addr, cell.clone())
+        .set(addr.clone(), cell.clone())
         .map_err(|e| e.to_string())?;
 
-    Ok(cell_to_data(&cell))
+    // If it's a formula, recalculate affected cells
+    if cell.is_formula() {
+        workbook
+            .active_sheet_mut()
+            .recalculate(&[addr.clone()])
+            .map_err(|e| e.to_string())?;
+    }
+
+    // Return the updated cell (which may have been evaluated)
+    let updated_cell = workbook
+        .active_sheet()
+        .get(&addr)
+        .ok_or("Cell not found after setting")?;
+
+    Ok(cell_to_data(updated_cell))
 }
 
 pub fn save_workbook_impl(state: &AppState, path: String) -> Result<(), String> {
@@ -205,4 +275,47 @@ pub fn load_workbook_impl(state: &AppState, path: String) -> Result<(), String> 
 
 pub fn get_current_file_impl(state: &AppState) -> Option<String> {
     state.current_file.lock().unwrap().clone()
+}
+
+pub fn set_display_mode_impl(state: &AppState, mode: String) -> Result<(), String> {
+    let display_mode = match mode.as_str() {
+        "AsEntered" => DisplayMode::AsEntered,
+        "Metric" => DisplayMode::Metric,
+        "Imperial" => DisplayMode::Imperial,
+        _ => return Err(format!("Invalid display mode: {}", mode)),
+    };
+
+    *state.display_mode.lock().unwrap() = display_mode;
+    Ok(())
+}
+
+/// Get the preferred display unit for a given storage unit based on display mode
+fn get_display_unit_for_mode(storage_unit: &str, mode: &DisplayMode) -> Option<String> {
+    match mode {
+        DisplayMode::AsEntered => None, // Use storage unit as-is
+        DisplayMode::Metric => match storage_unit {
+            // Length - prefer meters
+            "in" | "ft" | "yd" | "mi" => Some("m".to_string()),
+            "mm" | "cm" | "km" => Some("m".to_string()),
+            // Mass - prefer kilograms
+            "oz" | "lb" => Some("kg".to_string()),
+            "g" | "mg" => Some("kg".to_string()),
+            // Temperature - prefer Celsius
+            "F" | "K" => Some("C".to_string()),
+            // Everything else stays as-is
+            _ => None,
+        },
+        DisplayMode::Imperial => match storage_unit {
+            // Length - prefer feet
+            "m" | "cm" | "mm" | "km" => Some("ft".to_string()),
+            "in" | "yd" | "mi" => Some("ft".to_string()),
+            // Mass - prefer pounds
+            "kg" | "g" | "mg" => Some("lb".to_string()),
+            "oz" => Some("lb".to_string()),
+            // Temperature - prefer Fahrenheit
+            "C" | "K" => Some("F".to_string()),
+            // Everything else stays as-is
+            _ => None,
+        },
+    }
 }

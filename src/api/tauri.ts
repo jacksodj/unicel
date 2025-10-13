@@ -55,6 +55,10 @@ export const tauriApi = {
     return invoke('get_current_file');
   },
 
+  async setDisplayMode(mode: 'AsEntered' | 'Metric' | 'Imperial'): Promise<void> {
+    return invoke('set_display_mode', { mode });
+  },
+
   // File dialogs
   async openFileDialog(): Promise<string | null> {
     const selected = await open({

@@ -46,6 +46,11 @@ fn get_current_file(state: State<AppState>) -> Option<String> {
     unicel_lib::commands::get_current_file_impl(&state)
 }
 
+#[tauri::command]
+fn set_display_mode(state: State<AppState>, mode: String) -> Result<(), String> {
+    unicel_lib::commands::set_display_mode_impl(&state, mode)
+}
+
 fn main() {
     // Initialize logging
     tracing_subscriber::registry()
@@ -69,6 +74,7 @@ fn main() {
             save_workbook,
             load_workbook,
             get_current_file,
+            set_display_mode,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

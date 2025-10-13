@@ -166,10 +166,15 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
-  const handleDisplayModeChange = (mode: 'AsEntered' | 'Metric' | 'Imperial') => {
-    setDisplayMode(mode);
-    addToast(`Display mode changed to ${mode}`, 'info');
-    // In a real implementation, this would trigger unit conversion for display
+  const handleDisplayModeChange = async (mode: 'AsEntered' | 'Metric' | 'Imperial') => {
+    try {
+      setDisplayMode(mode);
+      await tauriApi.setDisplayMode(mode);
+      await loadCellsFromBackend(); // Reload cells with new display mode
+      addToast(`Display mode changed to ${mode}`, 'success');
+    } catch (error) {
+      addToast(`Failed to change display mode: ${error}`, 'error');
+    }
   };
 
   const handleNew = async () => {
