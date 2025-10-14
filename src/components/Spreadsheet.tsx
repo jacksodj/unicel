@@ -5,6 +5,7 @@ import StatusBar from './StatusBar';
 import { ToastContainer } from './Toast';
 import { LoadingOverlay } from './LoadingSpinner';
 import UnitPreferencesDialog from './UnitPreferencesDialog';
+import ExamplePickerDialog from './ExamplePickerDialog';
 import { Cell, CellAddress, getCellAddress } from '../types/workbook';
 import { tauriApi, convertCellData } from '../api/tauri';
 
@@ -57,11 +58,7 @@ function createMockCells(): Map<string, Cell> {
   return cells;
 }
 
-interface SpreadsheetProps {
-  sheetName?: string;
-}
-
-export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) {
+export default function Spreadsheet() {
   const [cells, setCells] = useState<Map<string, Cell>>(createMockCells());
   const [selectedCell, setSelectedCell] = useState<CellAddress | null>(null);
   const [editingCell, setEditingCell] = useState<CellAddress | null>(null);
@@ -73,6 +70,9 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
   const [loadingMessage, setLoadingMessage] = useState('Loading...');
   const [workbookName, setWorkbookName] = useState('Untitled');
   const [showPreferences, setShowPreferences] = useState(false);
+  const [showExamplePicker, setShowExamplePicker] = useState(false);
+  const [sheetNames, setSheetNames] = useState<string[]>(['Sheet1']);
+  const [activeSheetIndex, setActiveSheetIndex] = useState(0);
 
   // Initialize workbook on mount
   useEffect(() => {
@@ -90,14 +90,19 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
 
   const loadCellsFromBackend = async () => {
     try {
-      const cellsData = await tauriApi.getSheetCells();
-      const newCells = new Map<string, Cell>();
+      const [cellsData, workbookInfo] = await Promise.all([
+        tauriApi.getSheetCells(),
+        tauriApi.getWorkbookInfo()
+      ]);
 
+      const newCells = new Map<string, Cell>();
       for (const [address, cellData] of cellsData) {
         newCells.set(address, convertCellData(cellData));
       }
 
       setCells(newCells);
+      setSheetNames(workbookInfo.sheet_names);
+      setActiveSheetIndex(workbookInfo.active_sheet_index);
     } catch (error) {
       addToast(`Failed to load cells: ${error}`, 'error');
     }
@@ -195,6 +200,8 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
       setSelectedCell(null);
       setIsDirty(false);
       setWorkbookName('Untitled');
+      setSheetNames(['Sheet1']);
+      setActiveSheetIndex(0);
       addToast('New workbook created', 'success');
     } catch (error) {
       addToast(`Failed to create workbook: ${error}`, 'error');
@@ -311,7 +318,15 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     }
   };
 
-  const handleOpenExample = async (filename: string) => {
+  const handleOpenExampleDialog = () => {
+    setShowExamplePicker(true);
+  };
+
+  const handleCloseExamplePicker = () => {
+    setShowExamplePicker(false);
+  };
+
+  const handleSelectExample = async (filename: string) => {
     try {
       const examplePath = await tauriApi.getExampleWorkbookPath(filename);
 
@@ -329,6 +344,16 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
       addToast(`Failed to open example: ${error}`, 'error');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSheetChange = async (index: number) => {
+    try {
+      await tauriApi.setActiveSheet(index);
+      await loadCellsFromBackend();
+      setSelectedCell(null); // Clear selection when switching sheets
+    } catch (error) {
+      addToast(`Failed to switch sheet: ${error}`, 'error');
     }
   };
 
@@ -366,6 +391,11 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
         onClose={handleClosePreferences}
         onSave={handleSavePreferences}
       />
+      <ExamplePickerDialog
+        isOpen={showExamplePicker}
+        onClose={handleCloseExamplePicker}
+        onSelectExample={handleSelectExample}
+      />
       <div className="h-screen w-screen flex flex-col bg-white">
       {/* Title bar */}
       <div className="bg-gray-800 text-white px-4 py-2">
@@ -386,7 +416,7 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
         onOpenPreferences={handleOpenPreferences}
         onDebugExport={handleDebugExport}
         onExportExcel={handleExportExcel}
-        onOpenExample={handleOpenExample}
+        onOpenExampleDialog={handleOpenExampleDialog}
         isDirty={isDirty}
       />
 
@@ -413,10 +443,20 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
       </div>
 
       {/* Sheet tabs */}
-      <div className="border-b border-gray-300 bg-gray-50 px-2 py-1">
-        <button className="px-3 py-1 bg-white border border-gray-300 rounded-t text-sm font-semibold">
-          {sheetName}
-        </button>
+      <div className="border-b border-gray-300 bg-gray-50 px-2 py-1 flex gap-1">
+        {sheetNames.map((name, index) => (
+          <button
+            key={index}
+            className={`px-3 py-1 border border-gray-300 rounded-t text-sm font-semibold transition-colors ${
+              index === activeSheetIndex
+                ? 'bg-white border-b-transparent'
+                : 'bg-gray-200 hover:bg-gray-100'
+            }`}
+            onClick={() => handleSheetChange(index)}
+          >
+            {name}
+          </button>
+        ))}
       </div>
 
       {/* Grid */}

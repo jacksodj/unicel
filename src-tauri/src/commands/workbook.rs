@@ -344,18 +344,18 @@ fn parse_currency_first(input: &str) -> Option<(&str, f64)> {
 }
 
 pub fn parse_unit(unit_str: &str) -> Unit {
-    // Check if it's a compound unit with division (e.g., "USD/ft", "mi/hr")
+    // Check if it's a compound unit with division (e.g., "USD/ft", "mi/hr", "$/ft^2")
     if let Some(pos) = unit_str.find('/') {
         let numerator_str = &unit_str[..pos];
         let denominator_str = &unit_str[pos + 1..];
 
-        let num_dim = get_base_dimension(numerator_str);
-        let den_dim = get_base_dimension(denominator_str);
+        let (num_dim, num_power) = parse_dimension_with_power(numerator_str);
+        let (den_dim, den_power) = parse_dimension_with_power(denominator_str);
 
         return Unit::compound(
             unit_str.to_string(),
-            vec![(num_dim, 1)],
-            vec![(den_dim, 1)],
+            vec![(num_dim, num_power)],
+            vec![(den_dim, den_power)],
         );
     }
 
@@ -364,14 +364,29 @@ pub fn parse_unit(unit_str: &str) -> Unit {
         let left_str = &unit_str[..pos];
         let right_str = &unit_str[pos + 1..];
 
-        let left_dim = get_base_dimension(left_str);
-        let right_dim = get_base_dimension(right_str);
+        let (left_dim, left_power) = parse_dimension_with_power(left_str);
+        let (right_dim, right_power) = parse_dimension_with_power(right_str);
 
         return Unit::compound(
             unit_str.to_string(),
-            vec![(left_dim.clone(), 1), (right_dim, 1)],
+            vec![(left_dim.clone(), left_power), (right_dim, right_power)],
             vec![],
         );
+    }
+
+    // Check if it's a unit with power (e.g., "ft^2", "m^3")
+    if let Some(pos) = unit_str.find('^') {
+        let base_str = &unit_str[..pos];
+        let power_str = &unit_str[pos + 1..];
+
+        if let Ok(power) = power_str.parse::<i32>() {
+            let dimension = get_base_dimension(base_str);
+            return Unit::compound(
+                unit_str.to_string(),
+                vec![(dimension, power)],
+                vec![],
+            );
+        }
     }
 
     // Simple unit
@@ -379,11 +394,28 @@ pub fn parse_unit(unit_str: &str) -> Unit {
     Unit::simple(unit_str, dimension)
 }
 
+/// Parse a unit string and extract dimension with power (e.g., "ft^2" -> (Length, 2))
+fn parse_dimension_with_power(unit_str: &str) -> (BaseDimension, i32) {
+    if let Some(pos) = unit_str.find('^') {
+        let base_str = &unit_str[..pos];
+        let power_str = &unit_str[pos + 1..];
+
+        if let Ok(power) = power_str.parse::<i32>() {
+            return (get_base_dimension(base_str), power);
+        }
+    }
+
+    (get_base_dimension(unit_str), 1)
+}
+
 fn get_base_dimension(unit_str: &str) -> BaseDimension {
     match unit_str {
         "m" | "cm" | "mm" | "km" | "in" | "ft" | "yd" | "mi" => BaseDimension::Length,
         "g" | "kg" | "mg" | "oz" | "lb" => BaseDimension::Mass,
-        "s" | "min" | "hr" | "h" | "hour" | "day" | "month" | "year" => BaseDimension::Time,
+        // Only basic time units (s, min, hr) are Time dimension
+        // Period units (day, month, year) are Custom to allow proper cancellation
+        "s" | "min" | "hr" | "h" | "hour" => BaseDimension::Time,
+        "day" | "month" | "year" => BaseDimension::Custom(unit_str.to_string()),
         "C" | "F" | "K" => BaseDimension::Temperature,
         "USD" | "EUR" | "GBP" | "$" => BaseDimension::Currency,
         "B" | "KB" | "MB" | "GB" | "TB" | "PB" | "Kb" | "Mb" | "Gb" | "Tb" | "Pb" | "Tok" | "MTok" => BaseDimension::DigitalStorage,
@@ -489,27 +521,37 @@ pub fn load_workbook_impl(state: &AppState, path: String) -> Result<(), String> 
 
     let mut workbook = file.to_workbook().map_err(|e| e.to_string())?;
 
-    // Recalculate all formulas in the active sheet after loading
-    // This ensures all formula cells have up-to-date values
-    let changed_cells: Vec<CellAddr> = workbook
-        .active_sheet()
-        .cell_addresses()
-        .into_iter()
-        .filter(|addr| {
-            workbook
-                .active_sheet()
-                .get(addr)
-                .map(|cell| cell.formula().is_some())
-                .unwrap_or(false)
-        })
-        .collect();
+    // Save the original active sheet index
+    let original_active = workbook.active_sheet_index();
 
-    if !changed_cells.is_empty() {
-        workbook
-            .active_sheet_mut()
-            .recalculate(&changed_cells)
-            .map_err(|e| e.to_string())?;
+    // Recalculate all formulas in ALL sheets after loading
+    // This ensures all formula cells have up-to-date values
+    for sheet_idx in 0..workbook.sheet_count() {
+        workbook.set_active_sheet(sheet_idx).ok();
+
+        let changed_cells: Vec<CellAddr> = workbook
+            .active_sheet()
+            .cell_addresses()
+            .into_iter()
+            .filter(|addr| {
+                workbook
+                    .active_sheet()
+                    .get(addr)
+                    .map(|cell| cell.formula().is_some())
+                    .unwrap_or(false)
+            })
+            .collect();
+
+        if !changed_cells.is_empty() {
+            workbook
+                .active_sheet_mut()
+                .recalculate(&changed_cells)
+                .map_err(|e| e.to_string())?;
+        }
     }
+
+    // Restore the original active sheet
+    workbook.set_active_sheet(original_active).ok();
 
     *state.workbook.lock().unwrap() = Some(workbook);
     *state.current_file.lock().unwrap() = Some(path);
@@ -952,6 +994,38 @@ pub fn export_to_excel_impl(state: &AppState, path: String) -> Result<(), String
 
     export_to_excel(workbook, &path)
         .map_err(|e| format!("Failed to export to Excel: {}", e))?;
+
+    Ok(())
+}
+
+/// Set the active sheet by index
+pub fn set_active_sheet_impl(state: &AppState, index: usize) -> Result<(), String> {
+    let mut workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
+
+    workbook.set_active_sheet(index).map_err(|e| e.to_string())?;
+
+    // Recalculate all formulas in the newly active sheet
+    // This ensures all formula cells have up-to-date values
+    let changed_cells: Vec<CellAddr> = workbook
+        .active_sheet()
+        .cell_addresses()
+        .into_iter()
+        .filter(|addr| {
+            workbook
+                .active_sheet()
+                .get(addr)
+                .map(|cell| cell.formula().is_some())
+                .unwrap_or(false)
+        })
+        .collect();
+
+    if !changed_cells.is_empty() {
+        workbook
+            .active_sheet_mut()
+            .recalculate(&changed_cells)
+            .map_err(|e| e.to_string())?;
+    }
 
     Ok(())
 }
