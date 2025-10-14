@@ -73,6 +73,8 @@ export default function Spreadsheet() {
   const [showExamplePicker, setShowExamplePicker] = useState(false);
   const [sheetNames, setSheetNames] = useState<string[]>(['Sheet1']);
   const [activeSheetIndex, setActiveSheetIndex] = useState(0);
+  const [renamingSheetIndex, setRenamingSheetIndex] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   // Initialize workbook on mount
   useEffect(() => {
@@ -119,9 +121,14 @@ export default function Spreadsheet() {
       setFormulaBarValue(cell.formula);
     } else if (cell?.value.type === 'text') {
       setFormulaBarValue(cell.value.text || '');
-    } else if (cell?.value.type === 'number') {
+    } else if (cell?.value.type === 'number' && cell.value.value !== undefined) {
       const unit = cell.storageUnit;
-      setFormulaBarValue(unit ? `${cell.value.value} ${unit}` : `${cell.value.value}`);
+      // Special handling for percentages: convert 0.15 -> "15%"
+      if (unit === '%') {
+        setFormulaBarValue(`${cell.value.value * 100}%`);
+      } else {
+        setFormulaBarValue(unit ? `${cell.value.value} ${unit}` : `${cell.value.value}`);
+      }
     } else {
       setFormulaBarValue('');
     }
@@ -130,25 +137,16 @@ export default function Spreadsheet() {
   // Removed parseInputValue - now handled by backend
 
   const handleCellEdit = async (address: CellAddress, value: string) => {
-    if (value === '') {
-      // Cancel edit
-      setEditingCell(null);
-      return;
-    }
-
     const cellAddr = getCellAddress(address.col, address.row);
 
     try {
-      // Send to backend
-      const cellData = await tauriApi.setCell(cellAddr, value);
-      const newCell = convertCellData(cellData);
+      // Set the cell (backend will recalculate all dependent cells)
+      await tauriApi.setCell(cellAddr, value);
 
-      // Update local state
-      const newCells = new Map(cells);
-      newCells.set(cellAddr, newCell);
-      setCells(newCells);
+      // Reload all cells from backend to get recalculated values
+      await loadCellsFromBackend();
+
       setIsDirty(true);
-
       setEditingCell(null);
       setSelectedCell(address);
     } catch (error) {
@@ -158,6 +156,25 @@ export default function Spreadsheet() {
   };
 
   const handleCellDoubleClick = (address: CellAddress) => {
+    // Initialize formula bar with cell's current value when editing starts
+    const cellAddr = getCellAddress(address.col, address.row);
+    const cell = cells.get(cellAddr);
+
+    let initialValue = '';
+    if (cell?.formula) {
+      initialValue = cell.formula;
+    } else if (cell?.value.type === 'text') {
+      initialValue = cell.value.text || '';
+    } else if (cell?.value.type === 'number' && cell.value.value !== undefined) {
+      const unit = cell.storageUnit;
+      if (unit === '%') {
+        initialValue = `${cell.value.value * 100}%`;
+      } else {
+        initialValue = unit ? `${cell.value.value} ${unit}` : `${cell.value.value}`;
+      }
+    }
+
+    setFormulaBarValue(initialValue);
     setEditingCell(address);
   };
 
@@ -304,7 +321,19 @@ export default function Spreadsheet() {
 
   const handleExportExcel = async () => {
     try {
-      const filePath = await tauriApi.saveExcelFileDialog();
+      // Generate default filename from current workbook
+      const currentFile = await tauriApi.getCurrentFile();
+      let defaultPath: string | undefined;
+
+      if (currentFile) {
+        // Replace .usheet extension with .xlsx
+        defaultPath = currentFile.replace(/\.usheet(\.json)?$/, '.xlsx');
+      } else {
+        // No file loaded, use workbook name
+        defaultPath = `${workbookName}.xlsx`;
+      }
+
+      const filePath = await tauriApi.saveExcelFileDialog(defaultPath);
       if (!filePath) return;
 
       setLoadingMessage('Exporting to Excel...');
@@ -357,6 +386,70 @@ export default function Spreadsheet() {
     }
   };
 
+  const handleAddSheet = async () => {
+    try {
+      const newIndex = await tauriApi.addSheet();
+      await loadCellsFromBackend(); // Reload to get updated sheet names
+      await tauriApi.setActiveSheet(newIndex); // Switch to new sheet
+      await loadCellsFromBackend(); // Reload cells for new sheet
+      setIsDirty(true);
+      addToast('New sheet created', 'success');
+    } catch (error) {
+      addToast(`Failed to add sheet: ${error}`, 'error');
+    }
+  };
+
+  const handleSheetDoubleClick = (index: number, currentName: string) => {
+    setRenamingSheetIndex(index);
+    setRenameValue(currentName);
+  };
+
+  const handleRenameSheet = async () => {
+    if (renamingSheetIndex === null || !renameValue.trim()) {
+      setRenamingSheetIndex(null);
+      return;
+    }
+
+    try {
+      await tauriApi.renameSheet(renamingSheetIndex, renameValue.trim());
+      await loadCellsFromBackend(); // Reload to get updated sheet names
+      setRenamingSheetIndex(null);
+      setIsDirty(true);
+      addToast('Sheet renamed successfully', 'success');
+    } catch (error) {
+      addToast(`Failed to rename sheet: ${error}`, 'error');
+      setRenamingSheetIndex(null);
+    }
+  };
+
+  const handleRenameCancelOrBlur = () => {
+    setRenamingSheetIndex(null);
+  };
+
+  const handleDeleteSheet = async (index: number, sheetName: string) => {
+    if (sheetNames.length <= 1) {
+      addToast('Cannot delete the last sheet', 'error');
+      return;
+    }
+
+    try {
+      // Check if sheet has any data
+      const hasData = await tauriApi.sheetHasData(index);
+
+      // Only show confirmation if sheet has data
+      if (hasData && !confirm(`Are you sure you want to delete sheet "${sheetName}"? This action cannot be undone.`)) {
+        return;
+      }
+
+      await tauriApi.deleteSheet(index);
+      await loadCellsFromBackend(); // Reload to get updated sheet names and active sheet
+      setIsDirty(true);
+      addToast('Sheet deleted successfully', 'success');
+    } catch (error) {
+      addToast(`Failed to delete sheet: ${error}`, 'error');
+    }
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -375,12 +468,16 @@ export default function Spreadsheet() {
       } else if (isMod && e.key === 'n') {
         e.preventDefault();
         handleNew();
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedCell && !editingCell) {
+        // Clear selected cell when Delete or Backspace is pressed (not in edit mode)
+        e.preventDefault();
+        handleCellEdit(selectedCell, '');
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isDirty]);
+  }, [isDirty, selectedCell, editingCell]);
 
   return (
     <>
@@ -443,20 +540,59 @@ export default function Spreadsheet() {
       </div>
 
       {/* Sheet tabs */}
-      <div className="border-b border-gray-300 bg-gray-50 px-2 py-1 flex gap-1">
+      <div className="border-b border-gray-300 bg-gray-50 px-2 py-1 flex gap-1 items-center">
         {sheetNames.map((name, index) => (
-          <button
-            key={index}
-            className={`px-3 py-1 border border-gray-300 rounded-t text-sm font-semibold transition-colors ${
-              index === activeSheetIndex
-                ? 'bg-white border-b-transparent'
-                : 'bg-gray-200 hover:bg-gray-100'
-            }`}
-            onClick={() => handleSheetChange(index)}
-          >
-            {name}
-          </button>
+          <div key={index} className="relative">
+            {renamingSheetIndex === index ? (
+              <input
+                type="text"
+                className="px-3 py-1 border border-blue-500 rounded-t text-sm font-semibold focus:outline-none"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleRenameSheet();
+                  } else if (e.key === 'Escape') {
+                    handleRenameCancelOrBlur();
+                  }
+                }}
+                onBlur={handleRenameCancelOrBlur}
+                autoFocus
+              />
+            ) : (
+              <button
+                className={`px-3 py-1 border border-gray-300 rounded-t text-sm font-semibold transition-colors flex items-center gap-2 ${
+                  index === activeSheetIndex
+                    ? 'bg-white border-b-transparent'
+                    : 'bg-gray-200 hover:bg-gray-100'
+                }`}
+                onClick={() => handleSheetChange(index)}
+                onDoubleClick={() => handleSheetDoubleClick(index, name)}
+              >
+                <span>{name}</span>
+                {sheetNames.length > 1 && (
+                  <span
+                    className="text-gray-500 hover:text-red-600 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteSheet(index, name);
+                    }}
+                    title="Delete sheet"
+                  >
+                    ×
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
         ))}
+        <button
+          className="px-3 py-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded text-sm font-bold transition-colors"
+          onClick={handleAddSheet}
+          title="Add new sheet"
+        >
+          +
+        </button>
       </div>
 
       {/* Grid */}
@@ -465,6 +601,8 @@ export default function Spreadsheet() {
           cells={cells}
           selectedCell={selectedCell}
           editingCell={editingCell}
+          editValue={formulaBarValue}
+          onEditValueChange={setFormulaBarValue}
           onCellSelect={handleCellSelect}
           onCellEdit={handleCellEdit}
           onCellDoubleClick={handleCellDoubleClick}

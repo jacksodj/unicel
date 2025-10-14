@@ -203,7 +203,7 @@
             },
             "storage_unit": "",
             "display_unit": null,
-            "formula": "=G9 / E9 * 100",
+            "formula": "=PERCENT(G9 / E9)",
             "warning": null
           },
           "C7": {
@@ -478,7 +478,7 @@
             },
             "storage_unit": "",
             "display_unit": null,
-            "formula": "=G7 / E7 * 100",
+            "formula": "=PERCENT(G7 / E7)",
             "warning": null
           },
           "G3": {
@@ -923,7 +923,7 @@
             },
             "storage_unit": "",
             "display_unit": null,
-            "formula": "=G7 / E7 * 100",
+            "formula": "=PERCENT(G7 / E7)",
             "warning": null
           },
           "D3": {

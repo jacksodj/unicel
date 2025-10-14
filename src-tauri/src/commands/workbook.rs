@@ -271,6 +271,15 @@ pub fn parse_cell_input(input: &str) -> Result<Cell, String> {
         return Ok(Cell::empty());
     }
 
+    // Check for percentage (e.g., "15%", "15 %")
+    if input.ends_with('%') {
+        let number_str = input[..input.len() - 1].trim();
+        if let Ok(value) = number_str.parse::<f64>() {
+            // Store as fraction (15% -> 0.15)
+            return Ok(Cell::new(value / 100.0, Unit::simple("%", BaseDimension::Custom("%".to_string()))));
+        }
+    }
+
     // Check if it starts with a currency symbol (e.g., "$15", "USD 15")
     if input.starts_with('$') || input.starts_with("USD") || input.starts_with("EUR") || input.starts_with("GBP") {
         // Try to parse as currency-first format
@@ -973,7 +982,10 @@ fn format_cell_value(value: &CellValueData, unit: &str) -> String {
     match value {
         CellValueData::Empty => String::new(),
         CellValueData::Number { value } => {
-            if unit.is_empty() || unit == "1" {
+            // Special handling for percentages: convert 0.15 -> "15%"
+            if unit == "%" {
+                format!("{}%", value * 100.0)
+            } else if unit.is_empty() || unit == "1" {
                 format!("{}", value)
             } else {
                 format!("{} {}", value, unit)
@@ -1028,4 +1040,42 @@ pub fn set_active_sheet_impl(state: &AppState, index: usize) -> Result<(), Strin
     }
 
     Ok(())
+}
+
+/// Add a new sheet to the workbook
+pub fn add_sheet_impl(state: &AppState) -> Result<usize, String> {
+    let mut workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
+
+    let new_index = workbook.add_sheet();
+    Ok(new_index)
+}
+
+/// Rename a sheet
+pub fn rename_sheet_impl(state: &AppState, index: usize, new_name: String) -> Result<(), String> {
+    let mut workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
+
+    workbook.rename_sheet(index, new_name).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Delete a sheet (cannot delete last sheet)
+pub fn delete_sheet_impl(state: &AppState, index: usize) -> Result<(), String> {
+    let mut workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
+
+    workbook.remove_sheet(index).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Check if a sheet has any data (non-empty cells)
+pub fn sheet_has_data_impl(state: &AppState, index: usize) -> Result<bool, String> {
+    let workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_ref().ok_or("No workbook loaded")?;
+
+    let sheet = workbook.get_sheet(index).ok_or("Sheet not found")?;
+    let has_data = !sheet.cell_addresses().is_empty();
+
+    Ok(has_data)
 }

@@ -573,6 +573,7 @@ impl<'a> SheetEvaluator<'a> {
                     "SUM" => self.eval_sum(args),
                     "AVERAGE" => self.eval_average(args),
                     "CONVERT" => self.eval_convert(args),
+                    "PERCENT" => self.eval_percent(args),
                     _ => Err(EvalError::FunctionNotImplemented(name.clone())),
                 }
             }
@@ -725,7 +726,19 @@ impl<'a> SheetEvaluator<'a> {
                 let cell = self.sheet.get(&addr).ok_or_else(|| {
                     EvalError::CellNotFound(addr.to_string())
                 })?;
-                cell.storage_unit().clone()
+
+                // Check if cell contains text - if so, parse it as a unit string
+                match cell.value() {
+                    CellValue::Text(text) => {
+                        use crate::core::units::parse_unit;
+                        parse_unit(text, self.library)
+                            .map_err(|_| EvalError::UnknownUnit(text.clone()))?
+                    }
+                    _ => {
+                        // Otherwise, use the cell's storage unit
+                        cell.storage_unit().clone()
+                    }
+                }
             }
             _ => {
                 return Err(EvalError::InvalidOperation(
@@ -760,6 +773,29 @@ impl<'a> SheetEvaluator<'a> {
         })?;
 
         Ok(EvalResult::new(converted_value, target_unit))
+    }
+
+    /// Evaluate PERCENT function
+    /// Syntax: PERCENT(value)
+    /// Example: PERCENT(0.15) returns 0.15 with "%" unit → displays as "15%"
+    fn eval_percent(&self, args: &[Expr]) -> Result<EvalResult, EvalError> {
+        if args.len() != 1 {
+            return Err(EvalError::InvalidOperation(
+                "PERCENT requires exactly 1 argument: PERCENT(value)".to_string()
+            ));
+        }
+
+        // Evaluate the value
+        let value_result = self.eval(&args[0])?;
+
+        // Create a percentage unit
+        let percent_unit = crate::core::units::Unit::simple(
+            "%",
+            crate::core::units::BaseDimension::Custom("%".to_string())
+        );
+
+        // Return the same value with "%" unit
+        Ok(EvalResult::new(value_result.value, percent_unit))
     }
 
     /// Collect values from arguments (expanding ranges)

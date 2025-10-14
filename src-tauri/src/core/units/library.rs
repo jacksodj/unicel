@@ -83,6 +83,7 @@ impl UnitLibrary {
 
     /// Convert a value from one unit to another
     /// Returns None if units are not compatible or conversion doesn't exist
+    /// Uses BFS to find multi-hop conversion paths if no direct conversion exists
     pub fn convert(&self, value: f64, from: &str, to: &str) -> Option<f64> {
         // If same unit, no conversion needed
         if from == to {
@@ -98,11 +99,65 @@ impl UnitLibrary {
             return None;
         }
 
-        // Get conversion factor
-        let factor = self.get_conversion(from, to)?;
+        // Try direct conversion first
+        if let Some(factor) = self.get_conversion(from, to) {
+            return Some(factor.convert(value));
+        }
 
-        // Apply conversion
-        Some(factor.convert(value))
+        // If no direct conversion, use BFS to find a path
+        self.convert_via_path(value, from, to)
+    }
+
+    /// Find and apply a multi-hop conversion path using BFS
+    fn convert_via_path(&self, value: f64, from: &str, to: &str) -> Option<f64> {
+        use std::collections::{VecDeque, HashSet};
+
+        // BFS to find shortest conversion path
+        let mut queue = VecDeque::new();
+        let mut visited = HashSet::new();
+        let mut parent: HashMap<String, String> = HashMap::new();
+
+        queue.push_back(from.to_string());
+        visited.insert(from.to_string());
+
+        // BFS to find path
+        while let Some(current) = queue.pop_front() {
+            if current == to {
+                // Found path! Reconstruct it
+                let mut path: Vec<(String, String)> = Vec::new();
+                let mut node = to.to_string();
+
+                while let Some(prev) = parent.get(&node) {
+                    path.push((prev.clone(), node.clone()));
+                    node = prev.clone();
+                }
+
+                path.reverse();
+
+                // Apply conversions along the path
+                let mut result = value;
+                for (from_unit, to_unit) in path {
+                    if let Some(factor) = self.get_conversion(&from_unit, &to_unit) {
+                        result = factor.convert(result);
+                    } else {
+                        return None; // Path exists but conversion missing (shouldn't happen)
+                    }
+                }
+
+                return Some(result);
+            }
+
+            // Explore neighbors (all units that current can convert to)
+            for ((conv_from, conv_to), _) in &self.conversions {
+                if conv_from == &current && !visited.contains(conv_to) {
+                    visited.insert(conv_to.clone());
+                    parent.insert(conv_to.clone(), current.clone());
+                    queue.push_back(conv_to.clone());
+                }
+            }
+        }
+
+        None // No path found
     }
 
     /// Check if two units are compatible (can be converted)

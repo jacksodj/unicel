@@ -1,6 +1,8 @@
 // Excel import/export functionality
 
 use crate::core::workbook::Workbook;
+use crate::core::table::Sheet;
+use crate::core::units::UnitLibrary;
 use rust_xlsxwriter::{Format, Workbook as XlsxWorkbook, Worksheet};
 use std::path::Path;
 use thiserror::Error;
@@ -15,6 +17,154 @@ pub enum ExcelError {
 
     #[error("Excel library error: {0}")]
     XlsxError(#[from] rust_xlsxwriter::XlsxError),
+}
+
+/// Expand CONVERT functions in formulas to Excel-compatible math with conversion factors
+/// Example: =CONVERT(A1, 1ft) becomes =A1*3.28084 if A1 is in meters
+fn expand_convert_formula(formula: &str, sheet: &Sheet) -> Option<String> {
+    // Simple regex-based approach to detect CONVERT function
+    // Format: CONVERT(arg1, arg2) where arg2 can be "1 unit" or a cell reference
+
+    if !formula.to_uppercase().contains("CONVERT") {
+        return None;
+    }
+
+    let library = UnitLibrary::new();
+
+    // Try to parse and expand the formula
+    // This is a simplified implementation that handles common cases
+    let formula_upper = formula.to_uppercase();
+
+    // Find CONVERT( position
+    let convert_pos = formula_upper.find("CONVERT(")?;
+    let start = convert_pos + 8; // After "CONVERT("
+
+    // Find matching closing parenthesis
+    let mut paren_depth = 1;
+    let mut end = start;
+    for (i, ch) in formula[start..].chars().enumerate() {
+        match ch {
+            '(' => paren_depth += 1,
+            ')' => {
+                paren_depth -= 1;
+                if paren_depth == 0 {
+                    end = start + i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if paren_depth != 0 {
+        return None; // Unmatched parentheses
+    }
+
+    // Extract arguments
+    let args_str = &formula[start..end];
+    let args: Vec<&str> = args_str.split(',').map(|s| s.trim()).collect();
+
+    if args.len() != 2 {
+        return None; // CONVERT requires exactly 2 arguments
+    }
+
+    let source_expr = args[0];
+    let target_unit_expr = args[1];
+
+    // Determine source unit
+    // If source is a cell reference, get its unit
+    let source_unit = if let Some(source_cell) = parse_cell_ref(source_expr) {
+        sheet.get(&source_cell)?.storage_unit().canonical().to_string()
+    } else {
+        // Try to parse as "value unit" format
+        extract_unit_from_value(source_expr)?
+    };
+
+    // Determine target unit
+    let target_unit = if let Some(target_cell) = parse_cell_ref(target_unit_expr) {
+        // Cell reference - get unit from cell
+        let cell = sheet.get(&target_cell)?;
+        // Check if it's text (unit name) or has a storage unit
+        if let Some(text) = cell.as_text() {
+            text.trim().to_string()
+        } else {
+            cell.storage_unit().canonical().to_string()
+        }
+    } else {
+        // Try to parse as "1 unit" format
+        extract_unit_from_target(target_unit_expr)?
+    };
+
+    // Calculate conversion factor
+    let conversion_factor = library.convert(1.0, &source_unit, &target_unit)?;
+
+    // Build expanded formula
+    let expanded = if conversion_factor == 1.0 {
+        // No conversion needed
+        source_expr.to_string()
+    } else {
+        // Multiply by conversion factor
+        format!("{}*{}", source_expr, conversion_factor)
+    };
+
+    // Replace CONVERT(...) with expanded version
+    let before = &formula[..convert_pos];
+    let after = &formula[end + 1..]; // After the closing )
+
+    Some(format!("{}{}{}", before, expanded, after))
+}
+
+/// Parse a cell reference like "A1", "B2", etc.
+fn parse_cell_ref(s: &str) -> Option<crate::core::table::CellAddr> {
+    use crate::core::table::CellAddr;
+
+    let trimmed = s.trim();
+    let mut col = String::new();
+    let mut row = String::new();
+
+    for ch in trimmed.chars() {
+        if ch.is_ascii_alphabetic() {
+            col.push(ch.to_ascii_uppercase());
+        } else if ch.is_ascii_digit() {
+            row.push(ch);
+        } else {
+            return None; // Invalid character
+        }
+    }
+
+    if col.is_empty() || row.is_empty() {
+        return None;
+    }
+
+    let row_num: usize = row.parse().ok()?;
+    Some(CellAddr::new(col, row_num))
+}
+
+/// Extract unit from a value expression like "100 m" or "1 km"
+fn extract_unit_from_value(s: &str) -> Option<String> {
+    let parts: Vec<&str> = s.trim().split_whitespace().collect();
+    if parts.len() >= 2 {
+        Some(parts[1..].join(" "))
+    } else {
+        None
+    }
+}
+
+/// Extract unit from target expression like "1 ft" or "1km"
+fn extract_unit_from_target(s: &str) -> Option<String> {
+    let trimmed = s.trim();
+
+    // Try "1 unit" format
+    if let Some(space_pos) = trimmed.find(' ') {
+        return Some(trimmed[space_pos + 1..].trim().to_string());
+    }
+
+    // Try "1unit" format (no space)
+    if trimmed.starts_with('1') {
+        return Some(trimmed[1..].trim().to_string());
+    }
+
+    None
 }
 
 /// Export a workbook to Excel format
@@ -66,12 +216,11 @@ pub fn export_to_excel(
                 let cell_ref = format!("{}{}", addr.col, addr.row);
 
                 // Export the cell based on its content
-                if cell.formula().is_some() {
-                    // For formulas, export the CALCULATED VALUE (not the formula)
-                    // because Excel can't recalculate with unit logic
-                    if let Some(value) = cell.as_number() {
-                        // Value in column N*2
-                        worksheet.write_number_with_format(row_num, col_num as u16, value, &formula_format)?;
+                if let Some(formula) = cell.formula() {
+                    // Try to expand CONVERT functions to Excel-compatible formulas
+                    if let Some(expanded_formula) = expand_convert_formula(formula, sheet) {
+                        // Export as Excel formula with expanded CONVERT
+                        worksheet.write_formula_with_format(row_num, col_num as u16, expanded_formula.as_str(), &formula_format)?;
 
                         // Unit in column N*2+1
                         let unit_str = cell.storage_unit().canonical();
@@ -82,9 +231,30 @@ pub fn export_to_excel(
                             metadata_rows.push((
                                 sheet.name().to_string(),
                                 cell_ref,
-                                format!("Formula: {}", cell.formula().unwrap()),
+                                format!("Original: {} → Excel: {}", formula, expanded_formula),
                                 unit_str.to_string(),
                             ));
+                        }
+                    } else {
+                        // For other formulas, export the CALCULATED VALUE
+                        // because Excel can't recalculate with unit logic
+                        if let Some(value) = cell.as_number() {
+                            // Value in column N*2
+                            worksheet.write_number_with_format(row_num, col_num as u16, value, &formula_format)?;
+
+                            // Unit in column N*2+1
+                            let unit_str = cell.storage_unit().canonical();
+                            if !unit_str.is_empty() && unit_str != "1" {
+                                worksheet.write_string(row_num, (col_num + 1) as u16, unit_str)?;
+
+                                // Track metadata
+                                metadata_rows.push((
+                                    sheet.name().to_string(),
+                                    cell_ref,
+                                    format!("Formula: {}", formula),
+                                    unit_str.to_string(),
+                                ));
+                            }
                         }
                     }
                 } else if let Some(value) = cell.as_number() {

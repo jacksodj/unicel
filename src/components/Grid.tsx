@@ -10,6 +10,8 @@ interface GridProps {
   onCellDoubleClick?: (address: CellAddress) => void;
   selectedCell?: CellAddress | null;
   editingCell?: CellAddress | null;
+  editValue?: string;
+  onEditValueChange?: (value: string) => void;
 }
 
 export default function Grid({
@@ -21,22 +23,16 @@ export default function Grid({
   onCellDoubleClick,
   selectedCell,
   editingCell,
+  editValue = '',
+  onEditValueChange,
 }: GridProps) {
-  const [editValue, setEditValue] = useState('');
   const [isFormulaMode, setIsFormulaMode] = useState(false);
   const [pickerCell, setPickerCell] = useState<CellAddress | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize edit value and focus input when editing starts
+  // Focus and select input when editing starts (but not on every value change)
   useEffect(() => {
     if (editingCell) {
-      const address = getCellAddress(editingCell.col, editingCell.row);
-      const cell = cells.get(address);
-      const value = getEditValue(cell);
-      setEditValue(value);
-      setIsFormulaMode(value.startsWith('='));
-      setPickerCell(null);
-
       // Focus after a brief delay to ensure input is rendered
       setTimeout(() => {
         if (inputRef.current) {
@@ -45,7 +41,15 @@ export default function Grid({
         }
       }, 0);
     }
-  }, [editingCell, cells]);
+  }, [editingCell]); // Only depend on editingCell, not editValue
+
+  // Update formula mode when edit value changes
+  useEffect(() => {
+    setIsFormulaMode(editValue.startsWith('='));
+    if (!editValue.startsWith('=')) {
+      setPickerCell(null);
+    }
+  }, [editValue]);
 
   // Handle arrow key navigation in normal mode (not editing)
   useEffect(() => {
@@ -123,10 +127,33 @@ export default function Grid({
     }
     if (cell.value.type === 'number' && cell.value.value !== undefined) {
       const unit = cell.displayUnit || cell.storageUnit;
-      if (unit) {
-        return `${cell.value.value} ${unit}`;
+
+      // Special handling for percentages: convert 0.15 -> "15%"
+      if (unit === '%') {
+        return `${(cell.value.value * 100).toFixed(2)}%`;
       }
-      return `${cell.value.value}`;
+
+      // Check if this is a currency unit
+      const currencyUnits = ['USD', 'EUR', 'GBP', '$', '€', '£'];
+      const isCurrency = currencyUnits.includes(unit);
+
+      // Format number based on unit type
+      let formattedNumber: string;
+      if (isCurrency) {
+        // Format currency with thousands separators and 2 decimal places
+        formattedNumber = cell.value.value.toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      } else {
+        // For non-currency, use default formatting
+        formattedNumber = cell.value.value.toString();
+      }
+
+      if (unit) {
+        return `${formattedNumber} ${unit}`;
+      }
+      return formattedNumber;
     }
     return '';
   };
@@ -139,22 +166,11 @@ export default function Grid({
     return editingCell?.col === col && editingCell?.row === row;
   };
 
-  const getEditValue = (cell: Cell | undefined): string => {
-    if (!cell) return '';
-    if (cell.formula) return cell.formula;
-    if (cell.value.type === 'text' && cell.value.text !== undefined) {
-      return cell.value.text;
-    }
-    if (cell.value.type === 'number' && cell.value.value !== undefined) {
-      const unit = cell.storageUnit;
-      return unit ? `${cell.value.value} ${unit}` : `${cell.value.value}`;
-    }
-    return '';
-  };
-
   const insertCellReference = (col: string, row: number) => {
     const cellRef = getCellAddress(col, row);
-    setEditValue((prev) => prev + cellRef);
+    if (onEditValueChange) {
+      onEditValueChange(editValue + cellRef);
+    }
     setPickerCell(null);
     // Return focus to input
     setTimeout(() => inputRef.current?.focus(), 0);
@@ -211,7 +227,9 @@ export default function Grid({
     if (isFormulaMode && pickerCell && (e.key === '+' || e.key === '-' || e.key === '*' || e.key === '/' || e.key === '(' || e.key === ')')) {
       e.preventDefault();
       const cellRef = getCellAddress(pickerCell.col, pickerCell.row);
-      setEditValue((prev) => prev + cellRef + e.key);
+      if (onEditValueChange) {
+        onEditValueChange(editValue + cellRef + e.key);
+      }
       setPickerCell(null);
       setTimeout(() => inputRef.current?.focus(), 0);
       return;
@@ -249,7 +267,9 @@ export default function Grid({
   };
 
   const handleInputChange = (value: string) => {
-    setEditValue(value);
+    if (onEditValueChange) {
+      onEditValueChange(value);
+    }
     // Detect formula mode when user types =
     if (value.startsWith('=') && !isFormulaMode) {
       setIsFormulaMode(true);

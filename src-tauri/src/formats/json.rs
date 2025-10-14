@@ -332,23 +332,87 @@ impl CellValueData {
 }
 
 /// Parse a unit from its canonical form
-/// This is a simplified parser for the MLP - in full version would use UnitLibrary
+/// This handles simple units, compound units with powers, and units with division
 fn parse_unit_from_canonical(canonical: &str) -> Unit {
     if canonical.is_empty() {
         return Unit::dimensionless();
     }
 
-    // For simple units, try to infer the dimension
-    let dimension = match canonical {
+    // Check if it's a compound unit with division (e.g., "USD/ft", "mi/hr", "$/ft^2")
+    if let Some(pos) = canonical.find('/') {
+        let numerator_str = &canonical[..pos];
+        let denominator_str = &canonical[pos + 1..];
+
+        let (num_dim, num_power) = parse_dimension_with_power(numerator_str);
+        let (den_dim, den_power) = parse_dimension_with_power(denominator_str);
+
+        return Unit::compound(
+            canonical.to_string(),
+            vec![(num_dim, num_power)],
+            vec![(den_dim, den_power)],
+        );
+    }
+
+    // Check if it's a compound unit with multiplication (e.g., "ft*ft", "kg*m")
+    if let Some(pos) = canonical.find('*') {
+        let left_str = &canonical[..pos];
+        let right_str = &canonical[pos + 1..];
+
+        let (left_dim, left_power) = parse_dimension_with_power(left_str);
+        let (right_dim, right_power) = parse_dimension_with_power(right_str);
+
+        return Unit::compound(
+            canonical.to_string(),
+            vec![(left_dim.clone(), left_power), (right_dim, right_power)],
+            vec![],
+        );
+    }
+
+    // Check if it's a unit with power (e.g., "ft^2", "m^3")
+    if let Some(pos) = canonical.find('^') {
+        let base_str = &canonical[..pos];
+        let power_str = &canonical[pos + 1..];
+
+        if let Ok(power) = power_str.parse::<i32>() {
+            let dimension = get_base_dimension_for_json(base_str);
+            return Unit::compound(
+                canonical.to_string(),
+                vec![(dimension, power)],
+                vec![],
+            );
+        }
+    }
+
+    // Simple unit
+    let dimension = get_base_dimension_for_json(canonical);
+    Unit::simple(canonical, dimension)
+}
+
+/// Parse a unit string and extract dimension with power (e.g., "ft^2" -> (Length, 2))
+fn parse_dimension_with_power(unit_str: &str) -> (BaseDimension, i32) {
+    if let Some(pos) = unit_str.find('^') {
+        let base_str = &unit_str[..pos];
+        let power_str = &unit_str[pos + 1..];
+
+        if let Ok(power) = power_str.parse::<i32>() {
+            return (get_base_dimension_for_json(base_str), power);
+        }
+    }
+
+    (get_base_dimension_for_json(unit_str), 1)
+}
+
+/// Get base dimension for a unit string (helper for JSON parsing)
+fn get_base_dimension_for_json(unit_str: &str) -> BaseDimension {
+    match unit_str {
         "m" | "cm" | "mm" | "km" | "in" | "ft" | "yd" | "mi" => BaseDimension::Length,
         "g" | "kg" | "mg" | "oz" | "lb" => BaseDimension::Mass,
-        "s" | "min" | "hr" | "h" | "day" => BaseDimension::Time,
+        "s" | "min" | "hr" | "h" | "hour" | "day" | "month" | "year" => BaseDimension::Time,
         "C" | "F" | "K" => BaseDimension::Temperature,
-        "USD" | "EUR" | "GBP" => BaseDimension::Currency,
-        _ => BaseDimension::Custom(canonical.to_string()),
-    };
-
-    Unit::simple(canonical, dimension)
+        "USD" | "EUR" | "GBP" | "$" => BaseDimension::Currency,
+        "B" | "KB" | "MB" | "GB" | "TB" | "PB" | "Kb" | "Mb" | "Gb" | "Tb" | "Pb" | "Tok" | "MTok" => BaseDimension::DigitalStorage,
+        _ => BaseDimension::Custom(unit_str.to_string()),
+    }
 }
 
 #[cfg(test)]

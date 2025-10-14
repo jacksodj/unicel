@@ -97,11 +97,26 @@ fn export_to_excel(state: State<AppState>, path: String) -> Result<(), String> {
 
 #[tauri::command]
 fn get_example_workbook_path(app: tauri::AppHandle, filename: String) -> Result<String, String> {
-    let path = format!("examples/{}", filename);
-    app.path()
-        .resolve(&path, tauri::path::BaseDirectory::Resource)
-        .map(|p| p.to_string_lossy().to_string())
-        .map_err(|e| format!("Failed to resolve example path: {}", e))
+    use std::path::PathBuf;
+
+    // Try to resolve as a bundled resource first (works in production)
+    let resource_path = format!("examples/{}", filename);
+    if let Ok(path) = app.path().resolve(&resource_path, tauri::path::BaseDirectory::Resource) {
+        if path.exists() {
+            return Ok(path.to_string_lossy().to_string());
+        }
+    }
+
+    // Fallback for development mode: look in src-tauri/examples/
+    let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("examples")
+        .join(&filename);
+
+    if dev_path.exists() {
+        return Ok(dev_path.to_string_lossy().to_string());
+    }
+
+    Err(format!("Example file not found: {}", filename))
 }
 
 #[tauri::command]
@@ -112,6 +127,31 @@ fn list_example_workbooks() -> Vec<(String, String)> {
         ("construction_estimator.usheet".to_string(), "Construction Estimator".to_string()),
         ("investment_portfolio.usheet".to_string(), "Investment Portfolio Tracker".to_string()),
     ]
+}
+
+#[tauri::command]
+fn set_active_sheet(state: State<AppState>, index: usize) -> Result<(), String> {
+    unicel_lib::commands::set_active_sheet_impl(&state, index)
+}
+
+#[tauri::command]
+fn add_sheet(state: State<AppState>) -> Result<usize, String> {
+    unicel_lib::commands::add_sheet_impl(&state)
+}
+
+#[tauri::command]
+fn rename_sheet(state: State<AppState>, index: usize, new_name: String) -> Result<(), String> {
+    unicel_lib::commands::rename_sheet_impl(&state, index, new_name)
+}
+
+#[tauri::command]
+fn delete_sheet(state: State<AppState>, index: usize) -> Result<(), String> {
+    unicel_lib::commands::delete_sheet_impl(&state, index)
+}
+
+#[tauri::command]
+fn sheet_has_data(state: State<AppState>, index: usize) -> Result<bool, String> {
+    unicel_lib::commands::sheet_has_data_impl(&state, index)
 }
 
 fn main() {
@@ -148,6 +188,11 @@ fn main() {
             export_to_excel,
             get_example_workbook_path,
             list_example_workbooks,
+            set_active_sheet,
+            add_sheet,
+            rename_sheet,
+            delete_sheet,
+            sheet_has_data,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

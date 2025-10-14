@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { tauriApi } from '../api/tauri';
+import { useState } from 'react';
 
 interface RibbonProps {
   displayMode: 'AsEntered' | 'Metric' | 'Imperial';
@@ -11,7 +10,7 @@ interface RibbonProps {
   onOpenPreferences: () => void;
   onDebugExport?: () => void;
   onExportExcel?: () => void;
-  onOpenExample?: (filename: string) => void;
+  onOpenExampleDialog?: () => void;
   isDirty?: boolean;
 }
 
@@ -25,24 +24,10 @@ export default function Ribbon({
   onOpenPreferences,
   onDebugExport,
   onExportExcel,
-  onOpenExample,
+  onOpenExampleDialog,
   isDirty = false,
 }: RibbonProps) {
   const [showFileMenu, setShowFileMenu] = useState(false);
-  const [examples, setExamples] = useState<Array<[string, string]>>([]);
-
-  // Load examples list on mount
-  useEffect(() => {
-    const loadExamples = async () => {
-      try {
-        const examplesList = await tauriApi.listExampleWorkbooks();
-        setExamples(examplesList);
-      } catch (error) {
-        console.error('Failed to load examples:', error);
-      }
-    };
-    loadExamples();
-  }, []);
 
   const displayModeOptions = [
     { value: 'AsEntered' as const, label: 'As Entered', icon: '✏️' },
@@ -95,24 +80,6 @@ export default function Ribbon({
                   Open
                   <span className="ml-auto text-xs text-gray-500">Ctrl+O</span>
                 </button>
-                {onOpenExample && examples.length > 0 && (
-                  <>
-                    <div className="px-4 py-2 text-xs font-semibold text-gray-500">Examples</div>
-                    {examples.map(([filename, title]) => (
-                      <button
-                        key={filename}
-                        className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center gap-2 pl-6"
-                        onClick={() => {
-                          onOpenExample(filename);
-                          setShowFileMenu(false);
-                        }}
-                      >
-                        <span className="text-lg">📚</span>
-                        {title}
-                      </button>
-                    ))}
-                  </>
-                )}
                 <div className="border-t border-gray-200" />
                 <button
                   className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center gap-2"
@@ -148,6 +115,18 @@ export default function Ribbon({
                   >
                     <span className="text-lg">📊</span>
                     Export to Excel...
+                  </button>
+                )}
+                {onOpenExampleDialog && (
+                  <button
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center gap-2"
+                    onClick={() => {
+                      onOpenExampleDialog();
+                      setShowFileMenu(false);
+                    }}
+                  >
+                    <span className="text-lg">📚</span>
+                    Open Example...
                   </button>
                 )}
               </div>

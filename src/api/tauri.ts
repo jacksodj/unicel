@@ -116,6 +116,26 @@ export const tauriApi = {
     return invoke('list_example_workbooks');
   },
 
+  async setActiveSheet(index: number): Promise<void> {
+    return invoke('set_active_sheet', { index });
+  },
+
+  async addSheet(): Promise<number> {
+    return invoke('add_sheet');
+  },
+
+  async renameSheet(index: number, newName: string): Promise<void> {
+    return invoke('rename_sheet', { index, newName });
+  },
+
+  async deleteSheet(index: number): Promise<void> {
+    return invoke('delete_sheet', { index });
+  },
+
+  async sheetHasData(index: number): Promise<boolean> {
+    return invoke('sheet_has_data', { index });
+  },
+
   // File dialogs
   async openFileDialog(): Promise<string | null> {
     const selected = await open({
