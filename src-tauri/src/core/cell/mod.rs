@@ -39,6 +39,9 @@ pub enum CellValue {
     /// A numeric value (could be from direct entry or formula result)
     Number(f64),
 
+    /// Plain text string
+    Text(String),
+
     /// An error (e.g., division by zero, circular reference)
     Error(String),
 }
@@ -88,6 +91,35 @@ impl Cell {
             CellValue::Number(n) => Some(n),
             _ => None,
         }
+    }
+
+    /// Create a cell with plain text
+    pub fn with_text(text: impl Into<String>) -> Self {
+        Self {
+            value: CellValue::Text(text.into()),
+            storage_unit: Unit::dimensionless(),
+            display_unit: None,
+            formula: None,
+            warning: None,
+        }
+    }
+
+    /// Get the text value if this cell contains text
+    pub fn as_text(&self) -> Option<&str> {
+        match &self.value {
+            CellValue::Text(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    /// Check if this cell contains text
+    pub fn is_text(&self) -> bool {
+        matches!(self.value, CellValue::Text(_))
+    }
+
+    /// Check if this cell contains a number
+    pub fn is_number(&self) -> bool {
+        matches!(self.value, CellValue::Number(_))
     }
 
     /// Get the storage unit
@@ -168,6 +200,7 @@ impl Cell {
                     format!("{} {}", n, unit)
                 }
             }
+            CellValue::Text(t) => t.clone(),
             CellValue::Error(e) => format!("ERROR: {}", e),
         }
     }
@@ -184,6 +217,11 @@ impl CellValue {
         matches!(self, CellValue::Number(_))
     }
 
+    /// Check if this is text
+    pub fn is_text(&self) -> bool {
+        matches!(self, CellValue::Text(_))
+    }
+
     /// Check if this is an error
     pub fn is_error(&self) -> bool {
         matches!(self, CellValue::Error(_))
@@ -193,6 +231,14 @@ impl CellValue {
     pub fn as_number(&self) -> Option<f64> {
         match self {
             CellValue::Number(n) => Some(*n),
+            _ => None,
+        }
+    }
+
+    /// Get as text if possible
+    pub fn as_text(&self) -> Option<&str> {
+        match self {
+            CellValue::Text(t) => Some(t),
             _ => None,
         }
     }
@@ -217,6 +263,7 @@ impl fmt::Display for CellValue {
         match self {
             CellValue::Empty => write!(f, ""),
             CellValue::Number(n) => write!(f, "{}", n),
+            CellValue::Text(t) => write!(f, "{}", t),
             CellValue::Error(e) => write!(f, "ERROR: {}", e),
         }
     }
@@ -335,5 +382,55 @@ mod tests {
             warning: None,
         };
         assert_eq!(format!("{}", error_cell), "ERROR: Test error");
+    }
+
+    #[test]
+    fn test_text_cell() {
+        let cell = Cell::with_text("Hello, World!");
+
+        assert!(cell.is_text());
+        assert!(!cell.is_empty());
+        assert!(!cell.is_number());
+        assert_eq!(cell.as_text(), Some("Hello, World!"));
+        assert_eq!(cell.formatted(), "Hello, World!");
+    }
+
+    #[test]
+    fn test_text_cell_value() {
+        let text = CellValue::Text("Test".to_string());
+
+        assert!(text.is_text());
+        assert!(!text.is_empty());
+        assert!(text.as_number().is_none());
+        assert_eq!(text.as_text(), Some("Test"));
+        assert_eq!(format!("{}", text), "Test");
+    }
+
+    #[test]
+    fn test_cell_types_distinct() {
+        let empty = Cell::empty();
+        let number = Cell::new(42.0, Unit::dimensionless());
+        let text = Cell::with_text("Hello");
+        let formula = Cell::with_formula("=A1+B1");
+
+        // Empty cell
+        assert!(empty.is_empty());
+        assert!(!empty.is_number());
+        assert!(!empty.is_text());
+        assert!(!empty.is_formula());
+
+        // Number cell
+        assert!(!number.is_empty());
+        assert!(number.is_number());
+        assert!(!number.is_text());
+
+        // Text cell
+        assert!(!text.is_empty());
+        assert!(!text.is_number());
+        assert!(text.is_text());
+
+        // Formula cell (value still empty until evaluated)
+        assert!(formula.is_empty());
+        assert!(formula.is_formula());
     }
 }

@@ -105,6 +105,7 @@ pub struct CellData {
 pub enum CellValueData {
     Empty,
     Number { value: f64 },
+    Text { text: String },
     Error { message: String },
 }
 
@@ -284,6 +285,7 @@ impl CellData {
         let mut cell = match &self.value {
             CellValueData::Empty => Cell::empty(),
             CellValueData::Number { value } => Cell::new(*value, unit.clone()),
+            CellValueData::Text { text } => Cell::with_text(text.clone()),
             CellValueData::Error { message } => {
                 let mut c = Cell::empty();
                 c.set_value(CellValue::Error(message.clone()));
@@ -321,6 +323,7 @@ impl CellValueData {
         match value {
             CellValue::Empty => Self::Empty,
             CellValue::Number(n) => Self::Number { value: *n },
+            CellValue::Text(t) => Self::Text { text: t.clone() },
             CellValue::Error(e) => Self::Error {
                 message: e.clone(),
             },

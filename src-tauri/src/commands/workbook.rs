@@ -53,6 +53,7 @@ pub struct CellData {
 pub enum CellValueData {
     Empty,
     Number { value: f64 },
+    Text { text: String },
     Error { message: String },
 }
 
@@ -70,6 +71,7 @@ pub fn cell_to_data(cell: &Cell) -> CellData {
     let value = match cell.value() {
         CellValue::Empty => CellValueData::Empty,
         CellValue::Number(n) => CellValueData::Number { value: *n },
+        CellValue::Text(t) => CellValueData::Text { text: t.clone() },
         CellValue::Error(e) => CellValueData::Error {
             message: e.clone(),
         },
@@ -125,6 +127,7 @@ pub fn cell_to_data_with_mode(cell: &Cell, mode: &DisplayMode, preferences: &Uni
             (match cell.value() {
                 CellValue::Empty => CellValueData::Empty,
                 CellValue::Number(n) => CellValueData::Number { value: *n },
+                CellValue::Text(t) => CellValueData::Text { text: t.clone() },
                 CellValue::Error(e) => CellValueData::Error { message: e.clone() },
             }, None)
         }
@@ -133,6 +136,7 @@ pub fn cell_to_data_with_mode(cell: &Cell, mode: &DisplayMode, preferences: &Uni
         (match cell.value() {
             CellValue::Empty => CellValueData::Empty,
             CellValue::Number(n) => CellValueData::Number { value: *n },
+            CellValue::Text(t) => CellValueData::Text { text: t.clone() },
             CellValue::Error(e) => CellValueData::Error { message: e.clone() },
         }, None)
     };
@@ -222,6 +226,11 @@ pub fn parse_cell_input(input: &str) -> Result<Cell, String> {
 
     let input = input.trim();
 
+    // Check if it's empty
+    if input.is_empty() {
+        return Ok(Cell::empty());
+    }
+
     // Check if it starts with a currency symbol (e.g., "$15", "USD 15")
     if input.starts_with('$') || input.starts_with("USD") || input.starts_with("EUR") || input.starts_with("GBP") {
         // Try to parse as currency-first format
@@ -230,26 +239,35 @@ pub fn parse_cell_input(input: &str) -> Result<Cell, String> {
         }
     }
 
-    // Parse number with optional unit (standard format: "15 USD", "100 m", "15 $/ft")
+    // Try to parse as number with optional unit (standard format: "15 USD", "100 m", "15 $/ft")
     let parts: Vec<&str> = input.split_whitespace().collect();
     if parts.is_empty() {
         return Ok(Cell::empty());
     }
 
-    let value: f64 = parts[0].parse().map_err(|_| "Invalid number")?;
-    let unit_str = if parts.len() > 1 {
-        parts[1..].join(" ")
-    } else {
-        String::new()
-    };
+    // Try to parse the first part as a number
+    match parts[0].parse::<f64>() {
+        Ok(value) => {
+            // Successfully parsed as number, check for unit
+            let unit_str = if parts.len() > 1 {
+                parts[1..].join(" ")
+            } else {
+                String::new()
+            };
 
-    let unit = if unit_str.is_empty() {
-        Unit::dimensionless()
-    } else {
-        parse_unit(&unit_str)
-    };
+            let unit = if unit_str.is_empty() {
+                Unit::dimensionless()
+            } else {
+                parse_unit(&unit_str)
+            };
 
-    Ok(Cell::new(value, unit))
+            Ok(Cell::new(value, unit))
+        }
+        Err(_) => {
+            // Not a number, treat as plain text
+            Ok(Cell::with_text(input))
+        }
+    }
 }
 
 /// Parse currency-first format like "$15", "USD 100", "$15/ft"
