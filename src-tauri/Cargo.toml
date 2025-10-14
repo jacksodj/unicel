@@ -15,6 +15,10 @@ crate-type = ["lib", "cdylib", "staticlib"]
 name = "unicel"
 path = "src/main.rs"
 
+[[bin]]
+name = "unicel-mcp-server"
+path = "src/bin/mcp-server.rs"
+
 [build-dependencies]
 tauri-build = { workspace = true }
 
