@@ -299,18 +299,30 @@ Run full validation: `cargo test --test golden_workbook`
 
 ## Implementation Phases
 
-Current phase: **Phase 0 - Foundation** (Weeks 1-2)
+Current phase: **Phase 6 - Tauri Integration** (Week 19 of 24)
 
-Project follows 31-week timeline outlined in design document:
-- Phase 0: Foundation (Weeks 1-2)
-- Phase 1: Core Unit System (Weeks 3-5)
-- Phase 2: Cell & Formula Engine (Weeks 6-9)
-- Phase 3: Display & Conversion Modes (Weeks 10-12)
-- Phase 4: Table System & SQL (Weeks 13-16)
-- Phase 5: UI Implementation (Weeks 17-21)
-- Phase 6: File Format & I/O (Weeks 22-24)
-- Phase 7: MCP Integration (Weeks 25-27)
-- Phase 8: Testing & Polish (Weeks 28-30)
-- Phase 9: Release (Week 31)
+Project follows 24-week timeline outlined in PROJECT_PLAN.md:
+- Phase 0: Foundation (Weeks 1-2) ✅
+- Phase 1: Core Unit System (Weeks 3-5) ✅
+- Phase 2: Cell & Formula Engine (Weeks 6-9) ✅
+- Phase 3: Basic Workbook & Sheet (Weeks 10-12) ✅
+- Phase 4: File Format (Weeks 13-14) ✅
+- Phase 5: Basic UI (Weeks 15-18) ✅
+- Phase 6: Tauri Integration (Weeks 19-20) 🚧 IN PROGRESS
+- Phase 7: Testing & Examples (Weeks 21-22)
+- Phase 8: Excel Export & Polish (Week 23)
+- Phase 9: MLP Release (Week 24)
 
-See "Unit Aware Spreadsheet Design.md" for full implementation roadmap.
+See `docs/PROJECT_PLAN.md` for full implementation roadmap.
+
+## Task Tracking
+
+**IMPORTANT:** Use `docs/TASKS.md` as the single source of truth for all task tracking.
+
+**Guidelines:**
+- ✅ **DO:** Update tasks in `docs/TASKS.md` as you complete them (change `[ ]` to `[x]`)
+- ✅ **DO:** Add future feature ideas to the "Future Backlog" section in `docs/TASKS.md`
+- ❌ **DON'T:** Create TODO files in the project root
+- ❌ **DON'T:** Create separate task tracking files anywhere else in the repository
+
+The TodoWrite tool should only be used for temporary session-level task tracking during active development. All permanent task tracking belongs in `docs/TASKS.md`.

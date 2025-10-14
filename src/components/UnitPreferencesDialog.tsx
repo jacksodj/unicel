@@ -47,15 +47,23 @@ export default function UnitPreferencesDialog({
   };
 
   const handleSave = async () => {
-    if (!preferences) return;
+    console.log('[UnitPreferencesDialog] handleSave called');
+    console.log('[UnitPreferencesDialog] preferences:', preferences);
+
+    if (!preferences) {
+      console.log('[UnitPreferencesDialog] No preferences to save');
+      return;
+    }
 
     try {
       setSaving(true);
+      console.log('[UnitPreferencesDialog] Calling updateUnitPreferences with:', preferences);
       await tauriApi.updateUnitPreferences(preferences);
+      console.log('[UnitPreferencesDialog] Save successful');
       onSave?.();
       onClose();
     } catch (error) {
-      console.error('Failed to save preferences:', error);
+      console.error('[UnitPreferencesDialog] Failed to save preferences:', error);
     } finally {
       setSaving(false);
     }

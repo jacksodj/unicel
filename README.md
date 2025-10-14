@@ -50,6 +50,14 @@ npm run tauri:build
 
 ## Development
 
+### Task Tracking
+
+All tasks are tracked in `docs/TASKS.md` - this is the single source of truth for project progress.
+
+- Mark tasks complete by changing `[ ]` to `[x]` in TASKS.md
+- Add future ideas to the "Future Backlog" section
+- Do not create TODO files in other locations
+
 ### Project Structure
 
 ```
