@@ -244,13 +244,42 @@
 
 ## Future Backlog (Beyond MLP)
 
-### Enhancements
+### Recent Additions (v0.1.3 - 2025-10-14)
+- [x] **Sheet management UI** - Completed
+  - Add, rename, and delete sheets with full UI
+  - Double-click to rename, "×" to delete, "+" to add
+  - Smart confirmation (skip for empty sheets)
+- [x] **PERCENT function** - Completed
+  - New `PERCENT()` function for percentage calculations
+  - Proper formatting with 2 decimal places
+- [x] **Number formatting improvements** - Completed
+  - Currency formatting with thousands separators
+  - Percentage display with 2 decimals
+
+### UI/UX Enhancements
+- **Column headers should drive default units for cells below** (High priority)
+  - When a column header contains a unit (e.g., "Price (USD)"), automatically apply that unit to cells entered below
+  - Makes data entry faster and more intuitive
+  - Reduces errors from forgetting to specify units
+
+- **Show active units in footer (interactive display)** (High priority)
+  - Display currently used units in an interactive footer panel
+  - Click units to see all cells using that unit
+  - Quick navigation to cells with specific units
+
 - **Make "units in use" panel interactive** (Medium priority)
   - Allow users to interact with the units listed in the "units in use" panel in the Unit Preferences dialog
   - Possible features:
     - Click on a unit to set it as the preferred unit for that dimension
     - Show which units are currently set as preferred
     - Allow quick conversion tests by clicking units
+
+### Advanced Features
+- **Support arbitrary units/dimensions with conversion tables (stocks)** (High priority)
+  - Allow custom units with no intrinsic dimension (e.g., AAPL shares, MSFT shares)
+  - Define conversion tables for stock tickers (AAPL → USD conversion rate)
+  - Enable formulas like: `100 AAPL × $178.25/AAPL → $17,825`
+  - Use cases: portfolio tracking, crypto conversions, loyalty points
 
 ---
 
