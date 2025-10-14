@@ -100,6 +100,14 @@ export const tauriApi = {
     return invoke('get_units_in_use');
   },
 
+  async exportDebugToClipboard(): Promise<void> {
+    return invoke('export_debug_to_clipboard');
+  },
+
+  async exportToExcel(path: string): Promise<void> {
+    return invoke('export_to_excel', { path });
+  },
+
   // File dialogs
   async openFileDialog(): Promise<string | null> {
     const selected = await open({
@@ -129,6 +137,20 @@ export const tauriApi = {
         {
           name: 'Unicel Workbook',
           extensions: ['usheet'],
+        },
+      ],
+    });
+
+    return path;
+  },
+
+  async saveExcelFileDialog(defaultPath?: string): Promise<string | null> {
+    const path = await save({
+      defaultPath,
+      filters: [
+        {
+          name: 'Excel Workbook',
+          extensions: ['xlsx'],
         },
       ],
     });

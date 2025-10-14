@@ -26,7 +26,6 @@ export default function Grid({
   const [isFormulaMode, setIsFormulaMode] = useState(false);
   const [pickerCell, setPickerCell] = useState<CellAddress | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
 
   // Initialize edit value and focus input when editing starts
   useEffect(() => {
@@ -292,17 +291,21 @@ export default function Grid({
                 const isSelected = isCellSelected(col, row);
                 const isEditing = isCellEditing(col, row);
                 const isPicker = pickerCell?.col === col && pickerCell?.row === row;
-                const hasWarning = cell?.warning !== undefined;
+                const hasWarning = Boolean(cell?.warning && cell.warning.length > 0);
+
+                const hasFormula = Boolean(cell?.formula && cell.formula.length > 0);
+                const isNumeric = cell?.value.type === 'number';
 
                 return (
                   <td
                     key={address}
                     className={`
-                      border border-gray-300 min-w-[100px] h-8 px-0 text-sm
-                      ${!isEditing && 'cursor-pointer hover:bg-blue-50'}
-                      ${isSelected ? 'bg-blue-100 ring-2 ring-blue-500' : ''}
-                      ${isPicker ? 'bg-green-200 ring-2 ring-green-500' : ''}
-                      ${hasWarning ? 'bg-orange-50' : ''}
+                      border border-gray-300 min-w-[100px] h-8 px-0 text-sm relative
+                      ${!isEditing && 'cursor-pointer hover:bg-blue-50 transition-colors'}
+                      ${isSelected ? 'bg-blue-100 ring-2 ring-blue-500 ring-inset' : ''}
+                      ${isPicker ? 'bg-green-200 ring-2 ring-green-500 ring-inset' : ''}
+                      ${hasWarning ? 'bg-orange-50 border-orange-300' : ''}
+                      ${hasFormula && !hasWarning && !isSelected ? 'bg-blue-50/60' : ''}
                     `}
                     onClick={() => !isEditing && handleCellClick(col, row)}
                     onDoubleClick={() => !isEditing && onCellDoubleClick?.({ col, row })}
@@ -318,7 +321,21 @@ export default function Grid({
                         onKeyDown={(e) => handleKeyDown(e, col, row)}
                       />
                     ) : (
-                      <div className="px-2">{cell ? formatCellValue(cell) : ''}</div>
+                      <div className={`px-2 flex items-center h-full ${isNumeric ? 'justify-end' : ''}`}>
+                        {hasFormula && !hasWarning && (
+                          <span className="text-blue-500 text-[11px] mr-1 opacity-55" title={cell?.formula || ''}>
+                            ƒ
+                          </span>
+                        )}
+                        <span className={`flex-1 ${isNumeric ? 'text-right' : ''}`}>
+                          {cell ? formatCellValue(cell) : ''}
+                        </span>
+                        {hasWarning && (
+                          <span className="text-orange-500 text-xs ml-1" title={cell?.warning || ''}>
+                            ⚠️
+                          </span>
+                        )}
+                      </div>
                     )}
                   </td>
                 );

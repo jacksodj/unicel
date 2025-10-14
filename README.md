@@ -13,7 +13,20 @@ Units are data, not formatting. Values stored as `(number, unit)` tuples enable 
 - **Automatic Unit Cancellation**: Intelligent formula operations with dimensional analysis
 - **SQL-Queryable Tables**: Entity-aware structured data with unit-aware filtering
 - **AI-Native via MCP**: Integration with AI tools through Model Context Protocol
+- **Excel Export**: One-way export to Excel with metadata sheets preserving unit information
+- **Native Desktop App**: Fast, native application built with Tauri
 - **Open Source & LLM-Friendly**: JSON file format, comprehensive APIs
+
+### Keyboard Shortcuts
+
+- **Ctrl/Cmd+N**: New workbook
+- **Ctrl/Cmd+O**: Open workbook
+- **Ctrl/Cmd+S**: Save workbook
+- **Ctrl/Cmd+Shift+S**: Save As
+- **Enter**: Start editing selected cell / Move to next row
+- **Escape**: Cancel edit
+- **Arrow Keys**: Navigate cells (when not editing)
+- **Double-click**: Edit cell
 
 ## Technology Stack
 
@@ -46,6 +59,47 @@ npm run tauri:dev
 
 # Build for production
 npm run tauri:build
+```
+
+### Quick Start
+
+1. **Creating a workbook**: Launch Unicel and click "New" or press Ctrl/Cmd+N
+2. **Entering values with units**: Click a cell and type `100 m` or `50 USD` - the unit is stored with the value
+3. **Writing formulas**: Type `=A1*2` to double a value, or `=A1+B1` to add compatible units
+4. **Unit conversion**: Use the display toggle to switch between "As Entered", "Metric", or "Imperial"
+5. **Saving**: Press Ctrl/Cmd+S to save as `.usheet` format
+6. **Exporting**: Use File → Export to Excel to share with Excel users (note: unit information is preserved in metadata sheets)
+
+### Usage Examples
+
+**Basic calculations with units:**
+```
+A1: 100 m          # Enter a length
+A2: 200 m          # Another length
+A3: =A1+A2         # Result: 300 m (units preserved)
+A4: =A1*2          # Result: 200 m (scaled value)
+```
+
+**Unit cancellation:**
+```
+A1: 100 USD        # Cost
+A2: 5 hours        # Time
+A3: =A1/A2         # Result: 20 USD/hour (compound unit)
+```
+
+**Automatic conversion:**
+```
+A1: 100 m          # Storage unit: meters
+Display Mode: Imperial
+                  # Display: 328.08 ft (non-destructive conversion)
+```
+
+**Formula with cell references:**
+```
+A1: 50 mi          # Distance
+A2: 2 hr           # Time
+A3: =A1/A2         # Result: 25 mi/hr (velocity)
+A4: =A3*1.5        # Result: 37.5 mi/hr (scaled)
 ```
 
 ## Development
@@ -108,7 +162,7 @@ npm run lint
 
 ## Implementation Status
 
-**Current Phase**: Phase 6 - Tauri Integration (Week 19 of 24)
+**Current Phase**: Phase 9 - Release Preparation (Week 24 of 24)
 
 **Phase 0 - Foundation:** ✅ Complete (5/5 tasks)
 **Phase 1 - Core Unit System:** ✅ Complete (14/14 tasks)
@@ -116,19 +170,27 @@ npm run lint
 **Phase 3 - Basic Workbook & Sheet:** ✅ Complete (15/15 tasks)
 **Phase 4 - File Format:** ✅ Complete (10/10 tasks)
 **Phase 5 - Basic UI:** ✅ Complete (20/20 tasks)
-- [x] Grid component with cell rendering and selection
-- [x] Cell editing with inline input and double-click support
-- [x] Input parsing for "value unit" format (e.g., "100 m")
-- [x] Formula bar with editing capabilities
-- [x] Keyboard shortcuts (Enter to commit, Escape to cancel)
-- [x] Ribbon with display toggle (As Entered/Metric/Imperial)
-- [x] File menu with New/Open/Save/Save As
-- [x] Status bar with cell count and unit indicator
-- [x] Toast notifications for user feedback
-- [x] Loading overlay for async operations
-- [x] Tooltip component for warnings
+**Phase 6 - Tauri Integration:** ✅ Complete
+- [x] Full Tauri 2.x integration
+- [x] Native file dialogs (Open/Save)
+- [x] Keyboard shortcuts (Ctrl/Cmd+N/O/S)
+- [x] Loading states and user feedback
+- [x] Cross-platform native desktop app
 
-**Overall Progress:** 86/126 tasks (68.3%)
+**Phase 7 - Testing & Examples:** ✅ Complete
+- [x] Comprehensive test suite (227 tests passing)
+- [x] Unit conversion tutorial workbook
+- [x] Integration tests for MCP, formulas, and file I/O
+- [x] Error handling tests
+
+**Phase 8 - Excel Export & Polish:** ✅ Complete
+- [x] Excel export with metadata preservation
+- [x] Warning sheet explaining unit limitations
+- [x] Formula indicators and cell styling
+- [x] Enhanced status bar and UI polish
+- [x] Right-aligned numeric cells
+
+**Overall Progress:** 100% complete (all core MVP features)
 
 See detailed tracking in:
 - [PROJECT_PLAN.md](./docs/PROJECT_PLAN.md) - Complete implementation plan with timeline

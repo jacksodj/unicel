@@ -8,6 +8,8 @@ interface RibbonProps {
   onSave: () => void;
   onSaveAs: () => void;
   onOpenPreferences: () => void;
+  onDebugExport?: () => void;
+  onExportExcel?: () => void;
   isDirty?: boolean;
 }
 
@@ -19,6 +21,8 @@ export default function Ribbon({
   onSave,
   onSaveAs,
   onOpenPreferences,
+  onDebugExport,
+  onExportExcel,
   isDirty = false,
 }: RibbonProps) {
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -98,6 +102,19 @@ export default function Ribbon({
                   Save As...
                   <span className="ml-auto text-xs text-gray-500">Ctrl+Shift+S</span>
                 </button>
+                <div className="border-t border-gray-200" />
+                {onExportExcel && (
+                  <button
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center gap-2"
+                    onClick={() => {
+                      onExportExcel();
+                      setShowFileMenu(false);
+                    }}
+                  >
+                    <span className="text-lg">📊</span>
+                    Export to Excel...
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -160,6 +177,20 @@ export default function Ribbon({
         >
           ⚙️ <span className="hidden md:inline">Unit Settings</span>
         </button>
+
+        {/* Debug Export */}
+        {onDebugExport && (
+          <>
+            <div className="h-8 w-px bg-gray-300" />
+            <button
+              className="px-3 py-1 bg-white border border-gray-300 hover:bg-gray-50 rounded text-sm flex items-center gap-2"
+              onClick={onDebugExport}
+              title="Copy debug info to clipboard"
+            >
+              📋 <span className="hidden md:inline">Debug Export</span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Secondary toolbar (optional) */}

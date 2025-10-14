@@ -85,6 +85,16 @@ fn get_units_in_use(state: State<AppState>) -> Result<Vec<String>, String> {
     unicel_lib::commands::get_units_in_use_impl(&state)
 }
 
+#[tauri::command]
+fn export_debug_to_clipboard(state: State<AppState>) -> Result<(), String> {
+    unicel_lib::commands::export_debug_to_clipboard_impl(&state)
+}
+
+#[tauri::command]
+fn export_to_excel(state: State<AppState>, path: String) -> Result<(), String> {
+    unicel_lib::commands::export_to_excel_impl(&state, path)
+}
+
 fn main() {
     // Initialize logging
     tracing_subscriber::registry()
@@ -115,6 +125,8 @@ fn main() {
             set_currency_rate,
             get_currencies,
             get_units_in_use,
+            export_debug_to_clipboard,
+            export_to_excel,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

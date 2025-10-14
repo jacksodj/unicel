@@ -70,6 +70,7 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
   const [isDirty, setIsDirty] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Loading...');
   const [workbookName, setWorkbookName] = useState('Untitled');
   const [showPreferences, setShowPreferences] = useState(false);
 
@@ -187,6 +188,7 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     }
 
     try {
+      setLoadingMessage('Creating new workbook...');
       setIsLoading(true);
       await tauriApi.createWorkbook('Untitled');
       setCells(new Map());
@@ -206,6 +208,7 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
       const filePath = await tauriApi.openFileDialog();
       if (!filePath) return;
 
+      setLoadingMessage('Opening workbook...');
       setIsLoading(true);
       await tauriApi.loadWorkbook(filePath);
       await loadCellsFromBackend();
@@ -224,6 +227,7 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
 
   const handleSave = async () => {
     try {
+      setLoadingMessage('Saving workbook...');
       setIsLoading(true);
 
       // Check if we have a current file
@@ -248,6 +252,7 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
       const filePath = await tauriApi.saveFileDialog();
       if (!filePath) return;
 
+      setLoadingMessage('Saving workbook...');
       setIsLoading(true);
       await tauriApi.saveWorkbook(filePath);
       setIsDirty(false);
@@ -281,9 +286,59 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     addToast('Unit preferences saved', 'success');
   };
 
+  const handleDebugExport = async () => {
+    try {
+      await tauriApi.exportDebugToClipboard();
+      addToast('Debug info copied to clipboard', 'success');
+    } catch (error) {
+      addToast(`Failed to export debug info: ${error}`, 'error');
+    }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const filePath = await tauriApi.saveExcelFileDialog();
+      if (!filePath) return;
+
+      setLoadingMessage('Exporting to Excel...');
+      setIsLoading(true);
+      await tauriApi.exportToExcel(filePath);
+      addToast('Workbook exported to Excel successfully', 'success');
+    } catch (error) {
+      addToast(`Failed to export to Excel: ${error}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Ctrl/Cmd key combinations
+      const isMod = e.metaKey || e.ctrlKey;
+
+      if (isMod && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      } else if (isMod && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        handleSaveAs();
+      } else if (isMod && e.key === 'o') {
+        e.preventDefault();
+        handleOpen();
+      } else if (isMod && e.key === 'n') {
+        e.preventDefault();
+        handleNew();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isDirty]);
+
   return (
     <>
-      {isLoading && <LoadingOverlay message="Saving workbook..." />}
+      {isLoading && <LoadingOverlay message={loadingMessage} />}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       <UnitPreferencesDialog
         isOpen={showPreferences}
@@ -308,6 +363,8 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
         onSave={handleSave}
         onSaveAs={handleSaveAs}
         onOpenPreferences={handleOpenPreferences}
+        onDebugExport={handleDebugExport}
+        onExportExcel={handleExportExcel}
         isDirty={isDirty}
       />
 

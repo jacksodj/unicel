@@ -12,13 +12,6 @@
     "core:window:allow-maximize",
     "dialog:default",
     "dialog:allow-open",
-    "dialog:allow-save",
-    "fs:default",
-    "fs:allow-read-file",
-    "fs:allow-write-file",
-    "fs:allow-read-dir",
-    "fs:allow-exists",
-    "fs:allow-create",
-    "fs:scope-home-recursive"
+    "dialog:allow-save"
   ]
 }
