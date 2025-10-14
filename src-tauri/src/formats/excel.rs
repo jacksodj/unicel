@@ -4,6 +4,7 @@ use crate::core::workbook::Workbook;
 use crate::core::table::Sheet;
 use crate::core::units::UnitLibrary;
 use rust_xlsxwriter::{Format, Workbook as XlsxWorkbook, Worksheet};
+use std::collections::BTreeMap;
 use std::path::Path;
 use thiserror::Error;
 
@@ -19,9 +20,24 @@ pub enum ExcelError {
     XlsxError(#[from] rust_xlsxwriter::XlsxError),
 }
 
+/// Represents a unit conversion factor used in the workbook
+#[derive(Debug, Clone)]
+struct ConversionEntry {
+    name: String,
+    factor: f64,
+    from_unit: String,
+    to_unit: String,
+    description: String,
+}
+
 /// Expand CONVERT functions in formulas to Excel-compatible math with conversion factors
-/// Example: =CONVERT(A1, 1ft) becomes =A1*3.28084 if A1 is in meters
-fn expand_convert_formula(formula: &str, sheet: &Sheet) -> Option<String> {
+/// Returns the expanded formula and optionally a conversion entry to add to the Conversions sheet
+/// Example: =CONVERT(A1, 1ft) becomes =A1*Conversions!B2 where B2 contains the conversion factor
+fn expand_convert_formula(
+    formula: &str,
+    sheet: &Sheet,
+    conversions: &mut BTreeMap<String, ConversionEntry>,
+) -> Option<(String, Option<ConversionEntry>)> {
     // Simple regex-based approach to detect CONVERT function
     // Format: CONVERT(arg1, arg2) where arg2 can be "1 unit" or a cell reference
 
@@ -98,20 +114,45 @@ fn expand_convert_formula(formula: &str, sheet: &Sheet) -> Option<String> {
     // Calculate conversion factor
     let conversion_factor = library.convert(1.0, &source_unit, &target_unit)?;
 
+    // Create conversion name (e.g., "m_to_ft")
+    let conversion_name = format!("{}_{}",
+        source_unit.replace('/', "_per_").replace(' ', "_"),
+        target_unit.replace('/', "_per_").replace(' ', "_")
+    );
+
+    // Create conversion entry
+    let conversion_entry = ConversionEntry {
+        name: conversion_name.clone(),
+        factor: conversion_factor,
+        from_unit: source_unit.clone(),
+        to_unit: target_unit.clone(),
+        description: format!("Convert {} to {}", source_unit, target_unit),
+    };
+
     // Build expanded formula
     let expanded = if conversion_factor == 1.0 {
         // No conversion needed
         source_expr.to_string()
     } else {
-        // Multiply by conversion factor
-        format!("{}*{}", source_expr, conversion_factor)
+        // Add to conversions map if not already present
+        let row_index = if let Some(existing) = conversions.get(&conversion_name) {
+            // Find the row index of this existing conversion
+            conversions.keys().position(|k| k == &conversion_name).unwrap() + 2 // +2 for header row and 1-indexing
+        } else {
+            let new_index = conversions.len() + 2; // +2 for header row and 1-indexing
+            conversions.insert(conversion_name.clone(), conversion_entry.clone());
+            new_index
+        };
+
+        // Reference the conversion factor in the Conversions sheet
+        format!("{}*Conversions!$B${}", source_expr, row_index)
     };
 
     // Replace CONVERT(...) with expanded version
     let before = &formula[..convert_pos];
     let after = &formula[end + 1..]; // After the closing )
 
-    Some(format!("{}{}{}", before, expanded, after))
+    Some((format!("{}{}{}", before, expanded, after), Some(conversion_entry)))
 }
 
 /// Parse a cell reference like "A1", "B2", etc.
@@ -182,6 +223,9 @@ pub fn export_to_excel(
     // Track metadata for all cells with units
     let mut metadata_rows: Vec<(String, String, String, String)> = Vec::new();
 
+    // Track all conversions used in formulas (BTreeMap for consistent ordering)
+    let mut conversions: BTreeMap<String, ConversionEntry> = BTreeMap::new();
+
     // Export each sheet
     for sheet_index in 0..workbook.sheet_count() {
         let sheet = workbook
@@ -218,7 +262,7 @@ pub fn export_to_excel(
                 // Export the cell based on its content
                 if let Some(formula) = cell.formula() {
                     // Try to expand CONVERT functions to Excel-compatible formulas
-                    if let Some(expanded_formula) = expand_convert_formula(formula, sheet) {
+                    if let Some((expanded_formula, _conversion_entry)) = expand_convert_formula(formula, sheet, &mut conversions) {
                         // Export as Excel formula with expanded CONVERT
                         worksheet.write_formula_with_format(row_num, col_num as u16, expanded_formula.as_str(), &formula_format)?;
 
@@ -285,6 +329,12 @@ pub fn export_to_excel(
         xlsx_workbook.push_worksheet(worksheet);
     }
 
+    // Add conversions sheet if any conversions were used
+    if !conversions.is_empty() {
+        let conversions_sheet = create_conversions_sheet(&conversions)?;
+        xlsx_workbook.push_worksheet(conversions_sheet);
+    }
+
     // Add metadata sheet at the end
     if !metadata_rows.is_empty() {
         let metadata_sheet = create_metadata_sheet(metadata_rows)?;
@@ -295,6 +345,45 @@ pub fn export_to_excel(
     xlsx_workbook.save(path)?;
 
     Ok(())
+}
+
+/// Create a conversions sheet with all unit conversion factors used in formulas
+fn create_conversions_sheet(conversions: &BTreeMap<String, ConversionEntry>) -> Result<Worksheet, ExcelError> {
+    let mut sheet = Worksheet::new();
+    sheet.set_name("Conversions")?;
+
+    let header_format = Format::new()
+        .set_bold()
+        .set_background_color(rust_xlsxwriter::Color::RGB(0x4CAF50))
+        .set_font_color(rust_xlsxwriter::Color::White);
+
+    let number_format = Format::new().set_num_format("0.00000000");
+
+    // Headers
+    sheet.write_string_with_format(0, 0, "Name", &header_format)?;
+    sheet.write_string_with_format(0, 1, "Factor", &header_format)?;
+    sheet.write_string_with_format(0, 2, "From Unit", &header_format)?;
+    sheet.write_string_with_format(0, 3, "To Unit", &header_format)?;
+    sheet.write_string_with_format(0, 4, "Description", &header_format)?;
+
+    // Data rows (BTreeMap is already sorted by key)
+    for (idx, entry) in conversions.values().enumerate() {
+        let row = (idx + 1) as u32;
+        sheet.write_string(row, 0, &entry.name)?;
+        sheet.write_number_with_format(row, 1, entry.factor, &number_format)?;
+        sheet.write_string(row, 2, &entry.from_unit)?;
+        sheet.write_string(row, 3, &entry.to_unit)?;
+        sheet.write_string(row, 4, &entry.description)?;
+    }
+
+    // Set column widths
+    sheet.set_column_width(0, 20)?; // Name
+    sheet.set_column_width(1, 15)?; // Factor
+    sheet.set_column_width(2, 12)?; // From Unit
+    sheet.set_column_width(3, 12)?; // To Unit
+    sheet.set_column_width(4, 40)?; // Description
+
+    Ok(sheet)
 }
 
 /// Create a warning sheet explaining the export limitations
@@ -321,14 +410,19 @@ fn create_warning_sheet() -> Result<Worksheet, ExcelError> {
     sheet.write_string(10, 0, "   - Formula cells (in blue italic) show the final value")?;
     sheet.write_string(11, 0, "   - Excel cannot recalculate them because it doesn't understand unit operations")?;
 
-    sheet.write_string_with_format(13, 0, "3. See the \"Unit Metadata\" sheet for original unit information", &bold_format)?;
-    sheet.write_string(14, 0, "   - Lists which cells had units and what those units were")?;
-    sheet.write_string(15, 0, "   - Shows original formulas for formula cells")?;
+    sheet.write_string_with_format(13, 0, "3. See the \"Conversions\" sheet for unit conversion factors", &bold_format)?;
+    sheet.write_string(14, 0, "   - Lists all conversion factors used in formulas")?;
+    sheet.write_string(15, 0, "   - Formulas reference these cells (e.g., =A1*Conversions!$B$2)")?;
+    sheet.write_string(16, 0, "   - You can edit conversion factors and formulas will update")?;
 
-    sheet.write_string(17, 0, "⚠️ WARNING: Changes made in Excel cannot be imported back to Unicel")?;
-    sheet.write_string(18, 0, "This is a ONE-WAY export for sharing data only.")?;
+    sheet.write_string_with_format(18, 0, "4. See the \"Unit Metadata\" sheet for original unit information", &bold_format)?;
+    sheet.write_string(19, 0, "   - Lists which cells had units and what those units were")?;
+    sheet.write_string(20, 0, "   - Shows original formulas for formula cells")?;
 
-    sheet.write_string_with_format(20, 0, "To preserve full unit information, use Unicel's native .usheet format.", &bold_format)?;
+    sheet.write_string(22, 0, "⚠️ WARNING: Changes made in Excel cannot be imported back to Unicel")?;
+    sheet.write_string(23, 0, "This is a ONE-WAY export for sharing data only.")?;
+
+    sheet.write_string_with_format(25, 0, "To preserve full unit information, use Unicel's native .usheet format.", &bold_format)?;
 
     // Set column width
     sheet.set_column_width(0, 80)?;

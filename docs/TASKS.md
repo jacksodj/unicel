@@ -275,6 +275,17 @@
     - Allow quick conversion tests by clicking units
 
 ### Advanced Features
+- **Named Cells / Named Ranges** (High priority)
+  - Allow cells to have user-defined names instead of just A1, B2, etc.
+  - Examples: `revenue`, `tax_rate`, `conversion_usd_to_eur`
+  - Use in formulas: `=revenue * tax_rate` instead of `=A1 * B2`
+  - Benefits:
+    - Self-documenting formulas
+    - Easier to understand complex calculations
+    - Excel compatibility (import/export named ranges)
+    - Better for conversion factors and constants
+  - UI: Right-click cell → "Name Cell" or dedicated name box in formula bar
+
 - **Support arbitrary units/dimensions with conversion tables (stocks)** (High priority)
   - Allow custom units with no intrinsic dimension (e.g., AAPL shares, MSFT shares)
   - Define conversion tables for stock tickers (AAPL → USD conversion rate)
