@@ -169,21 +169,21 @@
 - [x] 7.5: Add error handling tests (25 comprehensive error tests)
 
 ### Week 22: Use Case Examples & Documentation
-- [ ] 7.6: Create Construction Estimator example workbook
-  - [ ] Material list with dimensional calculations (sqft, board feet)
-  - [ ] Cost calculations with automatic unit cancellation
-  - [ ] Metric/Imperial display toggle demonstration
-  - [ ] Notes explaining key formulas
-- [ ] 7.7: Create AWS Cost Estimator example workbook
-  - [ ] EC2/RDS instance pricing with compound units
-  - [ ] Data transfer calculations (GB/mo × $/GB)
-  - [ ] Multi-region comparison (USD vs EUR)
-  - [ ] Scaling scenario projections
-- [ ] 7.8: Create Investment Portfolio Tracker example workbook
-  - [ ] Stock positions with shares and cost basis
-  - [ ] Multi-currency holdings (USD, EUR, GBP)
-  - [ ] Return calculations with proper unit handling
-  - [ ] Asset allocation summary
+- [x] 7.6: Create Construction Estimator example workbook
+  - [x] Material list with dimensional calculations (sqft, board feet)
+  - [x] Cost calculations with automatic unit cancellation
+  - [x] Metric/Imperial display toggle demonstration
+  - [x] Notes explaining key formulas
+- [x] 7.7: Create AWS Cost Estimator example workbook
+  - [x] EC2/RDS instance pricing with compound units
+  - [x] Data transfer calculations (GB/mo × $/GB)
+  - [x] Multi-region comparison (USD vs EUR)
+  - [x] Scaling scenario projections
+- [x] 7.8: Create Investment Portfolio Tracker example workbook
+  - [x] Stock positions with shares and cost basis
+  - [x] Multi-currency holdings (USD, EUR, GBP)
+  - [x] Return calculations with proper unit handling
+  - [x] Asset allocation summary
 - [ ] 7.9: Create basic tutorial workbook (unit conversion primer)
 - [ ] 7.10: Write user guide with screenshots
 - [ ] 7.11: Create demo video showcasing all three examples
@@ -222,11 +222,11 @@
 - **Phase 4:** ✅ Complete (10/10 tasks)
 - **Phase 5:** ✅ Complete (20/20 tasks)
 - **Phase 6:** ✅ Complete (10/10 tasks)
-- **Phase 7:** 🔄 In Progress (5/16 tasks)
+- **Phase 7:** 🔄 In Progress (8/16 tasks)
 - **Phase 8:** ⏸ Not Started (0/5 tasks)
 - **Phase 9:** ⏸ Not Started (0/6 tasks)
 
-**Overall Progress:** 101/132 tasks (76.5%)
+**Overall Progress:** 104/132 tasks (78.8%)
 
 ---
 
