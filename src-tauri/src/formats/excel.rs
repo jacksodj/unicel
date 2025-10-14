@@ -263,6 +263,7 @@ pub fn export_to_excel(
                 if let Some(formula) = cell.formula() {
                     // Try to expand CONVERT functions to Excel-compatible formulas
                     if let Some((expanded_formula, _conversion_entry)) = expand_convert_formula(formula, sheet, &mut conversions) {
+                        tracing::debug!("Exporting CONVERT formula: {} → {}", formula, expanded_formula);
                         // Export as Excel formula with expanded CONVERT
                         worksheet.write_formula_with_format(row_num, col_num as u16, expanded_formula.as_str(), &formula_format)?;
 
@@ -280,6 +281,7 @@ pub fn export_to_excel(
                             ));
                         }
                     } else {
+                        tracing::debug!("Exporting formula as VALUE (no CONVERT): {}", formula);
                         // For other formulas, export the CALCULATED VALUE
                         // because Excel can't recalculate with unit logic
                         if let Some(value) = cell.as_number() {
