@@ -111,6 +111,8 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     const cell = cells.get(cellAddr);
     if (cell?.formula) {
       setFormulaBarValue(cell.formula);
+    } else if (cell?.value.type === 'text') {
+      setFormulaBarValue(cell.value.text || '');
     } else if (cell?.value.type === 'number') {
       const unit = cell.storageUnit;
       setFormulaBarValue(unit ? `${cell.value.value} ${unit}` : `${cell.value.value}`);

@@ -1,8 +1,9 @@
 // Type definitions for Unicel workbook data structures
 
 export interface CellValue {
-  type: 'empty' | 'number' | 'error';
+  type: 'empty' | 'number' | 'text' | 'error';
   value?: number;
+  text?: string;
   error?: string;
 }
 

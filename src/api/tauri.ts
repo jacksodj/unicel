@@ -15,6 +15,7 @@ export interface CellData {
 export type CellValueData =
   | { type: 'Empty' }
   | { type: 'Number'; value: number }
+  | { type: 'Text'; text: string }
   | { type: 'Error'; message: string };
 
 export interface WorkbookInfo {
@@ -145,6 +146,9 @@ export function convertCellData(data: CellData) {
       break;
     case 'Number':
       value = { type: 'number' as const, value: data.value.value };
+      break;
+    case 'Text':
+      value = { type: 'text' as const, text: data.value.text };
       break;
     case 'Error':
       value = { type: 'error' as const, error: data.value.message };

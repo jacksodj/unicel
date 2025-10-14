@@ -16,7 +16,7 @@ export default function Grid({
   cells,
   rowCount = 50,
   colCount = 26,
-  onCellSelect: _onCellSelect,
+  onCellSelect,
   onCellEdit,
   onCellDoubleClick,
   selectedCell,
@@ -26,6 +26,7 @@ export default function Grid({
   const [isFormulaMode, setIsFormulaMode] = useState(false);
   const [pickerCell, setPickerCell] = useState<CellAddress | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   // Initialize edit value and focus input when editing starts
   useEffect(() => {
@@ -46,6 +47,52 @@ export default function Grid({
       }, 0);
     }
   }, [editingCell, cells]);
+
+  // Handle arrow key navigation in normal mode (not editing)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Only handle navigation when not editing and a cell is selected
+      if (editingCell || !selectedCell || !onCellSelect) return;
+
+      const currentColNum = colLetterToNumber(selectedCell.col);
+      let newCol = selectedCell.col;
+      let newRow = selectedCell.row;
+
+      switch (e.key) {
+        case 'ArrowUp':
+          e.preventDefault();
+          newRow = Math.max(1, selectedCell.row - 1);
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          newRow = Math.min(rowCount, selectedCell.row + 1);
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          newCol = colNumberToLetter(Math.max(1, currentColNum - 1));
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          newCol = colNumberToLetter(Math.min(colCount, currentColNum + 1));
+          break;
+        case 'Enter':
+          // Start editing on Enter
+          if (onCellDoubleClick) {
+            e.preventDefault();
+            onCellDoubleClick(selectedCell);
+          }
+          return;
+        default:
+          return;
+      }
+
+      onCellSelect({ col: newCol, row: newRow });
+    };
+
+    // Attach to document so we catch all keyboard events
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [selectedCell, editingCell, onCellSelect, onCellDoubleClick, rowCount, colCount]);
   // Generate column headers (A, B, C, ...)
   const columns = Array.from({ length: colCount }, (_, i) => colNumberToLetter(i + 1));
 
@@ -72,6 +119,9 @@ export default function Grid({
     if (cell.value.type === 'error') {
       return `#ERROR: ${cell.value.error}`;
     }
+    if (cell.value.type === 'text' && cell.value.text !== undefined) {
+      return cell.value.text;
+    }
     if (cell.value.type === 'number' && cell.value.value !== undefined) {
       const unit = cell.displayUnit || cell.storageUnit;
       if (unit) {
@@ -93,6 +143,9 @@ export default function Grid({
   const getEditValue = (cell: Cell | undefined): string => {
     if (!cell) return '';
     if (cell.formula) return cell.formula;
+    if (cell.value.type === 'text' && cell.value.text !== undefined) {
+      return cell.value.text;
+    }
     if (cell.value.type === 'number' && cell.value.value !== undefined) {
       const unit = cell.storageUnit;
       return unit ? `${cell.value.value} ${unit}` : `${cell.value.value}`;
@@ -129,9 +182,11 @@ export default function Grid({
     if (isFormulaMode && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       e.preventDefault();
 
-      // Initialize picker if not already active
+      // Initialize picker on first arrow key press (start from current cell)
       if (!pickerCell) {
+        // Start picker at current editing cell
         setPickerCell({ col, row });
+        return; // Don't move on first press, just initialize
       }
 
       // Move picker
@@ -153,6 +208,7 @@ export default function Grid({
     }
 
     // In formula mode with picker active, math operators insert cell reference + operator
+    // Only if picker is active (user has pressed arrow keys)
     if (isFormulaMode && pickerCell && (e.key === '+' || e.key === '-' || e.key === '*' || e.key === '/' || e.key === '(' || e.key === ')')) {
       e.preventDefault();
       const cellRef = getCellAddress(pickerCell.col, pickerCell.row);
