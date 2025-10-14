@@ -1,0 +1,634 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "created_at": "2025-10-14T02:56:07.346983+00:00",
+    "modified_at": "2025-10-14T02:56:07.346983+00:00",
+    "app_version": "0.1.0"
+  },
+  "workbook": {
+    "name": "Construction Estimator",
+    "settings": {
+      "display_preference": "AsEntered",
+      "auto_recalculate": true,
+      "show_warnings": true
+    },
+    "sheets": [
+      {
+        "name": "Material Estimate",
+        "cells": {
+          "E8": {
+            "value": {
+              "type": "Text",
+              "text": "Cost per ft"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A1": {
+            "value": {
+              "type": "Text",
+              "text": "Item"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "F9": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell D9 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=D9 * E9",
+            "warning": null
+          },
+          "A4": {
+            "value": {
+              "type": "Text",
+              "text": "Kitchen Tile"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A9": {
+            "value": {
+              "type": "Text",
+              "text": "2x4 Studs"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "F13": {
+            "value": {
+              "type": "Number",
+              "value": 0.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=SUM(F9:F11)",
+            "warning": null
+          },
+          "C3": {
+            "value": {
+              "type": "Number",
+              "value": 12.0
+            },
+            "storage_unit": "ft",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A20": {
+            "value": {
+              "type": "Text",
+              "text": "- Toggle Metric/Imperial to see conversions"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B2": {
+            "value": {
+              "type": "Number",
+              "value": 25.0
+            },
+            "storage_unit": "ft",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C1": {
+            "value": {
+              "type": "Text",
+              "text": "Width"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A2": {
+            "value": {
+              "type": "Text",
+              "text": "Main Room Flooring"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C4": {
+            "value": {
+              "type": "Number",
+              "value": 10.0
+            },
+            "storage_unit": "ft",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A11": {
+            "value": {
+              "type": "Text",
+              "text": "Plywood 4x8"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B8": {
+            "value": {
+              "type": "Text",
+              "text": "Length"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E4": {
+            "value": {
+              "type": "Number",
+              "value": 8.75
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E9": {
+            "value": {
+              "type": "Number",
+              "value": 0.55
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A6": {
+            "value": {
+              "type": "Text",
+              "text": "TOTAL"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B1": {
+            "value": {
+              "type": "Text",
+              "text": "Length"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C10": {
+            "value": {
+              "type": "Number",
+              "value": 16.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B4": {
+            "value": {
+              "type": "Number",
+              "value": 12.0
+            },
+            "storage_unit": "ft",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C11": {
+            "value": {
+              "type": "Number",
+              "value": 10.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D10": {
+            "value": {
+              "type": "Number",
+              "value": 192.0
+            },
+            "storage_unit": "ft",
+            "display_unit": null,
+            "formula": "=B10 * C10",
+            "warning": null
+          },
+          "F6": {
+            "value": {
+              "type": "Number",
+              "value": 0.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=SUM(F2:F4)",
+            "warning": null
+          },
+          "E1": {
+            "value": {
+              "type": "Text",
+              "text": "Cost per sqft"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D1": {
+            "value": {
+              "type": "Text",
+              "text": "Area"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A13": {
+            "value": {
+              "type": "Text",
+              "text": "LUMBER TOTAL"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A15": {
+            "value": {
+              "type": "Text",
+              "text": "GRAND TOTAL"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D13": {
+            "value": {
+              "type": "Number",
+              "value": 0.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=SUM(D9:D11)",
+            "warning": null
+          },
+          "E11": {
+            "value": {
+              "type": "Number",
+              "value": 1.85
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "F4": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell D4 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=D4 * E4",
+            "warning": null
+          },
+          "F3": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell D3 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=D3 * E3",
+            "warning": null
+          },
+          "E2": {
+            "value": {
+              "type": "Number",
+              "value": 5.5
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D3": {
+            "value": {
+              "type": "Number",
+              "value": 180.0
+            },
+            "storage_unit": "ft^2",
+            "display_unit": null,
+            "formula": "=B3 * C3",
+            "warning": null
+          },
+          "B11": {
+            "value": {
+              "type": "Number",
+              "value": 8.0
+            },
+            "storage_unit": "ft",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C2": {
+            "value": {
+              "type": "Number",
+              "value": 20.0
+            },
+            "storage_unit": "ft",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D11": {
+            "value": {
+              "type": "Number",
+              "value": 80.0
+            },
+            "storage_unit": "ft",
+            "display_unit": null,
+            "formula": "=B11 * C11",
+            "warning": null
+          },
+          "F15": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell F6 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=F6 + F13",
+            "warning": null
+          },
+          "A21": {
+            "value": {
+              "type": "Text",
+              "text": "- Area formulas automatically cancel units"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C8": {
+            "value": {
+              "type": "Text",
+              "text": "Quantity"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D2": {
+            "value": {
+              "type": "Number",
+              "value": 500.0
+            },
+            "storage_unit": "ft^2",
+            "display_unit": null,
+            "formula": "=B2 * C2",
+            "warning": null
+          },
+          "A19": {
+            "value": {
+              "type": "Text",
+              "text": "- Lumber prices are per linear foot"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A17": {
+            "value": {
+              "type": "Text",
+              "text": "NOTES:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D8": {
+            "value": {
+              "type": "Text",
+              "text": "Total Length"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A8": {
+            "value": {
+              "type": "Text",
+              "text": "Lumber Type"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A3": {
+            "value": {
+              "type": "Text",
+              "text": "Bedroom Flooring"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C9": {
+            "value": {
+              "type": "Number",
+              "value": 24.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D6": {
+            "value": {
+              "type": "Number",
+              "value": 0.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=SUM(D2:D4)",
+            "warning": null
+          },
+          "B10": {
+            "value": {
+              "type": "Number",
+              "value": 12.0
+            },
+            "storage_unit": "ft",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "F11": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell D11 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=D11 * E11",
+            "warning": null
+          },
+          "A18": {
+            "value": {
+              "type": "Text",
+              "text": "- All flooring prices include installation"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B3": {
+            "value": {
+              "type": "Number",
+              "value": 15.0
+            },
+            "storage_unit": "ft",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A10": {
+            "value": {
+              "type": "Text",
+              "text": "2x6 Joists"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "F1": {
+            "value": {
+              "type": "Text",
+              "text": "Total Cost"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D9": {
+            "value": {
+              "type": "Number",
+              "value": 192.0
+            },
+            "storage_unit": "ft",
+            "display_unit": null,
+            "formula": "=B9 * C9",
+            "warning": null
+          },
+          "F8": {
+            "value": {
+              "type": "Text",
+              "text": "Total Cost"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B9": {
+            "value": {
+              "type": "Number",
+              "value": 8.0
+            },
+            "storage_unit": "ft",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D4": {
+            "value": {
+              "type": "Number",
+              "value": 120.0
+            },
+            "storage_unit": "ft^2",
+            "display_unit": null,
+            "formula": "=B4 * C4",
+            "warning": null
+          },
+          "E10": {
+            "value": {
+              "type": "Number",
+              "value": 1.25
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "F10": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell D10 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=D10 * E10",
+            "warning": null
+          },
+          "E3": {
+            "value": {
+              "type": "Number",
+              "value": 5.5
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "F2": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell D2 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=D2 * E2",
+            "warning": null
+          }
+        }
+      }
+    ],
+    "active_sheet": 0
+  }
+}
