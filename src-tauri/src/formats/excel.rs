@@ -42,8 +42,11 @@ fn expand_convert_formula(
     // Format: CONVERT(arg1, arg2) where arg2 can be "1 unit" or a cell reference
 
     if !formula.to_uppercase().contains("CONVERT") {
+        tracing::trace!("Formula does not contain CONVERT: {}", formula);
         return None;
     }
+
+    tracing::debug!("Processing CONVERT formula: {}", formula);
 
     let library = UnitLibrary::new();
 
@@ -73,6 +76,7 @@ fn expand_convert_formula(
     }
 
     if paren_depth != 0 {
+        tracing::warn!("Unmatched parentheses in CONVERT formula: {}", formula);
         return None; // Unmatched parentheses
     }
 
@@ -81,38 +85,91 @@ fn expand_convert_formula(
     let args: Vec<&str> = args_str.split(',').map(|s| s.trim()).collect();
 
     if args.len() != 2 {
+        tracing::warn!("CONVERT function requires exactly 2 arguments, got {}: {}", args.len(), formula);
         return None; // CONVERT requires exactly 2 arguments
     }
 
     let source_expr = args[0];
     let target_unit_expr = args[1];
 
+    tracing::debug!("CONVERT args: source='{}', target='{}'", source_expr, target_unit_expr);
+
     // Determine source unit
     // If source is a cell reference, get its unit
     let source_unit = if let Some(source_cell) = parse_cell_ref(source_expr) {
-        sheet.get(&source_cell)?.storage_unit().canonical().to_string()
+        tracing::debug!("Source is cell reference: {:?}", source_cell);
+        match sheet.get(&source_cell) {
+            Some(cell) => {
+                let unit = cell.storage_unit().canonical().to_string();
+                tracing::debug!("Source cell unit: {}", unit);
+                unit
+            }
+            None => {
+                tracing::warn!("Source cell not found: {:?}", source_cell);
+                return None;
+            }
+        }
     } else {
-        // Try to parse as "value unit" format
-        extract_unit_from_value(source_expr)?
+        tracing::debug!("Source is value expression");
+        match extract_unit_from_value(source_expr) {
+            Some(unit) => {
+                tracing::debug!("Extracted source unit: {}", unit);
+                unit
+            }
+            None => {
+                tracing::warn!("Could not extract unit from source: {}", source_expr);
+                return None;
+            }
+        }
     };
 
     // Determine target unit
     let target_unit = if let Some(target_cell) = parse_cell_ref(target_unit_expr) {
+        tracing::debug!("Target is cell reference: {:?}", target_cell);
         // Cell reference - get unit from cell
-        let cell = sheet.get(&target_cell)?;
-        // Check if it's text (unit name) or has a storage unit
-        if let Some(text) = cell.as_text() {
-            text.trim().to_string()
-        } else {
-            cell.storage_unit().canonical().to_string()
+        match sheet.get(&target_cell) {
+            Some(cell) => {
+                // Check if it's text (unit name) or has a storage unit
+                if let Some(text) = cell.as_text() {
+                    tracing::debug!("Target cell contains text: {}", text);
+                    text.trim().to_string()
+                } else {
+                    let unit = cell.storage_unit().canonical().to_string();
+                    tracing::debug!("Target cell unit: {}", unit);
+                    unit
+                }
+            }
+            None => {
+                tracing::warn!("Target cell not found: {:?}", target_cell);
+                return None;
+            }
         }
     } else {
-        // Try to parse as "1 unit" format
-        extract_unit_from_target(target_unit_expr)?
+        tracing::debug!("Target is unit expression: {}", target_unit_expr);
+        match extract_unit_from_target(target_unit_expr) {
+            Some(unit) => {
+                tracing::debug!("Extracted target unit: {}", unit);
+                unit
+            }
+            None => {
+                tracing::warn!("Could not extract unit from target: {}", target_unit_expr);
+                return None;
+            }
+        }
     };
 
     // Calculate conversion factor
-    let conversion_factor = library.convert(1.0, &source_unit, &target_unit)?;
+    tracing::debug!("Looking up conversion: {} -> {}", source_unit, target_unit);
+    let conversion_factor = match library.convert(1.0, &source_unit, &target_unit) {
+        Some(factor) => {
+            tracing::debug!("Conversion factor: {}", factor);
+            factor
+        }
+        None => {
+            tracing::warn!("No conversion found for {} -> {}", source_unit, target_unit);
+            return None;
+        }
+    };
 
     // Create conversion name (e.g., "m_to_ft")
     let conversion_name = format!("{}_{}",
