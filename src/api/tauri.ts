@@ -108,8 +108,12 @@ export const tauriApi = {
     return invoke('export_to_excel', { path });
   },
 
-  async getExampleWorkbookPath(): Promise<string> {
-    return invoke('get_example_workbook_path');
+  async getExampleWorkbookPath(filename: string): Promise<string> {
+    return invoke('get_example_workbook_path', { filename });
+  },
+
+  async listExampleWorkbooks(): Promise<Array<[string, string]>> {
+    return invoke('list_example_workbooks');
   },
 
   // File dialogs

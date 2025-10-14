@@ -96,11 +96,22 @@ fn export_to_excel(state: State<AppState>, path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn get_example_workbook_path(app: tauri::AppHandle) -> Result<String, String> {
+fn get_example_workbook_path(app: tauri::AppHandle, filename: String) -> Result<String, String> {
+    let path = format!("examples/{}", filename);
     app.path()
-        .resolve("examples/unit_conversion_tutorial.usheet", tauri::path::BaseDirectory::Resource)
+        .resolve(&path, tauri::path::BaseDirectory::Resource)
         .map(|p| p.to_string_lossy().to_string())
         .map_err(|e| format!("Failed to resolve example path: {}", e))
+}
+
+#[tauri::command]
+fn list_example_workbooks() -> Vec<(String, String)> {
+    vec![
+        ("unit_conversion_tutorial.usheet".to_string(), "Unit Conversion Tutorial".to_string()),
+        ("aws_cost_estimator.usheet".to_string(), "AWS Cost Estimator".to_string()),
+        ("construction_estimator.usheet".to_string(), "Construction Estimator".to_string()),
+        ("investment_portfolio.usheet".to_string(), "Investment Portfolio Tracker".to_string()),
+    ]
 }
 
 fn main() {
@@ -136,6 +147,7 @@ fn main() {
             export_debug_to_clipboard,
             export_to_excel,
             get_example_workbook_path,
+            list_example_workbooks,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

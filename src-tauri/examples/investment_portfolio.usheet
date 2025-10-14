@@ -1,0 +1,1219 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "created_at": "2025-10-14T02:58:41.156682+00:00",
+    "modified_at": "2025-10-14T02:58:41.156682+00:00",
+    "app_version": "0.1.0"
+  },
+  "workbook": {
+    "name": "Investment Portfolio Tracker",
+    "settings": {
+      "display_preference": "AsEntered",
+      "auto_recalculate": true,
+      "show_warnings": true
+    },
+    "sheets": [
+      {
+        "name": "US Stocks",
+        "cells": {
+          "E6": {
+            "value": {
+              "type": "Number",
+              "value": 6287.5
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=B6 * C6",
+            "warning": null
+          },
+          "G5": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell F5 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=F5 - E5",
+            "warning": null
+          },
+          "A3": {
+            "value": {
+              "type": "Text",
+              "text": "Symbol"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B6": {
+            "value": {
+              "type": "Number",
+              "value": 50.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C5": {
+            "value": {
+              "type": "Number",
+              "value": 310.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E3": {
+            "value": {
+              "type": "Text",
+              "text": "Total Cost"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B3": {
+            "value": {
+              "type": "Text",
+              "text": "Shares"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E7": {
+            "value": {
+              "type": "Number",
+              "value": 6450.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=B7 * C7",
+            "warning": null
+          },
+          "F6": {
+            "value": {
+              "type": "Number",
+              "value": 7140.000000000001
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=B6 * D6",
+            "warning": null
+          },
+          "A11": {
+            "value": {
+              "type": "Text",
+              "text": "Return %"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "F3": {
+            "value": {
+              "type": "Text",
+              "text": "Current Value"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B7": {
+            "value": {
+              "type": "Number",
+              "value": 30.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E4": {
+            "value": {
+              "type": "Number",
+              "value": 14550.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=B4 * C4",
+            "warning": null
+          },
+          "F7": {
+            "value": {
+              "type": "Number",
+              "value": 7455.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=B7 * D7",
+            "warning": null
+          },
+          "C4": {
+            "value": {
+              "type": "Number",
+              "value": 145.5
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "G4": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell F4 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=F4 - E4",
+            "warning": null
+          },
+          "A1": {
+            "value": {
+              "type": "Text",
+              "text": "US Stock Holdings"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A7": {
+            "value": {
+              "type": "Text",
+              "text": "TSLA"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B11": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell G9 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=G9 / E9 * 100",
+            "warning": null
+          },
+          "C7": {
+            "value": {
+              "type": "Number",
+              "value": 215.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D7": {
+            "value": {
+              "type": "Number",
+              "value": 248.5
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B5": {
+            "value": {
+              "type": "Number",
+              "value": 75.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D5": {
+            "value": {
+              "type": "Number",
+              "value": 385.5
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B4": {
+            "value": {
+              "type": "Number",
+              "value": 100.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "G3": {
+            "value": {
+              "type": "Text",
+              "text": "Gain/Loss"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D6": {
+            "value": {
+              "type": "Number",
+              "value": 142.8
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E9": {
+            "value": {
+              "type": "Number",
+              "value": 0.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=SUM(E4:E7)",
+            "warning": null
+          },
+          "F4": {
+            "value": {
+              "type": "Number",
+              "value": 17825.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=B4 * D4",
+            "warning": null
+          },
+          "D4": {
+            "value": {
+              "type": "Number",
+              "value": 178.25
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A9": {
+            "value": {
+              "type": "Text",
+              "text": "TOTAL US STOCKS"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "G9": {
+            "value": {
+              "type": "Number",
+              "value": 0.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=SUM(G4:G7)",
+            "warning": null
+          },
+          "F5": {
+            "value": {
+              "type": "Number",
+              "value": 28912.5
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=B5 * D5",
+            "warning": null
+          },
+          "C6": {
+            "value": {
+              "type": "Number",
+              "value": 125.75
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C3": {
+            "value": {
+              "type": "Text",
+              "text": "Cost Basis"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "G6": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell F6 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=F6 - E6",
+            "warning": null
+          },
+          "E5": {
+            "value": {
+              "type": "Number",
+              "value": 23250.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=B5 * C5",
+            "warning": null
+          },
+          "F9": {
+            "value": {
+              "type": "Number",
+              "value": 0.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=SUM(F4:F7)",
+            "warning": null
+          },
+          "A6": {
+            "value": {
+              "type": "Text",
+              "text": "GOOGL"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "G7": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell F7 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=F7 - E7",
+            "warning": null
+          },
+          "D3": {
+            "value": {
+              "type": "Text",
+              "text": "Current Price"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A4": {
+            "value": {
+              "type": "Text",
+              "text": "AAPL"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A5": {
+            "value": {
+              "type": "Text",
+              "text": "MSFT"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          }
+        }
+      },
+      {
+        "name": "EU Holdings",
+        "cells": {
+          "D5": {
+            "value": {
+              "type": "Number",
+              "value": 168.5
+            },
+            "storage_unit": "EUR",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D3": {
+            "value": {
+              "type": "Text",
+              "text": "Current Price"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E4": {
+            "value": {
+              "type": "Number",
+              "value": 9240.0
+            },
+            "storage_unit": "EUR",
+            "display_unit": null,
+            "formula": "=B4 * C4",
+            "warning": null
+          },
+          "B9": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell G7 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=G7 / E7 * 100",
+            "warning": null
+          },
+          "G3": {
+            "value": {
+              "type": "Text",
+              "text": "Gain/Loss"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C5": {
+            "value": {
+              "type": "Number",
+              "value": 142.0
+            },
+            "storage_unit": "EUR",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "F3": {
+            "value": {
+              "type": "Text",
+              "text": "Current Value"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A4": {
+            "value": {
+              "type": "Text",
+              "text": "SAP"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A3": {
+            "value": {
+              "type": "Text",
+              "text": "Symbol"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D4": {
+            "value": {
+              "type": "Number",
+              "value": 128.75
+            },
+            "storage_unit": "EUR",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A1": {
+            "value": {
+              "type": "Text",
+              "text": "European Stock Holdings (EUR)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "G7": {
+            "value": {
+              "type": "Number",
+              "value": 0.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=SUM(G4:G5)",
+            "warning": null
+          },
+          "F7": {
+            "value": {
+              "type": "Number",
+              "value": 0.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=SUM(F4:F5)",
+            "warning": null
+          },
+          "G4": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell F4 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=F4 - E4",
+            "warning": null
+          },
+          "E5": {
+            "value": {
+              "type": "Number",
+              "value": 8520.0
+            },
+            "storage_unit": "EUR",
+            "display_unit": null,
+            "formula": "=B5 * C5",
+            "warning": null
+          },
+          "C3": {
+            "value": {
+              "type": "Text",
+              "text": "Cost Basis"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "F5": {
+            "value": {
+              "type": "Number",
+              "value": 10110.0
+            },
+            "storage_unit": "EUR",
+            "display_unit": null,
+            "formula": "=B5 * D5",
+            "warning": null
+          },
+          "E7": {
+            "value": {
+              "type": "Number",
+              "value": 0.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=SUM(E4:E5)",
+            "warning": null
+          },
+          "B4": {
+            "value": {
+              "type": "Number",
+              "value": 80.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A5": {
+            "value": {
+              "type": "Text",
+              "text": "SIE"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A9": {
+            "value": {
+              "type": "Text",
+              "text": "Return %"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E3": {
+            "value": {
+              "type": "Text",
+              "text": "Total Cost"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "G5": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell F5 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=F5 - E5",
+            "warning": null
+          },
+          "B5": {
+            "value": {
+              "type": "Number",
+              "value": 60.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "F4": {
+            "value": {
+              "type": "Number",
+              "value": 10300.0
+            },
+            "storage_unit": "EUR",
+            "display_unit": null,
+            "formula": "=B4 * D4",
+            "warning": null
+          },
+          "A7": {
+            "value": {
+              "type": "Text",
+              "text": "TOTAL EU HOLDINGS"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C4": {
+            "value": {
+              "type": "Number",
+              "value": 115.5
+            },
+            "storage_unit": "EUR",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B3": {
+            "value": {
+              "type": "Text",
+              "text": "Shares"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          }
+        }
+      },
+      {
+        "name": "UK Holdings",
+        "cells": {
+          "G7": {
+            "value": {
+              "type": "Number",
+              "value": 0.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=SUM(G4:G5)",
+            "warning": null
+          },
+          "D5": {
+            "value": {
+              "type": "Number",
+              "value": 4.75
+            },
+            "storage_unit": "GBP",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E5": {
+            "value": {
+              "type": "Number",
+              "value": 1680.0
+            },
+            "storage_unit": "GBP",
+            "display_unit": null,
+            "formula": "=B5 * C5",
+            "warning": null
+          },
+          "G3": {
+            "value": {
+              "type": "Text",
+              "text": "Gain/Loss"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C4": {
+            "value": {
+              "type": "Number",
+              "value": 5.85
+            },
+            "storage_unit": "GBP",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "F3": {
+            "value": {
+              "type": "Text",
+              "text": "Current Value"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "F5": {
+            "value": {
+              "type": "Number",
+              "value": 1900.0
+            },
+            "storage_unit": "GBP",
+            "display_unit": null,
+            "formula": "=B5 * D5",
+            "warning": null
+          },
+          "F7": {
+            "value": {
+              "type": "Number",
+              "value": 0.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=SUM(F4:F5)",
+            "warning": null
+          },
+          "F4": {
+            "value": {
+              "type": "Number",
+              "value": 3225.0
+            },
+            "storage_unit": "GBP",
+            "display_unit": null,
+            "formula": "=B4 * D4",
+            "warning": null
+          },
+          "B4": {
+            "value": {
+              "type": "Number",
+              "value": 500.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A1": {
+            "value": {
+              "type": "Text",
+              "text": "UK Stock Holdings (GBP)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E7": {
+            "value": {
+              "type": "Number",
+              "value": 0.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=SUM(E4:E5)",
+            "warning": null
+          },
+          "E3": {
+            "value": {
+              "type": "Text",
+              "text": "Total Cost"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D4": {
+            "value": {
+              "type": "Number",
+              "value": 6.45
+            },
+            "storage_unit": "GBP",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A4": {
+            "value": {
+              "type": "Text",
+              "text": "HSBA"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C5": {
+            "value": {
+              "type": "Number",
+              "value": 4.2
+            },
+            "storage_unit": "GBP",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A3": {
+            "value": {
+              "type": "Text",
+              "text": "Symbol"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "G4": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell F4 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=F4 - E4",
+            "warning": null
+          },
+          "C3": {
+            "value": {
+              "type": "Text",
+              "text": "Cost Basis"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B9": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell G7 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=G7 / E7 * 100",
+            "warning": null
+          },
+          "D3": {
+            "value": {
+              "type": "Text",
+              "text": "Current Price"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A7": {
+            "value": {
+              "type": "Text",
+              "text": "TOTAL UK HOLDINGS"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A5": {
+            "value": {
+              "type": "Text",
+              "text": "BP"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B3": {
+            "value": {
+              "type": "Text",
+              "text": "Shares"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E4": {
+            "value": {
+              "type": "Number",
+              "value": 2925.0
+            },
+            "storage_unit": "GBP",
+            "display_unit": null,
+            "formula": "=B4 * C4",
+            "warning": null
+          },
+          "G5": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Invalid operation: Cell F5 does not contain a number"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=F5 - E5",
+            "warning": null
+          },
+          "B5": {
+            "value": {
+              "type": "Number",
+              "value": 400.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A9": {
+            "value": {
+              "type": "Text",
+              "text": "Return %"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          }
+        }
+      },
+      {
+        "name": "Summary",
+        "cells": {
+          "B5": {
+            "value": {
+              "type": "Text",
+              "text": "Current Value"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C5": {
+            "value": {
+              "type": "Text",
+              "text": "Currency"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A6": {
+            "value": {
+              "type": "Text",
+              "text": "United States"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A8": {
+            "value": {
+              "type": "Text",
+              "text": "United Kingdom"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A11": {
+            "value": {
+              "type": "Text",
+              "text": "- Each region tracks holdings in local currency"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B8": {
+            "value": {
+              "type": "Number",
+              "value": 5125.0
+            },
+            "storage_unit": "GBP",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A13": {
+            "value": {
+              "type": "Text",
+              "text": "- Gain/Loss calculated with proper unit handling"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A10": {
+            "value": {
+              "type": "Text",
+              "text": "NOTES:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A3": {
+            "value": {
+              "type": "Text",
+              "text": "Asset Allocation by Region"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C7": {
+            "value": {
+              "type": "Text",
+              "text": "EUR"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A5": {
+            "value": {
+              "type": "Text",
+              "text": "Region"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A12": {
+            "value": {
+              "type": "Text",
+              "text": "- Shares (dimensionless) × Price (USD) = Value (USD)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C8": {
+            "value": {
+              "type": "Text",
+              "text": "GBP"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A1": {
+            "value": {
+              "type": "Text",
+              "text": "Portfolio Summary"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A7": {
+            "value": {
+              "type": "Text",
+              "text": "Europe"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C6": {
+            "value": {
+              "type": "Text",
+              "text": "USD"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A14": {
+            "value": {
+              "type": "Text",
+              "text": "- Return % is dimensionless (USD/USD × 100)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B7": {
+            "value": {
+              "type": "Number",
+              "value": 19400.0
+            },
+            "storage_unit": "EUR",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B6": {
+            "value": {
+              "type": "Number",
+              "value": 54825.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A15": {
+            "value": {
+              "type": "Text",
+              "text": "- Multi-currency demonstration (USD, EUR, GBP)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          }
+        }
+      }
+    ],
+    "active_sheet": 0
+  }
+}

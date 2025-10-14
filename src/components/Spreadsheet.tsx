@@ -311,11 +311,11 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     }
   };
 
-  const handleOpenExample = async () => {
+  const handleOpenExample = async (filename: string) => {
     try {
-      const examplePath = await tauriApi.getExampleWorkbookPath();
+      const examplePath = await tauriApi.getExampleWorkbookPath(filename);
 
-      setLoadingMessage('Opening example tutorial...');
+      setLoadingMessage('Opening example...');
       setIsLoading(true);
       await tauriApi.loadWorkbook(examplePath);
       await loadCellsFromBackend();
@@ -324,7 +324,7 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
       setWorkbookName(info.name);
       setIsDirty(false);
 
-      addToast('Example tutorial loaded successfully', 'success');
+      addToast('Example loaded successfully', 'success');
     } catch (error) {
       addToast(`Failed to open example: ${error}`, 'error');
     } finally {

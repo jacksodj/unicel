@@ -487,7 +487,29 @@ pub fn load_workbook_impl(state: &AppState, path: String) -> Result<(), String> 
     let file = WorkbookFile::load_from_file(std::path::Path::new(&path))
         .map_err(|e| e.to_string())?;
 
-    let workbook = file.to_workbook().map_err(|e| e.to_string())?;
+    let mut workbook = file.to_workbook().map_err(|e| e.to_string())?;
+
+    // Recalculate all formulas in the active sheet after loading
+    // This ensures all formula cells have up-to-date values
+    let changed_cells: Vec<CellAddr> = workbook
+        .active_sheet()
+        .cell_addresses()
+        .into_iter()
+        .filter(|addr| {
+            workbook
+                .active_sheet()
+                .get(addr)
+                .map(|cell| cell.formula().is_some())
+                .unwrap_or(false)
+        })
+        .collect();
+
+    if !changed_cells.is_empty() {
+        workbook
+            .active_sheet_mut()
+            .recalculate(&changed_cells)
+            .map_err(|e| e.to_string())?;
+    }
 
     *state.workbook.lock().unwrap() = Some(workbook);
     *state.current_file.lock().unwrap() = Some(path);
