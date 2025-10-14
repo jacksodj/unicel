@@ -155,36 +155,74 @@ impl DependencyGraph {
     /// Get the calculation order (topological sort)
     /// Returns cells in dependency order (cells with no deps first)
     pub fn calculation_order(&self, changed_cells: &[CellAddr]) -> Vec<CellAddr> {
+        // First, collect all cells that need recalculation (changed cells + their dependents)
+        let mut to_recalc = HashSet::new();
+        for cell in changed_cells {
+            self.collect_affected_cells(cell, &mut to_recalc);
+        }
+
+        // Now do topological sort on these cells
         let mut order = Vec::new();
         let mut visited = HashSet::new();
+        let mut temp_mark = HashSet::new();
 
-        // Start from changed cells and traverse dependents
-        for cell in changed_cells {
-            self.visit_dependents(cell, &mut visited, &mut order);
+        for cell in &to_recalc {
+            if !visited.contains(cell) {
+                self.topological_sort(cell, &mut visited, &mut temp_mark, &mut order, &to_recalc);
+            }
         }
 
         order
     }
 
-    fn visit_dependents(
+    /// Collect all cells affected by a change (the cell and all its dependents recursively)
+    fn collect_affected_cells(&self, cell: &CellAddr, affected: &mut HashSet<CellAddr>) {
+        if affected.contains(cell) {
+            return;
+        }
+        affected.insert(cell.clone());
+
+        // Add all dependents recursively
+        if let Some(deps) = self.dependents.get(cell) {
+            for dep in deps {
+                self.collect_affected_cells(dep, affected);
+            }
+        }
+    }
+
+    /// Topological sort using DFS
+    /// Visits dependencies before the cell itself
+    fn topological_sort(
         &self,
         cell: &CellAddr,
         visited: &mut HashSet<CellAddr>,
+        temp_mark: &mut HashSet<CellAddr>,
         order: &mut Vec<CellAddr>,
+        to_recalc: &HashSet<CellAddr>,
     ) {
         if visited.contains(cell) {
             return;
         }
 
-        visited.insert(cell.clone());
+        if temp_mark.contains(cell) {
+            // Circular dependency detected, but we already check for this when setting formulas
+            return;
+        }
 
-        // Visit dependents recursively
-        if let Some(deps) = self.dependents.get(cell) {
+        temp_mark.insert(cell.clone());
+
+        // Visit all dependencies first (cells this cell depends on)
+        if let Some(deps) = self.dependencies.get(cell) {
             for dep in deps {
-                self.visit_dependents(dep, visited, order);
+                // Only visit if this dependency is in our recalculation set
+                if to_recalc.contains(dep) {
+                    self.topological_sort(dep, visited, temp_mark, order, to_recalc);
+                }
             }
         }
 
+        temp_mark.remove(cell);
+        visited.insert(cell.clone());
         order.push(cell.clone());
     }
 }
@@ -534,6 +572,7 @@ impl<'a> SheetEvaluator<'a> {
                 match name.to_uppercase().as_str() {
                     "SUM" => self.eval_sum(args),
                     "AVERAGE" => self.eval_average(args),
+                    "CONVERT" => self.eval_convert(args),
                     _ => Err(EvalError::FunctionNotImplemented(name.clone())),
                 }
             }
@@ -656,6 +695,71 @@ impl<'a> SheetEvaluator<'a> {
         // Divide by count
         let count = values.len() as f64;
         Ok(EvalResult::new(sum_result.value / count, sum_result.unit))
+    }
+
+    /// Evaluate CONVERT function
+    /// Syntax: CONVERT(value, target_unit)
+    /// Example: CONVERT(A1, 1km) or CONVERT(100m, 1ft)
+    fn eval_convert(&self, args: &[Expr]) -> Result<EvalResult, EvalError> {
+        if args.len() != 2 {
+            return Err(EvalError::InvalidOperation(
+                "CONVERT requires exactly 2 arguments: CONVERT(value, target_unit)".to_string()
+            ));
+        }
+
+        // Evaluate the value to convert
+        let value_result = self.eval(&args[0])?;
+
+        // Extract target unit from second argument
+        // The target unit can be specified as "1 km" or just a reference with unit
+        let target_unit = match &args[1] {
+            Expr::NumberWithUnit { unit, .. } => {
+                // Parse the unit string
+                use crate::core::units::parse_unit;
+                parse_unit(unit, self.library)
+                    .map_err(|_| EvalError::UnknownUnit(unit.clone()))?
+            }
+            Expr::CellRef { col, row } => {
+                // Get unit from referenced cell
+                let addr = CellAddr::new(col.clone(), *row);
+                let cell = self.sheet.get(&addr).ok_or_else(|| {
+                    EvalError::CellNotFound(addr.to_string())
+                })?;
+                cell.storage_unit().clone()
+            }
+            _ => {
+                return Err(EvalError::InvalidOperation(
+                    "CONVERT target unit must be specified as '1 unit' (e.g., 1km) or a cell reference".to_string()
+                ));
+            }
+        };
+
+        // Check if units are compatible
+        if !value_result.unit.is_compatible(&target_unit) {
+            return Err(EvalError::IncompatibleUnits {
+                operation: "CONVERT".to_string(),
+                left: value_result.unit.to_string(),
+                right: target_unit.to_string(),
+            });
+        }
+
+        // If units are already the same, no conversion needed
+        if value_result.unit.is_equal(&target_unit) {
+            return Ok(EvalResult::new(value_result.value, target_unit));
+        }
+
+        // Perform conversion
+        let converted_value = self.library.convert(
+            value_result.value,
+            value_result.unit.canonical(),
+            target_unit.canonical(),
+        ).ok_or_else(|| EvalError::IncompatibleUnits {
+            operation: "CONVERT".to_string(),
+            left: value_result.unit.to_string(),
+            right: target_unit.to_string(),
+        })?;
+
+        Ok(EvalResult::new(converted_value, target_unit))
     }
 
     /// Collect values from arguments (expanding ranges)
@@ -866,5 +970,37 @@ mod tests {
         let (value, unit) = sheet.evaluate_formula("=SUM(A1, A2)").unwrap();
         assert_eq!(value, 100.5); // 100m + 0.5m
         assert_eq!(unit.canonical(), "m");
+    }
+
+    #[test]
+    fn test_convert_function() {
+        let mut sheet = Sheet::new();
+
+        // Set up a cell with meters
+        sheet.set(CellAddr::new("A", 1), Cell::new(1000.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+
+        // Convert meters to kilometers: CONVERT(A1, 1km)
+        let (value, unit) = sheet.evaluate_formula("=CONVERT(A1, 1km)").unwrap();
+        assert_eq!(value, 1.0); // 1000m = 1km
+        assert_eq!(unit.canonical(), "km");
+
+        // Convert meters to feet
+        let (value, unit) = sheet.evaluate_formula("=CONVERT(A1, 1ft)").unwrap();
+        assert!((value - 3280.84).abs() < 0.1); // 1000m ≈ 3280.84ft
+        assert_eq!(unit.canonical(), "ft");
+    }
+
+    #[test]
+    fn test_convert_with_cell_reference() {
+        let mut sheet = Sheet::new();
+
+        // Set up cells
+        sheet.set(CellAddr::new("A", 1), Cell::new(100.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+        sheet.set(CellAddr::new("B", 1), Cell::new(1.0, Unit::simple("km", BaseDimension::Length))).unwrap();
+
+        // Convert A1 to the unit of B1
+        let (value, unit) = sheet.evaluate_formula("=CONVERT(A1, B1)").unwrap();
+        assert_eq!(value, 0.1); // 100m = 0.1km
+        assert_eq!(unit.canonical(), "km");
     }
 }

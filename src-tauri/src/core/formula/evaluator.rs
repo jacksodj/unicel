@@ -474,21 +474,66 @@ fn find_original_symbol_for_dimension(dim: &BaseDimension, left: &Unit, right: &
 
 // Extract symbol for a specific dimension from a compound unit symbol
 fn extract_symbol_from_compound(compound: &str, dim: &BaseDimension) -> Option<String> {
-    // For now, handle common cases like "$/ft" -> "$" for Currency
-    if dim == &BaseDimension::Currency {
-        if compound.starts_with('$') {
-            // Extract the currency part before the division
-            if let Some(div_pos) = compound.find('/') {
-                return Some(compound[..div_pos].to_string());
-            }
+    // Parse compound unit to find the symbol for this dimension
+    // Handles formats like "mi/hr", "USD/ft", "kg*m", etc.
+
+    // Split by division first
+    if let Some(div_pos) = compound.find('/') {
+        let numerator_part = &compound[..div_pos];
+        let denominator_part = &compound[div_pos + 1..];
+
+        // Check numerator symbols
+        if let Some(symbol) = extract_symbol_for_dimension_from_part(numerator_part, dim) {
+            return Some(symbol);
         }
-        if compound.starts_with("USD") {
-            if let Some(div_pos) = compound.find('/') {
-                return Some(compound[..div_pos].to_string());
-            }
+
+        // Check denominator symbols
+        if let Some(symbol) = extract_symbol_for_dimension_from_part(denominator_part, dim) {
+            return Some(symbol);
+        }
+    } else {
+        // No division, check the whole string
+        if let Some(symbol) = extract_symbol_for_dimension_from_part(compound, dim) {
+            return Some(symbol);
         }
     }
+
     None
+}
+
+// Extract symbol from a unit part (handles multiplication and powers)
+fn extract_symbol_for_dimension_from_part(part: &str, dim: &BaseDimension) -> Option<String> {
+    // Split by multiplication
+    let symbols: Vec<&str> = part.split('*').collect();
+
+    for symbol in symbols {
+        // Remove power notation if present (e.g., "ft^2" -> "ft")
+        let base_symbol = if let Some(pow_pos) = symbol.find('^') {
+            &symbol[..pow_pos]
+        } else {
+            symbol
+        };
+
+        // Check if this symbol matches the dimension
+        if dimension_matches_symbol(dim, base_symbol) {
+            return Some(base_symbol.to_string());
+        }
+    }
+
+    None
+}
+
+// Check if a symbol matches a given dimension
+fn dimension_matches_symbol(dim: &BaseDimension, symbol: &str) -> bool {
+    match dim {
+        BaseDimension::Length => matches!(symbol, "m" | "cm" | "mm" | "km" | "in" | "ft" | "yd" | "mi"),
+        BaseDimension::Mass => matches!(symbol, "g" | "kg" | "mg" | "oz" | "lb"),
+        BaseDimension::Time => matches!(symbol, "s" | "min" | "hr" | "h" | "hour" | "day" | "month" | "year"),
+        BaseDimension::Temperature => matches!(symbol, "C" | "F" | "K"),
+        BaseDimension::Currency => matches!(symbol, "USD" | "EUR" | "GBP" | "$" | "€" | "£"),
+        BaseDimension::DigitalStorage => matches!(symbol, "B" | "KB" | "MB" | "GB" | "TB" | "PB" | "Kb" | "Mb" | "Gb" | "Tb" | "Pb" | "Tok" | "MTok"),
+        BaseDimension::Custom(name) => symbol == name,
+    }
 }
 
 // Build unit symbol with original symbols when possible

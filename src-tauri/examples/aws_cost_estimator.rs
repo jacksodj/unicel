@@ -35,21 +35,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // t3.medium instances
     sheet1.set(CellAddr::new("A", 5), Cell::with_text("t3.medium"))?;
     sheet1.set(CellAddr::new("B", 5), Cell::new(3.0, Unit::dimensionless()))?;
-    sheet1.set(CellAddr::new("C", 5), Cell::new(0.0416, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet1.set(CellAddr::new("C", 5), Cell::new(
+        0.0416,
+        Unit::compound("USD/hr", vec![(BaseDimension::Currency, 1)], vec![(BaseDimension::Time, 1)])
+    ))?;
     sheet1.set(CellAddr::new("D", 5), Cell::new(730.0, Unit::simple("hr", BaseDimension::Time)))?;
     sheet1.set(CellAddr::new("E", 5), Cell::with_formula("=B5 * C5 * D5"))?;
 
     // m5.large instances
     sheet1.set(CellAddr::new("A", 6), Cell::with_text("m5.large"))?;
     sheet1.set(CellAddr::new("B", 6), Cell::new(2.0, Unit::dimensionless()))?;
-    sheet1.set(CellAddr::new("C", 6), Cell::new(0.096, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet1.set(CellAddr::new("C", 6), Cell::new(
+        0.096,
+        Unit::compound("USD/hr", vec![(BaseDimension::Currency, 1)], vec![(BaseDimension::Time, 1)])
+    ))?;
     sheet1.set(CellAddr::new("D", 6), Cell::new(730.0, Unit::simple("hr", BaseDimension::Time)))?;
     sheet1.set(CellAddr::new("E", 6), Cell::with_formula("=B6 * C6 * D6"))?;
 
     // c5.xlarge instances
     sheet1.set(CellAddr::new("A", 7), Cell::with_text("c5.xlarge"))?;
     sheet1.set(CellAddr::new("B", 7), Cell::new(1.0, Unit::dimensionless()))?;
-    sheet1.set(CellAddr::new("C", 7), Cell::new(0.17, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet1.set(CellAddr::new("C", 7), Cell::new(
+        0.17,
+        Unit::compound("USD/hr", vec![(BaseDimension::Currency, 1)], vec![(BaseDimension::Time, 1)])
+    ))?;
     sheet1.set(CellAddr::new("D", 7), Cell::new(730.0, Unit::simple("hr", BaseDimension::Time)))?;
     sheet1.set(CellAddr::new("E", 7), Cell::with_formula("=B7 * C7 * D7"))?;
 
@@ -68,14 +77,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // db.t3.medium
     sheet1.set(CellAddr::new("A", 12), Cell::with_text("db.t3.medium"))?;
     sheet1.set(CellAddr::new("B", 12), Cell::new(1.0, Unit::dimensionless()))?;
-    sheet1.set(CellAddr::new("C", 12), Cell::new(0.068, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet1.set(CellAddr::new("C", 12), Cell::new(
+        0.068,
+        Unit::compound("USD/hr", vec![(BaseDimension::Currency, 1)], vec![(BaseDimension::Time, 1)])
+    ))?;
     sheet1.set(CellAddr::new("D", 12), Cell::new(730.0, Unit::simple("hr", BaseDimension::Time)))?;
     sheet1.set(CellAddr::new("E", 12), Cell::with_formula("=B12 * C12 * D12"))?;
 
     // db.m5.large
     sheet1.set(CellAddr::new("A", 13), Cell::with_text("db.m5.large"))?;
     sheet1.set(CellAddr::new("B", 13), Cell::new(1.0, Unit::dimensionless()))?;
-    sheet1.set(CellAddr::new("C", 13), Cell::new(0.192, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet1.set(CellAddr::new("C", 13), Cell::new(
+        0.192,
+        Unit::compound("USD/hr", vec![(BaseDimension::Currency, 1)], vec![(BaseDimension::Time, 1)])
+    ))?;
     sheet1.set(CellAddr::new("D", 13), Cell::new(730.0, Unit::simple("hr", BaseDimension::Time)))?;
     sheet1.set(CellAddr::new("E", 13), Cell::with_formula("=B13 * C13 * D13"))?;
 
@@ -92,14 +107,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Outbound to Internet
     sheet1.set(CellAddr::new("A", 18), Cell::with_text("Outbound to Internet"))?;
-    sheet1.set(CellAddr::new("B", 18), Cell::new(5000.0, Unit::simple("GB", BaseDimension::Custom("Data".to_string()))))?;
-    sheet1.set(CellAddr::new("C", 18), Cell::new(0.09, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet1.set(CellAddr::new("B", 18), Cell::new(5000.0, Unit::simple("GB", BaseDimension::DigitalStorage)))?;
+    sheet1.set(CellAddr::new("C", 18), Cell::new(
+        0.09,
+        Unit::compound("USD/GB", vec![(BaseDimension::Currency, 1)], vec![(BaseDimension::DigitalStorage, 1)])
+    ))?;
     sheet1.set(CellAddr::new("D", 18), Cell::with_formula("=B18 * C18"))?;
 
     // Inter-region transfer
     sheet1.set(CellAddr::new("A", 19), Cell::with_text("Inter-region Transfer"))?;
-    sheet1.set(CellAddr::new("B", 19), Cell::new(2000.0, Unit::simple("GB", BaseDimension::Custom("Data".to_string()))))?;
-    sheet1.set(CellAddr::new("C", 19), Cell::new(0.02, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet1.set(CellAddr::new("B", 19), Cell::new(2000.0, Unit::simple("GB", BaseDimension::DigitalStorage)))?;
+    sheet1.set(CellAddr::new("C", 19), Cell::new(
+        0.02,
+        Unit::compound("USD/GB", vec![(BaseDimension::Currency, 1)], vec![(BaseDimension::DigitalStorage, 1)])
+    ))?;
     sheet1.set(CellAddr::new("D", 19), Cell::with_formula("=B19 * C19"))?;
 
     // Data Transfer Subtotal
@@ -113,23 +134,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     sheet1.set(CellAddr::new("C", 23), Cell::with_text("Monthly Cost"))?;
 
     sheet1.set(CellAddr::new("A", 24), Cell::with_text("Standard Storage"))?;
-    sheet1.set(CellAddr::new("A", 24), Cell::new(10000.0, Unit::simple("GB", BaseDimension::Custom("Data".to_string()))))?;
-    sheet1.set(CellAddr::new("B", 24), Cell::new(0.023, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet1.set(CellAddr::new("A", 24), Cell::new(10000.0, Unit::simple("GB", BaseDimension::DigitalStorage)))?;
+    sheet1.set(CellAddr::new("B", 24), Cell::new(
+        0.023,
+        Unit::compound("USD/GB", vec![(BaseDimension::Currency, 1)], vec![(BaseDimension::DigitalStorage, 1)])
+    ))?;
     sheet1.set(CellAddr::new("C", 24), Cell::with_formula("=A24 * B24"))?;
 
     // Monthly Total
     sheet1.set(CellAddr::new("A", 26), Cell::with_text("MONTHLY TOTAL (US East)"))?;
     sheet1.set(CellAddr::new("E", 26), Cell::with_formula("=E8 + E14 + D20 + C24"))?;
 
-    // Recalculate Sheet 1
+    // Recalculate Sheet 1 - list input cells only, dependency graph will handle formulas
     let changed1: Vec<CellAddr> = vec![
+        // EC2 instances (input cells only)
         CellAddr::new("B", 5), CellAddr::new("C", 5), CellAddr::new("D", 5),
         CellAddr::new("B", 6), CellAddr::new("C", 6), CellAddr::new("D", 6),
         CellAddr::new("B", 7), CellAddr::new("C", 7), CellAddr::new("D", 7),
+        // RDS instances
         CellAddr::new("B", 12), CellAddr::new("C", 12), CellAddr::new("D", 12),
         CellAddr::new("B", 13), CellAddr::new("C", 13), CellAddr::new("D", 13),
+        // Data transfer
         CellAddr::new("B", 18), CellAddr::new("C", 18),
         CellAddr::new("B", 19), CellAddr::new("C", 19),
+        // S3 storage
         CellAddr::new("A", 24), CellAddr::new("B", 24),
     ];
     sheet1.recalculate(&changed1)?;
@@ -151,14 +179,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // t3.medium (EUR pricing slightly higher)
     sheet2.set(CellAddr::new("A", 5), Cell::with_text("t3.medium"))?;
     sheet2.set(CellAddr::new("B", 5), Cell::new(2.0, Unit::dimensionless()))?;
-    sheet2.set(CellAddr::new("C", 5), Cell::new(0.046, Unit::simple("EUR", BaseDimension::Currency)))?;
+    sheet2.set(CellAddr::new("C", 5), Cell::new(
+        0.046,
+        Unit::compound("EUR/hr", vec![(BaseDimension::Currency, 1)], vec![(BaseDimension::Time, 1)])
+    ))?;
     sheet2.set(CellAddr::new("D", 5), Cell::new(730.0, Unit::simple("hr", BaseDimension::Time)))?;
     sheet2.set(CellAddr::new("E", 5), Cell::with_formula("=B5 * C5 * D5"))?;
 
     // m5.large
     sheet2.set(CellAddr::new("A", 6), Cell::with_text("m5.large"))?;
     sheet2.set(CellAddr::new("B", 6), Cell::new(2.0, Unit::dimensionless()))?;
-    sheet2.set(CellAddr::new("C", 6), Cell::new(0.107, Unit::simple("EUR", BaseDimension::Currency)))?;
+    sheet2.set(CellAddr::new("C", 6), Cell::new(
+        0.107,
+        Unit::compound("EUR/hr", vec![(BaseDimension::Currency, 1)], vec![(BaseDimension::Time, 1)])
+    ))?;
     sheet2.set(CellAddr::new("D", 6), Cell::new(730.0, Unit::simple("hr", BaseDimension::Time)))?;
     sheet2.set(CellAddr::new("E", 6), Cell::with_formula("=B6 * C6 * D6"))?;
 
@@ -169,18 +203,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Data Transfer
     sheet2.set(CellAddr::new("A", 9), Cell::with_text("Data Transfer"))?;
     sheet2.set(CellAddr::new("A", 10), Cell::with_text("Outbound to Internet"))?;
-    sheet2.set(CellAddr::new("B", 10), Cell::new(3000.0, Unit::simple("GB", BaseDimension::Custom("Data".to_string()))))?;
-    sheet2.set(CellAddr::new("C", 10), Cell::new(0.085, Unit::simple("EUR", BaseDimension::Currency)))?;
+    sheet2.set(CellAddr::new("B", 10), Cell::new(3000.0, Unit::simple("GB", BaseDimension::DigitalStorage)))?;
+    sheet2.set(CellAddr::new("C", 10), Cell::new(
+        0.085,
+        Unit::compound("EUR/GB", vec![(BaseDimension::Currency, 1)], vec![(BaseDimension::DigitalStorage, 1)])
+    ))?;
     sheet2.set(CellAddr::new("D", 10), Cell::with_formula("=B10 * C10"))?;
 
     // Monthly Total EU
     sheet2.set(CellAddr::new("A", 12), Cell::with_text("MONTHLY TOTAL (EU West)"))?;
     sheet2.set(CellAddr::new("E", 12), Cell::with_formula("=E7 + D10"))?;
 
-    // Recalculate Sheet 2
+    // Recalculate Sheet 2 - list input cells only
     let changed2: Vec<CellAddr> = vec![
+        // EC2 instances (input cells only)
         CellAddr::new("B", 5), CellAddr::new("C", 5), CellAddr::new("D", 5),
         CellAddr::new("B", 6), CellAddr::new("C", 6), CellAddr::new("D", 6),
+        // Data transfer
         CellAddr::new("B", 10), CellAddr::new("C", 10),
     ];
     sheet2.recalculate(&changed2)?;
@@ -209,8 +248,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     sheet3.set(CellAddr::new("A", 12), Cell::with_text("- Multi-currency scenarios (USD vs EUR)"))?;
     sheet3.set(CellAddr::new("A", 13), Cell::with_text("- Scaling projections with dimensionless multipliers"))?;
 
-    // Recalculate Sheet 3
-    sheet3.recalculate(&[CellAddr::new("B", 3), CellAddr::new("B", 4)])?;
+    // Recalculate Sheet 3 - input cells only
+    sheet3.recalculate(&[
+        CellAddr::new("B", 3),
+        CellAddr::new("B", 4),
+    ])?;
 
     // Save to file
     let file = WorkbookFile::from_workbook(&workbook);

@@ -137,11 +137,11 @@ fn create_length_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Result<()
     sheet.set(CellAddr::new("B", 5), Cell::new(1.0, Unit::simple("km", BaseDimension::Length)))?;
 
     sheet.set(CellAddr::new("A", 6), Cell::with_text("= meters"))?;
-    sheet.set(CellAddr::new("B", 6), Cell::with_formula("=B5"))?; // Display as m
+    sheet.set(CellAddr::new("B", 6), Cell::with_formula("=CONVERT(B5, 1m)"))?;
     sheet.set(CellAddr::new("C", 6), Cell::with_text("(1 km = 1000 m)"))?;
 
     sheet.set(CellAddr::new("A", 7), Cell::with_text("= centimeters"))?;
-    sheet.set(CellAddr::new("B", 7), Cell::with_formula("=B5"))?; // Display as cm
+    sheet.set(CellAddr::new("B", 7), Cell::with_formula("=CONVERT(B5, 1cm)"))?;
     sheet.set(CellAddr::new("C", 7), Cell::with_text("(1 km = 100,000 cm)"))?;
 
     // Imperial system
@@ -150,11 +150,11 @@ fn create_length_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Result<()
     sheet.set(CellAddr::new("B", 10), Cell::new(1.0, Unit::simple("mi", BaseDimension::Length)))?;
 
     sheet.set(CellAddr::new("A", 11), Cell::with_text("= yards"))?;
-    sheet.set(CellAddr::new("B", 11), Cell::with_formula("=B10"))?; // Display as yd
+    sheet.set(CellAddr::new("B", 11), Cell::with_formula("=CONVERT(B10, 1yd)"))?;
     sheet.set(CellAddr::new("C", 11), Cell::with_text("(1 mi = 1760 yd)"))?;
 
     sheet.set(CellAddr::new("A", 12), Cell::with_text("= feet"))?;
-    sheet.set(CellAddr::new("B", 12), Cell::with_formula("=B10"))?; // Display as ft
+    sheet.set(CellAddr::new("B", 12), Cell::with_formula("=CONVERT(B10, 1ft)"))?;
     sheet.set(CellAddr::new("C", 12), Cell::with_text("(1 mi = 5280 ft)"))?;
 
     // Cross-conversion
@@ -163,11 +163,11 @@ fn create_length_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Result<()
     sheet.set(CellAddr::new("B", 15), Cell::new(100.0, Unit::simple("m", BaseDimension::Length)))?;
 
     sheet.set(CellAddr::new("A", 16), Cell::with_text("= feet"))?;
-    sheet.set(CellAddr::new("B", 16), Cell::with_formula("=B15"))?; // Display as ft
+    sheet.set(CellAddr::new("B", 16), Cell::with_formula("=CONVERT(B15, 1ft)"))?;
     sheet.set(CellAddr::new("C", 16), Cell::with_text("(≈ 328.08 ft)"))?;
 
     sheet.set(CellAddr::new("A", 17), Cell::with_text("= inches"))?;
-    sheet.set(CellAddr::new("B", 17), Cell::with_formula("=B15"))?; // Display as in
+    sheet.set(CellAddr::new("B", 17), Cell::with_formula("=CONVERT(B15, 1in)"))?;
     sheet.set(CellAddr::new("C", 17), Cell::with_text("(≈ 3937 in)"))?;
 
     // Calculations
@@ -198,11 +198,11 @@ fn create_mass_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Result<(), 
     sheet.set(CellAddr::new("B", 5), Cell::new(1.0, Unit::simple("kg", BaseDimension::Mass)))?;
 
     sheet.set(CellAddr::new("A", 6), Cell::with_text("= grams"))?;
-    sheet.set(CellAddr::new("B", 6), Cell::with_formula("=B5"))?;
+    sheet.set(CellAddr::new("B", 6), Cell::with_formula("=CONVERT(B5, 1g)"))?;
     sheet.set(CellAddr::new("C", 6), Cell::with_text("(1 kg = 1000 g)"))?;
 
     sheet.set(CellAddr::new("A", 7), Cell::with_text("= milligrams"))?;
-    sheet.set(CellAddr::new("B", 7), Cell::with_formula("=B5"))?;
+    sheet.set(CellAddr::new("B", 7), Cell::with_formula("=CONVERT(B5, 1mg)"))?;
     sheet.set(CellAddr::new("C", 7), Cell::with_text("(1 kg = 1,000,000 mg)"))?;
 
     // Imperial
@@ -211,7 +211,7 @@ fn create_mass_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Result<(), 
     sheet.set(CellAddr::new("B", 10), Cell::new(1.0, Unit::simple("lb", BaseDimension::Mass)))?;
 
     sheet.set(CellAddr::new("A", 11), Cell::with_text("= ounces"))?;
-    sheet.set(CellAddr::new("B", 11), Cell::with_formula("=B10"))?;
+    sheet.set(CellAddr::new("B", 11), Cell::with_formula("=CONVERT(B10, 1oz)"))?;
     sheet.set(CellAddr::new("C", 11), Cell::with_text("(1 lb = 16 oz)"))?;
 
     // Cross-conversion
@@ -220,7 +220,7 @@ fn create_mass_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Result<(), 
     sheet.set(CellAddr::new("B", 14), Cell::new(1.0, Unit::simple("kg", BaseDimension::Mass)))?;
 
     sheet.set(CellAddr::new("A", 15), Cell::with_text("= pounds"))?;
-    sheet.set(CellAddr::new("B", 15), Cell::with_formula("=B14"))?;
+    sheet.set(CellAddr::new("B", 15), Cell::with_formula("=CONVERT(B14, 1lb)"))?;
     sheet.set(CellAddr::new("C", 15), Cell::with_text("(1 kg ≈ 2.205 lb)"))?;
 
     // Practical example
@@ -251,11 +251,11 @@ fn create_temperature_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Resu
     sheet.set(CellAddr::new("C", 5), Cell::with_text("(Celsius)"))?;
 
     sheet.set(CellAddr::new("A", 6), Cell::with_text("= Fahrenheit"))?;
-    sheet.set(CellAddr::new("B", 6), Cell::with_formula("=B5"))?;
+    sheet.set(CellAddr::new("B", 6), Cell::with_formula("=CONVERT(B5, 1F)"))?;
     sheet.set(CellAddr::new("C", 6), Cell::with_text("(= 32°F)"))?;
 
     sheet.set(CellAddr::new("A", 7), Cell::with_text("= Kelvin"))?;
-    sheet.set(CellAddr::new("B", 7), Cell::with_formula("=B5"))?;
+    sheet.set(CellAddr::new("B", 7), Cell::with_formula("=CONVERT(B5, 1K)"))?;
     sheet.set(CellAddr::new("C", 7), Cell::with_text("(= 273.15 K)"))?;
 
     // Boiling point
@@ -263,7 +263,7 @@ fn create_temperature_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Resu
     sheet.set(CellAddr::new("B", 9), Cell::new(100.0, Unit::simple("C", BaseDimension::Temperature)))?;
 
     sheet.set(CellAddr::new("A", 10), Cell::with_text("= Fahrenheit"))?;
-    sheet.set(CellAddr::new("B", 10), Cell::with_formula("=B9"))?;
+    sheet.set(CellAddr::new("B", 10), Cell::with_formula("=CONVERT(B9, 1F)"))?;
     sheet.set(CellAddr::new("C", 10), Cell::with_text("(= 212°F)"))?;
 
     // Room temperature
@@ -271,7 +271,7 @@ fn create_temperature_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Resu
     sheet.set(CellAddr::new("B", 12), Cell::new(68.0, Unit::simple("F", BaseDimension::Temperature)))?;
 
     sheet.set(CellAddr::new("A", 13), Cell::with_text("= Celsius"))?;
-    sheet.set(CellAddr::new("B", 13), Cell::with_formula("=B12"))?;
+    sheet.set(CellAddr::new("B", 13), Cell::with_formula("=CONVERT(B12, 1C)"))?;
     sheet.set(CellAddr::new("C", 13), Cell::with_text("(= 20°C)"))?;
 
     // Absolute zero
@@ -279,7 +279,7 @@ fn create_temperature_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Resu
     sheet.set(CellAddr::new("B", 15), Cell::new(0.0, Unit::simple("K", BaseDimension::Temperature)))?;
 
     sheet.set(CellAddr::new("A", 16), Cell::with_text("= Celsius"))?;
-    sheet.set(CellAddr::new("B", 16), Cell::with_formula("=B15"))?;
+    sheet.set(CellAddr::new("B", 16), Cell::with_formula("=CONVERT(B15, 1C)"))?;
     sheet.set(CellAddr::new("C", 16), Cell::with_text("(= -273.15°C)"))?;
 
     sheet.set(CellAddr::new("A", 18), Cell::with_text("Conversion Formulas:"))?;
@@ -302,11 +302,11 @@ fn create_time_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Result<(), 
     sheet.set(CellAddr::new("B", 4), Cell::new(1.0, Unit::simple("hr", BaseDimension::Time)))?;
 
     sheet.set(CellAddr::new("A", 5), Cell::with_text("= minutes"))?;
-    sheet.set(CellAddr::new("B", 5), Cell::with_formula("=B4"))?;
+    sheet.set(CellAddr::new("B", 5), Cell::with_formula("=CONVERT(B4, 1min)"))?;
     sheet.set(CellAddr::new("C", 5), Cell::with_text("(= 60 min)"))?;
 
     sheet.set(CellAddr::new("A", 6), Cell::with_text("= seconds"))?;
-    sheet.set(CellAddr::new("B", 6), Cell::with_formula("=B4"))?;
+    sheet.set(CellAddr::new("B", 6), Cell::with_formula("=CONVERT(B4, 1s)"))?;
     sheet.set(CellAddr::new("C", 6), Cell::with_text("(= 3600 s)"))?;
 
     // Days
@@ -314,7 +314,7 @@ fn create_time_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Result<(), 
     sheet.set(CellAddr::new("B", 8), Cell::new(1.0, Unit::simple("day", BaseDimension::Time)))?;
 
     sheet.set(CellAddr::new("A", 9), Cell::with_text("= hours"))?;
-    sheet.set(CellAddr::new("B", 9), Cell::with_formula("=B8"))?;
+    sheet.set(CellAddr::new("B", 9), Cell::with_formula("=CONVERT(B8, 1hr)"))?;
     sheet.set(CellAddr::new("C", 9), Cell::with_text("(= 24 hr)"))?;
 
     // Larger units
@@ -322,11 +322,11 @@ fn create_time_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Result<(), 
     sheet.set(CellAddr::new("B", 11), Cell::new(1.0, Unit::simple("year", BaseDimension::Time)))?;
 
     sheet.set(CellAddr::new("A", 12), Cell::with_text("= days"))?;
-    sheet.set(CellAddr::new("B", 12), Cell::with_formula("=B11"))?;
+    sheet.set(CellAddr::new("B", 12), Cell::with_formula("=CONVERT(B11, 1day)"))?;
     sheet.set(CellAddr::new("C", 12), Cell::with_text("(≈ 365.25 days)"))?;
 
     sheet.set(CellAddr::new("A", 13), Cell::with_text("= hours"))?;
-    sheet.set(CellAddr::new("B", 13), Cell::with_formula("=B11"))?;
+    sheet.set(CellAddr::new("B", 13), Cell::with_formula("=CONVERT(B11, 1hr)"))?;
     sheet.set(CellAddr::new("C", 13), Cell::with_text("(≈ 8766 hr)"))?;
 
     // Practical calculation
@@ -356,15 +356,15 @@ fn create_storage_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Result<(
     sheet.set(CellAddr::new("B", 4), Cell::new(1.0, Unit::simple("GB", BaseDimension::Custom("Data".to_string()))))?;
 
     sheet.set(CellAddr::new("A", 5), Cell::with_text("= Megabytes"))?;
-    sheet.set(CellAddr::new("B", 5), Cell::with_formula("=B4"))?;
+    sheet.set(CellAddr::new("B", 5), Cell::with_formula("=CONVERT(B4, 1MB)"))?;
     sheet.set(CellAddr::new("C", 5), Cell::with_text("(= 1024 MB)"))?;
 
     sheet.set(CellAddr::new("A", 6), Cell::with_text("= Kilobytes"))?;
-    sheet.set(CellAddr::new("B", 6), Cell::with_formula("=B4"))?;
+    sheet.set(CellAddr::new("B", 6), Cell::with_formula("=CONVERT(B4, 1KB)"))?;
     sheet.set(CellAddr::new("C", 6), Cell::with_text("(= 1,048,576 KB)"))?;
 
     sheet.set(CellAddr::new("A", 7), Cell::with_text("= Bytes"))?;
-    sheet.set(CellAddr::new("B", 7), Cell::with_formula("=B4"))?;
+    sheet.set(CellAddr::new("B", 7), Cell::with_formula("=CONVERT(B4, 1B)"))?;
     sheet.set(CellAddr::new("C", 7), Cell::with_text("(= 1,073,741,824 B)"))?;
 
     // Large storage
@@ -372,7 +372,7 @@ fn create_storage_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Result<(
     sheet.set(CellAddr::new("B", 9), Cell::new(1.0, Unit::simple("TB", BaseDimension::Custom("Data".to_string()))))?;
 
     sheet.set(CellAddr::new("A", 10), Cell::with_text("= Gigabytes"))?;
-    sheet.set(CellAddr::new("B", 10), Cell::with_formula("=B9"))?;
+    sheet.set(CellAddr::new("B", 10), Cell::with_formula("=CONVERT(B9, 1GB)"))?;
     sheet.set(CellAddr::new("C", 10), Cell::with_text("(= 1024 GB)"))?;
 
     // Practical example
@@ -409,11 +409,11 @@ fn create_currency_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Result<
     sheet.set(CellAddr::new("B", 5), Cell::new(100.0, Unit::simple("USD", BaseDimension::Currency)))?;
 
     sheet.set(CellAddr::new("A", 6), Cell::with_text("= EUR"))?;
-    sheet.set(CellAddr::new("B", 6), Cell::with_formula("=B5"))?;
+    sheet.set(CellAddr::new("B", 6), Cell::with_formula("=CONVERT(B5, 1EUR)"))?;
     sheet.set(CellAddr::new("C", 6), Cell::with_text("(approximate)"))?;
 
     sheet.set(CellAddr::new("A", 7), Cell::with_text("= GBP"))?;
-    sheet.set(CellAddr::new("B", 7), Cell::with_formula("=B5"))?;
+    sheet.set(CellAddr::new("B", 7), Cell::with_formula("=CONVERT(B5, 1GBP)"))?;
     sheet.set(CellAddr::new("C", 7), Cell::with_text("(approximate)"))?;
 
     // Multi-currency budget
@@ -554,8 +554,15 @@ fn create_cancellation_sheet(workbook: &mut Workbook, _lib: &UnitLibrary) -> Res
     // Compound cancellation
     sheet.set(CellAddr::new("A", 21), Cell::with_text("Compound Unit Cancellation"))?;
     sheet.set(CellAddr::new("A", 22), Cell::with_text("Speed"))?;
-    sheet.set(CellAddr::new("B", 22), Cell::new(60.0, Unit::simple("mi", BaseDimension::Length)))?;
-    sheet.set(CellAddr::new("C", 22), Cell::with_text("per hour (mi/hr)"))?;
+    sheet.set(CellAddr::new("B", 22), Cell::new(
+        60.0,
+        Unit::compound(
+            "mi/hr",
+            vec![(BaseDimension::Length, 1)],
+            vec![(BaseDimension::Time, 1)]
+        )
+    ))?;
+    sheet.set(CellAddr::new("C", 22), Cell::with_text("(60 mi/hr)"))?;
 
     sheet.set(CellAddr::new("A", 23), Cell::with_text("Time"))?;
     sheet.set(CellAddr::new("B", 23), Cell::new(2.5, Unit::simple("hr", BaseDimension::Time)))?;
