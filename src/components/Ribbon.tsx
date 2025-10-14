@@ -10,6 +10,7 @@ interface RibbonProps {
   onOpenPreferences: () => void;
   onDebugExport?: () => void;
   onExportExcel?: () => void;
+  onOpenExample?: () => void;
   isDirty?: boolean;
 }
 
@@ -23,6 +24,7 @@ export default function Ribbon({
   onOpenPreferences,
   onDebugExport,
   onExportExcel,
+  onOpenExample,
   isDirty = false,
 }: RibbonProps) {
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -78,6 +80,18 @@ export default function Ribbon({
                   Open
                   <span className="ml-auto text-xs text-gray-500">Ctrl+O</span>
                 </button>
+                {onOpenExample && (
+                  <button
+                    className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center gap-2"
+                    onClick={() => {
+                      onOpenExample();
+                      setShowFileMenu(false);
+                    }}
+                  >
+                    <span className="text-lg">📚</span>
+                    Open Example Tutorial
+                  </button>
+                )}
                 <div className="border-t border-gray-200" />
                 <button
                   className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center gap-2"

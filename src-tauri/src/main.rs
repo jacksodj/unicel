@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use tauri::State;
+use tauri::{Manager, State};
 use unicel_lib::commands::{AppState, CellData, WorkbookInfo};
 use unicel_lib::core::settings::UnitPreferences;
 
@@ -95,6 +95,14 @@ fn export_to_excel(state: State<AppState>, path: String) -> Result<(), String> {
     unicel_lib::commands::export_to_excel_impl(&state, path)
 }
 
+#[tauri::command]
+fn get_example_workbook_path(app: tauri::AppHandle) -> Result<String, String> {
+    app.path()
+        .resolve("examples/unit_conversion_tutorial.usheet", tauri::path::BaseDirectory::Resource)
+        .map(|p| p.to_string_lossy().to_string())
+        .map_err(|e| format!("Failed to resolve example path: {}", e))
+}
+
 fn main() {
     // Initialize logging
     tracing_subscriber::registry()
@@ -127,6 +135,7 @@ fn main() {
             get_units_in_use,
             export_debug_to_clipboard,
             export_to_excel,
+            get_example_workbook_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

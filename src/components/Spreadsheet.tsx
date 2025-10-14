@@ -311,6 +311,27 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     }
   };
 
+  const handleOpenExample = async () => {
+    try {
+      const examplePath = await tauriApi.getExampleWorkbookPath();
+
+      setLoadingMessage('Opening example tutorial...');
+      setIsLoading(true);
+      await tauriApi.loadWorkbook(examplePath);
+      await loadCellsFromBackend();
+
+      const info = await tauriApi.getWorkbookInfo();
+      setWorkbookName(info.name);
+      setIsDirty(false);
+
+      addToast('Example tutorial loaded successfully', 'success');
+    } catch (error) {
+      addToast(`Failed to open example: ${error}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -365,6 +386,7 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
         onOpenPreferences={handleOpenPreferences}
         onDebugExport={handleDebugExport}
         onExportExcel={handleExportExcel}
+        onOpenExample={handleOpenExample}
         isDirty={isDirty}
       />
 

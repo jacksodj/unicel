@@ -108,6 +108,10 @@ export const tauriApi = {
     return invoke('export_to_excel', { path });
   },
 
+  async getExampleWorkbookPath(): Promise<string> {
+    return invoke('get_example_workbook_path');
+  },
+
   // File dialogs
   async openFileDialog(): Promise<string | null> {
     const selected = await open({
