@@ -4,6 +4,7 @@ import Ribbon from './Ribbon';
 import StatusBar from './StatusBar';
 import { ToastContainer } from './Toast';
 import { LoadingOverlay } from './LoadingSpinner';
+import UnitPreferencesDialog from './UnitPreferencesDialog';
 import { Cell, CellAddress, getCellAddress } from '../types/workbook';
 import { tauriApi, convertCellData } from '../api/tauri';
 
@@ -70,6 +71,7 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [workbookName, setWorkbookName] = useState('Untitled');
+  const [showPreferences, setShowPreferences] = useState(false);
 
   // Initialize workbook on mount
   useEffect(() => {
@@ -263,10 +265,29 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
     return cell?.storageUnit || cell?.displayUnit;
   };
 
+  const handleOpenPreferences = () => {
+    setShowPreferences(true);
+  };
+
+  const handleClosePreferences = () => {
+    setShowPreferences(false);
+  };
+
+  const handleSavePreferences = async () => {
+    // Reload cells to apply new preferences
+    await loadCellsFromBackend();
+    addToast('Unit preferences saved', 'success');
+  };
+
   return (
     <>
       {isLoading && <LoadingOverlay message="Saving workbook..." />}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <UnitPreferencesDialog
+        isOpen={showPreferences}
+        onClose={handleClosePreferences}
+        onSave={handleSavePreferences}
+      />
       <div className="h-screen w-screen flex flex-col bg-white">
       {/* Title bar */}
       <div className="bg-gray-800 text-white px-4 py-2">
@@ -284,6 +305,7 @@ export default function Spreadsheet({ sheetName = 'Sheet1' }: SpreadsheetProps) 
         onOpen={handleOpen}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
+        onOpenPreferences={handleOpenPreferences}
         isDirty={isDirty}
       />
 

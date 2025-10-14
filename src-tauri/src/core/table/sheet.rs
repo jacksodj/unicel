@@ -411,10 +411,10 @@ impl<'a> SheetEvaluator<'a> {
             Expr::Number(n) => Ok(EvalResult::new(*n, crate::core::units::Unit::dimensionless())),
 
             Expr::NumberWithUnit { value, unit } => {
-                if !self.library.contains(unit) {
-                    return Err(EvalError::UnknownUnit(unit.clone()));
-                }
-                let unit_obj = self.library.get(unit).unwrap().clone();
+                // Parse the unit (supports both simple and compound units)
+                use crate::core::units::parse_unit;
+                let unit_obj = parse_unit(unit, self.library)
+                    .map_err(|_| EvalError::UnknownUnit(unit.clone()))?;
                 Ok(EvalResult::new(*value, unit_obj))
             }
 
@@ -452,10 +452,12 @@ impl<'a> SheetEvaluator<'a> {
 
                 let value = left_result.value * right_result.value;
 
-                // Unit multiplication logic (simplified for now)
+                // If both dimensionless, result is dimensionless
                 if left_result.unit.is_dimensionless() && right_result.unit.is_dimensionless() {
                     return Ok(EvalResult::new(value, crate::core::units::Unit::dimensionless()));
                 }
+
+                // If one is dimensionless, result has the other's unit
                 if left_result.unit.is_dimensionless() {
                     return Ok(EvalResult::new(value, right_result.unit.clone()));
                 }
@@ -463,14 +465,11 @@ impl<'a> SheetEvaluator<'a> {
                     return Ok(EvalResult::new(value, left_result.unit.clone()));
                 }
 
-                // Create compound unit
-                let compound_symbol = format!("{}*{}", left_result.unit.canonical(), right_result.unit.canonical());
-                let compound_unit = crate::core::units::Unit::simple(
-                    compound_symbol.clone(),
-                    crate::core::units::BaseDimension::Custom(compound_symbol)
-                );
+                // Multiply units with cancellation
+                use crate::core::formula::evaluator::multiply_units_with_cancellation;
+                let result_unit = multiply_units_with_cancellation(&left_result.unit, &right_result.unit);
 
-                Ok(EvalResult::new(value, compound_unit))
+                Ok(EvalResult::new(value, result_unit))
             }
 
             Expr::Divide(left, right) => {
@@ -483,23 +482,41 @@ impl<'a> SheetEvaluator<'a> {
 
                 let value = left_result.value / right_result.value;
 
-                // Unit division logic
+                // If both dimensionless, result is dimensionless
                 if left_result.unit.is_dimensionless() && right_result.unit.is_dimensionless() {
                     return Ok(EvalResult::new(value, crate::core::units::Unit::dimensionless()));
                 }
+
+                // If right is dimensionless, result has left's unit
                 if right_result.unit.is_dimensionless() {
                     return Ok(EvalResult::new(value, left_result.unit.clone()));
                 }
+
+                // If units are the same, they cancel out
                 if left_result.unit.is_equal(&right_result.unit) {
                     return Ok(EvalResult::new(value, crate::core::units::Unit::dimensionless()));
                 }
 
-                // Create compound unit
+                // Create compound unit using original symbols (don't cancel yet - that happens in multiply)
                 let compound_symbol = format!("{}/{}", left_result.unit.canonical(), right_result.unit.canonical());
-                let compound_unit = crate::core::units::Unit::simple(
-                    compound_symbol.clone(),
-                    crate::core::units::BaseDimension::Custom(compound_symbol)
-                );
+
+                // For simple dimensions, create compound unit
+                let compound_unit = if let (Some(left_dim), Some(right_dim)) = (
+                    left_result.unit.dimension().as_simple(),
+                    right_result.unit.dimension().as_simple()
+                ) {
+                    crate::core::units::Unit::compound(
+                        compound_symbol.clone(),
+                        vec![(left_dim.clone(), 1)],
+                        vec![(right_dim.clone(), 1)],
+                    )
+                } else {
+                    // Fallback: create custom dimension
+                    crate::core::units::Unit::simple(
+                        compound_symbol.clone(),
+                        crate::core::units::BaseDimension::Custom(compound_symbol)
+                    )
+                };
 
                 Ok(EvalResult::new(value, compound_unit))
             }

@@ -50,6 +50,7 @@ impl UnitLibrary {
         library.add_time_units();
         library.add_temperature_units();
         library.add_currency_units();
+        library.add_digital_storage_units();
 
         library
     }
@@ -194,7 +195,10 @@ impl UnitLibrary {
         self.add_unit("min", Unit::simple("min", BaseDimension::Time));
         self.add_unit("hr", Unit::simple("hr", BaseDimension::Time));
         self.add_unit("h", Unit::simple("h", BaseDimension::Time)); // alias for hr
+        self.add_unit("hour", Unit::simple("hour", BaseDimension::Time)); // alias for hr
         self.add_unit("day", Unit::simple("day", BaseDimension::Time));
+        self.add_unit("month", Unit::simple("month", BaseDimension::Time));
+        self.add_unit("year", Unit::simple("year", BaseDimension::Time));
 
         // Conversions (all to seconds as base)
         self.add_conversion("min", "s", ConversionFactor::new(60.0));
@@ -203,14 +207,34 @@ impl UnitLibrary {
         self.add_conversion("s", "hr", ConversionFactor::new(1.0 / 3600.0));
         self.add_conversion("h", "s", ConversionFactor::new(3600.0));
         self.add_conversion("s", "h", ConversionFactor::new(1.0 / 3600.0));
+        self.add_conversion("hour", "s", ConversionFactor::new(3600.0));
+        self.add_conversion("s", "hour", ConversionFactor::new(1.0 / 3600.0));
         self.add_conversion("day", "s", ConversionFactor::new(86400.0));
         self.add_conversion("s", "day", ConversionFactor::new(1.0 / 86400.0));
+        self.add_conversion("month", "s", ConversionFactor::new(2_628_000.0)); // 30.42 days average
+        self.add_conversion("s", "month", ConversionFactor::new(1.0 / 2_628_000.0));
+        self.add_conversion("year", "s", ConversionFactor::new(31_536_000.0)); // 365 days
+        self.add_conversion("s", "year", ConversionFactor::new(1.0 / 31_536_000.0));
 
         // Time to Time
         self.add_conversion("hr", "min", ConversionFactor::new(60.0));
         self.add_conversion("min", "hr", ConversionFactor::new(1.0 / 60.0));
+        self.add_conversion("hour", "min", ConversionFactor::new(60.0));
+        self.add_conversion("min", "hour", ConversionFactor::new(1.0 / 60.0));
         self.add_conversion("day", "hr", ConversionFactor::new(24.0));
         self.add_conversion("hr", "day", ConversionFactor::new(1.0 / 24.0));
+        self.add_conversion("day", "hour", ConversionFactor::new(24.0));
+        self.add_conversion("hour", "day", ConversionFactor::new(1.0 / 24.0));
+        self.add_conversion("month", "day", ConversionFactor::new(30.42));
+        self.add_conversion("day", "month", ConversionFactor::new(1.0 / 30.42));
+        self.add_conversion("month", "hr", ConversionFactor::new(730.0)); // 30.42 * 24
+        self.add_conversion("hr", "month", ConversionFactor::new(1.0 / 730.0));
+        self.add_conversion("month", "hour", ConversionFactor::new(730.0));
+        self.add_conversion("hour", "month", ConversionFactor::new(1.0 / 730.0));
+        self.add_conversion("year", "day", ConversionFactor::new(365.0));
+        self.add_conversion("day", "year", ConversionFactor::new(1.0 / 365.0));
+        self.add_conversion("year", "month", ConversionFactor::new(12.0));
+        self.add_conversion("month", "year", ConversionFactor::new(1.0 / 12.0));
     }
 
     // === Temperature Units ===
@@ -247,6 +271,100 @@ impl UnitLibrary {
         self.add_conversion("USD", "GBP", ConversionFactor::new(1.0 / 1.27));
         self.add_conversion("GBP", "EUR", ConversionFactor::new(1.18)); // 1 GBP = 1.18 EUR
         self.add_conversion("EUR", "GBP", ConversionFactor::new(1.0 / 1.18));
+    }
+
+    // === Digital Storage Units ===
+    fn add_digital_storage_units(&mut self) {
+        // Bytes (base 1024)
+        self.add_unit("B", Unit::simple("B", BaseDimension::DigitalStorage));
+        self.add_unit("KB", Unit::simple("KB", BaseDimension::DigitalStorage));
+        self.add_unit("MB", Unit::simple("MB", BaseDimension::DigitalStorage));
+        self.add_unit("GB", Unit::simple("GB", BaseDimension::DigitalStorage));
+        self.add_unit("TB", Unit::simple("TB", BaseDimension::DigitalStorage));
+        self.add_unit("PB", Unit::simple("PB", BaseDimension::DigitalStorage));
+
+        // Bits (lowercase b, base 1000)
+        self.add_unit("b", Unit::simple("b", BaseDimension::DigitalStorage));
+        self.add_unit("Kb", Unit::simple("Kb", BaseDimension::DigitalStorage));
+        self.add_unit("Mb", Unit::simple("Mb", BaseDimension::DigitalStorage));
+        self.add_unit("Gb", Unit::simple("Gb", BaseDimension::DigitalStorage));
+        self.add_unit("Tb", Unit::simple("Tb", BaseDimension::DigitalStorage));
+        self.add_unit("Pb", Unit::simple("Pb", BaseDimension::DigitalStorage));
+
+        // Tokens (for LLMs)
+        self.add_unit("Tok", Unit::simple("Tok", BaseDimension::DigitalStorage));
+        self.add_unit("MTok", Unit::simple("MTok", BaseDimension::DigitalStorage));
+
+        // Byte conversions (using powers of 1024)
+        self.add_conversion("KB", "B", ConversionFactor::new(1024.0));
+        self.add_conversion("B", "KB", ConversionFactor::new(1.0 / 1024.0));
+        self.add_conversion("MB", "KB", ConversionFactor::new(1024.0));
+        self.add_conversion("KB", "MB", ConversionFactor::new(1.0 / 1024.0));
+        self.add_conversion("MB", "B", ConversionFactor::new(1024.0 * 1024.0));
+        self.add_conversion("B", "MB", ConversionFactor::new(1.0 / (1024.0 * 1024.0)));
+        self.add_conversion("GB", "MB", ConversionFactor::new(1024.0));
+        self.add_conversion("MB", "GB", ConversionFactor::new(1.0 / 1024.0));
+        self.add_conversion("GB", "KB", ConversionFactor::new(1024.0 * 1024.0));
+        self.add_conversion("KB", "GB", ConversionFactor::new(1.0 / (1024.0 * 1024.0)));
+        self.add_conversion("GB", "B", ConversionFactor::new(1024.0 * 1024.0 * 1024.0));
+        self.add_conversion("B", "GB", ConversionFactor::new(1.0 / (1024.0 * 1024.0 * 1024.0)));
+        self.add_conversion("TB", "GB", ConversionFactor::new(1024.0));
+        self.add_conversion("GB", "TB", ConversionFactor::new(1.0 / 1024.0));
+        self.add_conversion("TB", "MB", ConversionFactor::new(1024.0 * 1024.0));
+        self.add_conversion("MB", "TB", ConversionFactor::new(1.0 / (1024.0 * 1024.0)));
+        self.add_conversion("TB", "B", ConversionFactor::new(1024.0 * 1024.0 * 1024.0 * 1024.0));
+        self.add_conversion("B", "TB", ConversionFactor::new(1.0 / (1024.0 * 1024.0 * 1024.0 * 1024.0)));
+        self.add_conversion("PB", "TB", ConversionFactor::new(1024.0));
+        self.add_conversion("TB", "PB", ConversionFactor::new(1.0 / 1024.0));
+
+        // Bit conversions (using powers of 1000)
+        self.add_conversion("Kb", "b", ConversionFactor::new(1000.0));
+        self.add_conversion("b", "Kb", ConversionFactor::new(1.0 / 1000.0));
+        self.add_conversion("Mb", "Kb", ConversionFactor::new(1000.0));
+        self.add_conversion("Kb", "Mb", ConversionFactor::new(1.0 / 1000.0));
+        self.add_conversion("Mb", "b", ConversionFactor::new(1_000_000.0));
+        self.add_conversion("b", "Mb", ConversionFactor::new(1.0 / 1_000_000.0));
+        self.add_conversion("Gb", "Mb", ConversionFactor::new(1000.0));
+        self.add_conversion("Mb", "Gb", ConversionFactor::new(1.0 / 1000.0));
+        self.add_conversion("Gb", "Kb", ConversionFactor::new(1_000_000.0));
+        self.add_conversion("Kb", "Gb", ConversionFactor::new(1.0 / 1_000_000.0));
+        self.add_conversion("Gb", "b", ConversionFactor::new(1_000_000_000.0));
+        self.add_conversion("b", "Gb", ConversionFactor::new(1.0 / 1_000_000_000.0));
+        self.add_conversion("Tb", "Gb", ConversionFactor::new(1000.0));
+        self.add_conversion("Gb", "Tb", ConversionFactor::new(1.0 / 1000.0));
+        self.add_conversion("Tb", "Mb", ConversionFactor::new(1_000_000.0));
+        self.add_conversion("Mb", "Tb", ConversionFactor::new(1.0 / 1_000_000.0));
+        self.add_conversion("Tb", "b", ConversionFactor::new(1_000_000_000_000.0));
+        self.add_conversion("b", "Tb", ConversionFactor::new(1.0 / 1_000_000_000_000.0));
+        self.add_conversion("Pb", "Tb", ConversionFactor::new(1000.0));
+        self.add_conversion("Tb", "Pb", ConversionFactor::new(1.0 / 1000.0));
+
+        // Bits to Bytes conversions (1 byte = 8 bits)
+        self.add_conversion("B", "b", ConversionFactor::new(8.0));
+        self.add_conversion("b", "B", ConversionFactor::new(1.0 / 8.0));
+        self.add_conversion("KB", "Kb", ConversionFactor::new(8.192)); // 1024 bytes * 8 / 1000
+        self.add_conversion("Kb", "KB", ConversionFactor::new(1.0 / 8.192));
+        self.add_conversion("MB", "Mb", ConversionFactor::new(8.388608)); // 1024^2 * 8 / 1000^2
+        self.add_conversion("Mb", "MB", ConversionFactor::new(1.0 / 8.388608));
+        self.add_conversion("GB", "Gb", ConversionFactor::new(8.589934592)); // 1024^3 * 8 / 1000^3
+        self.add_conversion("Gb", "GB", ConversionFactor::new(1.0 / 8.589934592));
+        self.add_conversion("TB", "Tb", ConversionFactor::new(8.796093022208)); // 1024^4 * 8 / 1000^4
+        self.add_conversion("Tb", "TB", ConversionFactor::new(1.0 / 8.796093022208));
+
+        // Additional cross-magnitude conversions (bits to bytes)
+        // Gb to TB: Gb → GB → TB
+        self.add_conversion("Gb", "TB", ConversionFactor::new(1.0 / (8.589934592 * 1024.0))); // Gb → GB → TB
+        self.add_conversion("TB", "Gb", ConversionFactor::new(8.589934592 * 1024.0));
+        // Mb to GB
+        self.add_conversion("Mb", "GB", ConversionFactor::new(1.0 / (8.388608 * 1024.0)));
+        self.add_conversion("GB", "Mb", ConversionFactor::new(8.388608 * 1024.0));
+        // Kb to MB
+        self.add_conversion("Kb", "MB", ConversionFactor::new(1.0 / (8.192 * 1024.0)));
+        self.add_conversion("MB", "Kb", ConversionFactor::new(8.192 * 1024.0));
+
+        // Token conversions
+        self.add_conversion("MTok", "Tok", ConversionFactor::new(1_000_000.0));
+        self.add_conversion("Tok", "MTok", ConversionFactor::new(1.0 / 1_000_000.0));
     }
 }
 

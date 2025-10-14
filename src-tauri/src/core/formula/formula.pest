@@ -21,6 +21,7 @@ primary = _{
     "(" ~ expr ~ ")" |
     function_call |
     cell_ref |
+    currency_with_number |
     number_with_unit |
     number
 }
@@ -30,11 +31,15 @@ number = @{ float | integer }
 integer = @{ ASCII_DIGIT+ }
 float = @{ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* | "." ~ ASCII_DIGIT+ }
 
-// Number with unit (e.g., "100m", "5.5kg")
+// Currency-first format (e.g., "$15", "$15.5")
+currency_with_number = { "$" ~ number }
+
+// Number with unit (e.g., "100m", "5.5kg", "15$/ft", "50mi/hr")
 number_with_unit = { number ~ unit }
 
-// Unit identifier
-unit = @{ ASCII_ALPHA+ }
+// Unit identifier - supports simple units and compound units (division and multiplication)
+unit = @{ simple_unit ~ ("/" ~ simple_unit | "*" ~ simple_unit)? }
+simple_unit = @{ (ASCII_ALPHA | "$")+ }
 
 // Cell reference (e.g., A1, B12, AA100)
 cell_ref = @{ col_ref ~ row_ref }

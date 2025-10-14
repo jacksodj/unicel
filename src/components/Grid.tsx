@@ -16,7 +16,7 @@ export default function Grid({
   cells,
   rowCount = 50,
   colCount = 26,
-  onCellSelect,
+  onCellSelect: _onCellSelect,
   onCellEdit,
   onCellDoubleClick,
   selectedCell,
@@ -149,6 +149,16 @@ export default function Grid({
           movePicker(1, 0);
           break;
       }
+      return;
+    }
+
+    // In formula mode with picker active, math operators insert cell reference + operator
+    if (isFormulaMode && pickerCell && (e.key === '+' || e.key === '-' || e.key === '*' || e.key === '/' || e.key === '(' || e.key === ')')) {
+      e.preventDefault();
+      const cellRef = getCellAddress(pickerCell.col, pickerCell.row);
+      setEditValue((prev) => prev + cellRef + e.key);
+      setPickerCell(null);
+      setTimeout(() => inputRef.current?.focus(), 0);
       return;
     }
 

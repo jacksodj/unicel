@@ -24,6 +24,22 @@ export interface WorkbookInfo {
   is_dirty: boolean;
 }
 
+export interface UnitPreferences {
+  metric_system: 'CGS' | 'MKS';
+  metric_length: string;
+  metric_mass: string;
+  metric_time: string;
+  imperial_length: string;
+  imperial_mass: string;
+  imperial_time: string;
+  digital_storage_unit: string;
+  time_rate_unit: string;
+  currency: string;
+  currency_rates: Record<string, number>;
+  metric_temperature: string;
+  imperial_temperature: string;
+}
+
 // Tauri command wrappers
 export const tauriApi = {
   // Workbook operations
@@ -57,6 +73,30 @@ export const tauriApi = {
 
   async setDisplayMode(mode: 'AsEntered' | 'Metric' | 'Imperial'): Promise<void> {
     return invoke('set_display_mode', { mode });
+  },
+
+  async getUnitPreferences(): Promise<UnitPreferences> {
+    return invoke('get_unit_preferences');
+  },
+
+  async updateUnitPreferences(preferences: UnitPreferences): Promise<void> {
+    return invoke('update_unit_preferences', { preferences });
+  },
+
+  async setMetricSystem(system: 'CGS' | 'MKS'): Promise<void> {
+    return invoke('set_metric_system', { system });
+  },
+
+  async setCurrencyRate(currency: string, rate: number): Promise<void> {
+    return invoke('set_currency_rate', { currency, rate });
+  },
+
+  async getCurrencies(): Promise<string[]> {
+    return invoke('get_currencies');
+  },
+
+  async getUnitsInUse(): Promise<string[]> {
+    return invoke('get_units_in_use');
   },
 
   // File dialogs

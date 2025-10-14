@@ -7,6 +7,7 @@ interface RibbonProps {
   onOpen: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  onOpenPreferences: () => void;
   isDirty?: boolean;
 }
 
@@ -17,6 +18,7 @@ export default function Ribbon({
   onOpen,
   onSave,
   onSaveAs,
+  onOpenPreferences,
   isDirty = false,
 }: RibbonProps) {
   const [showFileMenu, setShowFileMenu] = useState(false);
@@ -146,6 +148,18 @@ export default function Ribbon({
             ↷ Redo
           </button>
         </div>
+
+        {/* Divider */}
+        <div className="h-8 w-px bg-gray-300" />
+
+        {/* Settings */}
+        <button
+          className="px-3 py-1 bg-white border border-gray-300 hover:bg-gray-50 rounded text-sm flex items-center gap-2"
+          onClick={onOpenPreferences}
+          title="Unit Preferences"
+        >
+          ⚙️ <span className="hidden md:inline">Unit Settings</span>
+        </button>
       </div>
 
       {/* Secondary toolbar (optional) */}

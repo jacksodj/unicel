@@ -99,6 +99,16 @@ fn parse_expr(pair: pest::iterators::Pair<Rule>) -> Result<Expr, ParseError> {
             Ok(Expr::number(value))
         }
 
+        Rule::currency_with_number => {
+            let mut pairs = pair.into_inner();
+            let num_str = pairs.next().unwrap().as_str();
+            let value = num_str
+                .parse::<f64>()
+                .map_err(|_| ParseError::InvalidNumber(num_str.to_string()))?;
+            // Currency symbol $ is before the number
+            Ok(Expr::number_with_unit(value, "$"))
+        }
+
         Rule::number_with_unit => {
             let mut pairs = pair.into_inner();
             let num_str = pairs.next().unwrap().as_str();
@@ -334,5 +344,35 @@ mod tests {
         let expr = parse_formula("=A1 * 2 + B1 / C1").unwrap();
         // Should parse as (A1 * 2) + (B1 / C1) due to precedence
         assert!(matches!(expr, Expr::Add(_, _)));
+    }
+
+    #[test]
+    fn test_parse_currency_first() {
+        // Test $15 format
+        let expr = parse_formula("=$15").unwrap();
+        match expr {
+            Expr::NumberWithUnit { value, unit } => {
+                assert_eq!(value, 15.0);
+                assert_eq!(unit, "$");
+            }
+            _ => panic!("Expected NumberWithUnit, got: {:?}", expr),
+        }
+
+        // Test $15.50 format
+        let expr = parse_formula("=$15.50").unwrap();
+        match expr {
+            Expr::NumberWithUnit { value, unit } => {
+                assert_eq!(value, 15.5);
+                assert_eq!(unit, "$");
+            }
+            _ => panic!("Expected NumberWithUnit, got: {:?}", expr),
+        }
+    }
+
+    #[test]
+    fn test_parse_currency_expression() {
+        // Test 2ft * $15/ft
+        let expr = parse_formula("=2ft * $15").unwrap();
+        assert!(matches!(expr, Expr::Multiply(_, _)));
     }
 }

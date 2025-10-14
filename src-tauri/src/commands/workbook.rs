@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use crate::core::{
     cell::{Cell, CellValue},
+    settings::UnitPreferences,
     table::CellAddr,
     units::{BaseDimension, Unit},
     workbook::Workbook,
@@ -11,7 +12,7 @@ use crate::core::{
 use crate::formats::json::WorkbookFile;
 
 /// Display mode for unit display
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum DisplayMode {
     AsEntered,
     Metric,
@@ -23,6 +24,7 @@ pub struct AppState {
     pub workbook: Mutex<Option<Workbook>>,
     pub current_file: Mutex<Option<String>>,
     pub display_mode: Mutex<DisplayMode>,
+    pub unit_preferences: Mutex<UnitPreferences>,
 }
 
 impl Default for AppState {
@@ -31,6 +33,7 @@ impl Default for AppState {
             workbook: Mutex::new(None),
             current_file: Mutex::new(None),
             display_mode: Mutex::new(DisplayMode::AsEntered),
+            unit_preferences: Mutex::new(UnitPreferences::default()),
         }
     }
 }
@@ -88,27 +91,32 @@ pub fn cell_to_data(cell: &Cell) -> CellData {
     }
 }
 
-pub fn cell_to_data_with_mode(cell: &Cell, mode: &DisplayMode) -> CellData {
+pub fn cell_to_data_with_mode(cell: &Cell, mode: &DisplayMode, preferences: &UnitPreferences) -> CellData {
     use crate::core::units::UnitLibrary;
 
     let storage_unit = cell.storage_unit().canonical().to_string();
 
-    // Determine display unit based on mode
-    let display_unit_str = get_display_unit_for_mode(&storage_unit, mode);
+    // Determine display unit based on mode and preferences
+    let display_unit_str = get_display_unit_for_mode(&storage_unit, mode, preferences);
+
+    tracing::debug!("cell_to_data_with_mode: mode={:?}, storage={}, target={:?}", mode, storage_unit, display_unit_str);
 
     // Convert value if we have a different display unit
     let (display_value, display_unit_final) = if let Some(target_unit) = display_unit_str {
         if let Some(original_value) = cell.as_number() {
             // Try to convert compound units
             if let Some(converted) = convert_compound_unit(original_value, &storage_unit, &target_unit) {
+                tracing::debug!("  compound conversion succeeded: {} {} -> {} {}", original_value, storage_unit, converted, target_unit);
                 (CellValueData::Number { value: converted }, Some(format_unit_display(&target_unit)))
             } else {
                 // Try simple conversion
                 let library = UnitLibrary::new();
                 if let Some(converted) = library.convert(original_value, &storage_unit, &target_unit) {
+                    tracing::debug!("  simple conversion succeeded: {} {} -> {} {}", original_value, storage_unit, converted, target_unit);
                     (CellValueData::Number { value: converted }, Some(format_unit_display(&target_unit)))
                 } else {
                     // Conversion failed, use original
+                    tracing::warn!("  conversion FAILED: {} {} -> {}", original_value, storage_unit, target_unit);
                     (CellValueData::Number { value: original_value }, None)
                 }
             }
@@ -168,8 +176,14 @@ fn convert_compound_unit(value: f64, from_unit: &str, to_unit: &str) -> Option<f
         let to_right = &to_unit[to_pos + 1..];
 
         // Get conversion factors for each component
-        let factor_left = library.convert(1.0, from_left, to_left)?;
-        let factor_right = library.convert(1.0, from_right, to_right)?;
+        let factor_left = library.convert(1.0, from_left, to_left).or_else(|| {
+            // Try converting just the left side if it's the same dimension
+            if from_left == to_left { Some(1.0) } else { None }
+        })?;
+
+        // Special handling for time unit conversions in rates
+        let factor_right = convert_time_unit(1.0, from_right, to_right)
+            .or_else(|| library.convert(1.0, from_right, to_right))?;
 
         // For division, divide the factors
         let combined_factor = factor_left / factor_right;
@@ -179,14 +193,45 @@ fn convert_compound_unit(value: f64, from_unit: &str, to_unit: &str) -> Option<f
     None
 }
 
+/// Convert time units with custom factors for rates
+fn convert_time_unit(value: f64, from: &str, to: &str) -> Option<f64> {
+    // Conversion factors to hours
+    let to_hours = |unit: &str| -> Option<f64> {
+        match unit {
+            "s" => Some(1.0 / 3600.0),
+            "min" => Some(1.0 / 60.0),
+            "hr" | "h" => Some(1.0),
+            "day" => Some(24.0),
+            "month" => Some(730.0), // Average 30.42 days
+            "year" => Some(8760.0), // 365 days
+            _ => None,
+        }
+    };
+
+    let from_hours = to_hours(from)?;
+    let to_hours_val = to_hours(to)?;
+
+    Some(value * from_hours / to_hours_val)
+}
+
 pub fn parse_cell_input(input: &str) -> Result<Cell, String> {
     // Check if it's a formula
     if input.starts_with('=') {
         return Ok(Cell::with_formula(input.to_string()));
     }
 
-    // Parse number with optional unit
-    let parts: Vec<&str> = input.trim().split_whitespace().collect();
+    let input = input.trim();
+
+    // Check if it starts with a currency symbol (e.g., "$15", "USD 15")
+    if input.starts_with('$') || input.starts_with("USD") || input.starts_with("EUR") || input.starts_with("GBP") {
+        // Try to parse as currency-first format
+        if let Some((currency, number_part)) = parse_currency_first(input) {
+            return Ok(Cell::new(number_part, parse_unit(currency)));
+        }
+    }
+
+    // Parse number with optional unit (standard format: "15 USD", "100 m", "15 $/ft")
+    let parts: Vec<&str> = input.split_whitespace().collect();
     if parts.is_empty() {
         return Ok(Cell::empty());
     }
@@ -201,11 +246,43 @@ pub fn parse_cell_input(input: &str) -> Result<Cell, String> {
     let unit = if unit_str.is_empty() {
         Unit::dimensionless()
     } else {
-        // Simple unit parsing - in a real implementation, use the unit library
         parse_unit(&unit_str)
     };
 
     Ok(Cell::new(value, unit))
+}
+
+/// Parse currency-first format like "$15", "USD 100", "$15/ft"
+fn parse_currency_first(input: &str) -> Option<(&str, f64)> {
+    // Handle "$15" or "$15.5"
+    if input.starts_with('$') {
+        let number_str = &input[1..];
+        if let Ok(value) = number_str.parse::<f64>() {
+            return Some(("$", value));
+        }
+    }
+
+    // Handle "USD 100", "EUR 50.5"
+    if input.starts_with("USD ") {
+        let number_str = &input[4..];
+        if let Ok(value) = number_str.parse::<f64>() {
+            return Some(("USD", value));
+        }
+    }
+    if input.starts_with("EUR ") {
+        let number_str = &input[4..];
+        if let Ok(value) = number_str.parse::<f64>() {
+            return Some(("EUR", value));
+        }
+    }
+    if input.starts_with("GBP ") {
+        let number_str = &input[4..];
+        if let Ok(value) = number_str.parse::<f64>() {
+            return Some(("GBP", value));
+        }
+    }
+
+    None
 }
 
 pub fn parse_unit(unit_str: &str) -> Unit {
@@ -248,9 +325,10 @@ fn get_base_dimension(unit_str: &str) -> BaseDimension {
     match unit_str {
         "m" | "cm" | "mm" | "km" | "in" | "ft" | "yd" | "mi" => BaseDimension::Length,
         "g" | "kg" | "mg" | "oz" | "lb" => BaseDimension::Mass,
-        "s" | "min" | "hr" | "h" | "day" => BaseDimension::Time,
+        "s" | "min" | "hr" | "h" | "hour" | "day" | "month" | "year" => BaseDimension::Time,
         "C" | "F" | "K" => BaseDimension::Temperature,
         "USD" | "EUR" | "GBP" | "$" => BaseDimension::Currency,
+        "B" | "KB" | "MB" | "GB" | "TB" | "PB" | "Kb" | "Mb" | "Gb" | "Tb" | "Pb" | "Tok" | "MTok" => BaseDimension::DigitalStorage,
         _ => BaseDimension::Custom(unit_str.to_string()),
     }
 }
@@ -280,6 +358,10 @@ pub fn get_sheet_cells_impl(state: &AppState) -> Result<Vec<(String, CellData)>,
     let workbook_guard = state.workbook.lock().unwrap();
     let workbook = workbook_guard.as_ref().ok_or("No workbook loaded")?;
     let display_mode = state.display_mode.lock().unwrap().clone();
+    let preferences = state.unit_preferences.lock().unwrap().clone();
+
+    tracing::debug!("get_sheet_cells_impl: display_mode={:?}, metric_time={}, imperial_time={}, time_rate_unit={}",
+        display_mode, preferences.metric_time, preferences.imperial_time, preferences.time_rate_unit);
 
     let sheet = workbook.active_sheet();
     let cells: Vec<(String, CellData)> = sheet
@@ -287,7 +369,7 @@ pub fn get_sheet_cells_impl(state: &AppState) -> Result<Vec<(String, CellData)>,
         .into_iter()
         .filter_map(|addr| {
             sheet.get(&addr).map(|cell| {
-                (addr.to_string(), cell_to_data_with_mode(cell, &display_mode))
+                (addr.to_string(), cell_to_data_with_mode(cell, &display_mode, &preferences))
             })
         })
         .collect();
@@ -312,13 +394,12 @@ pub fn set_cell_impl(
         .set(addr.clone(), cell.clone())
         .map_err(|e| e.to_string())?;
 
-    // If it's a formula, recalculate affected cells
-    if cell.is_formula() {
-        workbook
-            .active_sheet_mut()
-            .recalculate(&[addr.clone()])
-            .map_err(|e| e.to_string())?;
-    }
+    // Always recalculate dependent cells when ANY cell changes
+    // This ensures formulas that reference this cell get updated
+    workbook
+        .active_sheet_mut()
+        .recalculate(&[addr.clone()])
+        .map_err(|e| e.to_string())?;
 
     // Return the updated cell (which may have been evaluated)
     let updated_cell = workbook
@@ -368,6 +449,7 @@ pub fn set_display_mode_impl(state: &AppState, mode: String) -> Result<(), Strin
         _ => return Err(format!("Invalid display mode: {}", mode)),
     };
 
+    tracing::info!("Setting display mode to: {:?}", display_mode);
     *state.display_mode.lock().unwrap() = display_mode;
     Ok(())
 }
@@ -423,51 +505,126 @@ fn format_unit_display(unit: &str) -> String {
     unit.to_string()
 }
 
-/// Get the preferred display unit for a given storage unit based on display mode
-fn get_display_unit_for_mode(storage_unit: &str, mode: &DisplayMode) -> Option<String> {
+/// Get the preferred display unit for a given storage unit based on display mode and preferences
+fn get_display_unit_for_mode(storage_unit: &str, mode: &DisplayMode, preferences: &UnitPreferences) -> Option<String> {
     // Handle compound units (e.g., "ft*ft", "m/s")
     if storage_unit.contains('*') || storage_unit.contains('/') {
-        return get_compound_display_unit(storage_unit, mode);
+        return get_compound_display_unit(storage_unit, mode, preferences);
     }
 
     match mode {
         DisplayMode::AsEntered => None, // Use storage unit as-is
-        DisplayMode::Metric => match storage_unit {
-            // Length - prefer meters
-            "in" | "ft" | "yd" | "mi" => Some("m".to_string()),
-            "mm" | "cm" | "km" => Some("m".to_string()),
-            // Mass - prefer kilograms
-            "oz" | "lb" => Some("kg".to_string()),
-            "g" | "mg" => Some("kg".to_string()),
-            // Temperature - prefer Celsius
-            "F" | "K" => Some("C".to_string()),
-            // Everything else stays as-is
-            _ => None,
+        DisplayMode::Metric => {
+            // Use preferences to determine target unit
+            let base_dim = get_base_dimension(storage_unit);
+            match base_dim {
+                BaseDimension::Length => {
+                    if storage_unit != preferences.metric_length {
+                        Some(preferences.metric_length.clone())
+                    } else {
+                        None
+                    }
+                }
+                BaseDimension::Mass => {
+                    if storage_unit != preferences.metric_mass {
+                        Some(preferences.metric_mass.clone())
+                    } else {
+                        None
+                    }
+                }
+                BaseDimension::Time => {
+                    tracing::debug!("  Time dimension (Metric): storage_unit={}, metric_time={}", storage_unit, preferences.metric_time);
+                    if storage_unit != preferences.metric_time {
+                        Some(preferences.metric_time.clone())
+                    } else {
+                        None
+                    }
+                }
+                BaseDimension::Temperature => {
+                    if storage_unit != preferences.metric_temperature {
+                        Some(preferences.metric_temperature.clone())
+                    } else {
+                        None
+                    }
+                }
+                BaseDimension::Currency => {
+                    if storage_unit != preferences.currency {
+                        Some(preferences.currency.clone())
+                    } else {
+                        None
+                    }
+                }
+                BaseDimension::DigitalStorage => {
+                    if storage_unit != preferences.digital_storage_unit {
+                        Some(preferences.digital_storage_unit.clone())
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            }
         },
-        DisplayMode::Imperial => match storage_unit {
-            // Length - prefer feet
-            "m" | "cm" | "mm" | "km" => Some("ft".to_string()),
-            "in" | "yd" | "mi" => Some("ft".to_string()),
-            // Mass - prefer pounds
-            "kg" | "g" | "mg" => Some("lb".to_string()),
-            "oz" => Some("lb".to_string()),
-            // Temperature - prefer Fahrenheit
-            "C" | "K" => Some("F".to_string()),
-            // Everything else stays as-is
-            _ => None,
+        DisplayMode::Imperial => {
+            let base_dim = get_base_dimension(storage_unit);
+            match base_dim {
+                BaseDimension::Length => {
+                    if storage_unit != preferences.imperial_length {
+                        Some(preferences.imperial_length.clone())
+                    } else {
+                        None
+                    }
+                }
+                BaseDimension::Mass => {
+                    if storage_unit != preferences.imperial_mass {
+                        Some(preferences.imperial_mass.clone())
+                    } else {
+                        None
+                    }
+                }
+                BaseDimension::Time => {
+                    tracing::debug!("  Time dimension (Imperial): storage_unit={}, imperial_time={}", storage_unit, preferences.imperial_time);
+                    if storage_unit != preferences.imperial_time {
+                        Some(preferences.imperial_time.clone())
+                    } else {
+                        None
+                    }
+                }
+                BaseDimension::Temperature => {
+                    if storage_unit != preferences.imperial_temperature {
+                        Some(preferences.imperial_temperature.clone())
+                    } else {
+                        None
+                    }
+                }
+                BaseDimension::Currency => {
+                    if storage_unit != preferences.currency {
+                        Some(preferences.currency.clone())
+                    } else {
+                        None
+                    }
+                }
+                BaseDimension::DigitalStorage => {
+                    if storage_unit != preferences.digital_storage_unit {
+                        Some(preferences.digital_storage_unit.clone())
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            }
         },
     }
 }
 
 /// Get display unit for compound units based on display mode
-fn get_compound_display_unit(storage_unit: &str, mode: &DisplayMode) -> Option<String> {
+fn get_compound_display_unit(storage_unit: &str, mode: &DisplayMode, preferences: &UnitPreferences) -> Option<String> {
     if let Some(pos) = storage_unit.find('*') {
         let left = &storage_unit[..pos];
         let right = &storage_unit[pos + 1..];
 
         // Convert each component
-        let left_converted = get_display_unit_for_mode(left, mode).unwrap_or_else(|| left.to_string());
-        let right_converted = get_display_unit_for_mode(right, mode).unwrap_or_else(|| right.to_string());
+        let left_converted = get_display_unit_for_mode(left, mode, preferences).unwrap_or_else(|| left.to_string());
+        let right_converted = get_display_unit_for_mode(right, mode, preferences).unwrap_or_else(|| right.to_string());
 
         // Return compound unit
         Some(format!("{}*{}", left_converted, right_converted))
@@ -475,13 +632,123 @@ fn get_compound_display_unit(storage_unit: &str, mode: &DisplayMode) -> Option<S
         let left = &storage_unit[..pos];
         let right = &storage_unit[pos + 1..];
 
-        // Convert each component
-        let left_converted = get_display_unit_for_mode(left, mode).unwrap_or_else(|| left.to_string());
-        let right_converted = get_display_unit_for_mode(right, mode).unwrap_or_else(|| right.to_string());
+        // Convert each component, with special handling for time in denominators (rates)
+        let left_converted = get_display_unit_for_mode(left, mode, preferences).unwrap_or_else(|| left.to_string());
+
+        // For time units in denominators, use the time_rate_unit preference
+        let right_dim = get_base_dimension(right);
+        let right_converted = if right_dim == BaseDimension::Time && mode != &DisplayMode::AsEntered {
+            // Use the time rate unit preference for rates (e.g., $/hr -> $/month)
+            if right != &preferences.time_rate_unit {
+                preferences.time_rate_unit.clone()
+            } else {
+                right.to_string()
+            }
+        } else {
+            get_display_unit_for_mode(right, mode, preferences).unwrap_or_else(|| right.to_string())
+        };
 
         // Return compound unit
         Some(format!("{}/{}", left_converted, right_converted))
     } else {
         None
     }
+}
+
+// Unit preferences commands
+
+pub fn get_unit_preferences_impl(state: &AppState) -> Result<UnitPreferences, String> {
+    let prefs = state.unit_preferences.lock().unwrap();
+    Ok(prefs.clone())
+}
+
+pub fn update_unit_preferences_impl(
+    state: &AppState,
+    preferences: UnitPreferences,
+) -> Result<(), String> {
+    tracing::info!("update_unit_preferences_impl called with: metric_time={}, imperial_time={}, time_rate_unit={}",
+        preferences.metric_time, preferences.imperial_time, preferences.time_rate_unit);
+    *state.unit_preferences.lock().unwrap() = preferences;
+    tracing::info!("  preferences updated successfully");
+    Ok(())
+}
+
+pub fn set_metric_system_impl(state: &AppState, system: String) -> Result<(), String> {
+    use crate::core::settings::MetricSystem;
+
+    let metric_system = match system.as_str() {
+        "CGS" => MetricSystem::CGS,
+        "MKS" => MetricSystem::MKS,
+        _ => return Err(format!("Invalid metric system: {}", system)),
+    };
+
+    let mut prefs = state.unit_preferences.lock().unwrap();
+    prefs.metric_system = metric_system;
+
+    // Update default units based on system choice
+    match prefs.metric_system {
+        MetricSystem::CGS => {
+            prefs.metric_length = "cm".to_string();
+            prefs.metric_mass = "g".to_string();
+        }
+        MetricSystem::MKS => {
+            prefs.metric_length = "m".to_string();
+            prefs.metric_mass = "kg".to_string();
+        }
+    }
+
+    Ok(())
+}
+
+pub fn set_currency_rate_impl(
+    state: &AppState,
+    currency: String,
+    rate: f64,
+) -> Result<(), String> {
+    let mut prefs = state.unit_preferences.lock().unwrap();
+    prefs.set_currency_rate(currency, rate);
+    Ok(())
+}
+
+pub fn get_currencies_impl(state: &AppState) -> Result<Vec<String>, String> {
+    let prefs = state.unit_preferences.lock().unwrap();
+    Ok(prefs.get_currencies())
+}
+
+/// Get all units currently in use in the active sheet
+pub fn get_units_in_use_impl(state: &AppState) -> Result<Vec<String>, String> {
+    use std::collections::HashSet;
+
+    let workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_ref().ok_or("No workbook loaded")?;
+
+    let sheet = workbook.active_sheet();
+    let mut units = HashSet::new();
+
+    for addr in sheet.cell_addresses() {
+        if let Some(cell) = sheet.get(&addr) {
+            let storage_unit = cell.storage_unit().canonical().to_string();
+
+            // Skip dimensionless units
+            if storage_unit.is_empty() || storage_unit == "1" {
+                continue;
+            }
+
+            // Add the unit
+            units.insert(storage_unit.clone());
+
+            // Also add component units for compound units
+            if let Some(pos) = storage_unit.find('*') {
+                units.insert(storage_unit[..pos].to_string());
+                units.insert(storage_unit[pos + 1..].to_string());
+            } else if let Some(pos) = storage_unit.find('/') {
+                units.insert(storage_unit[..pos].to_string());
+                units.insert(storage_unit[pos + 1..].to_string());
+            }
+        }
+    }
+
+    let mut result: Vec<String> = units.into_iter().collect();
+    result.sort();
+    Ok(result)
 }

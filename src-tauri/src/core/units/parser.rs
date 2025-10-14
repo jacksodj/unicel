@@ -1,6 +1,6 @@
 // Basic unit parser
 
-use super::{Unit, UnitLibrary};
+use super::{BaseDimension, Unit, UnitLibrary};
 use std::result::Result;
 
 #[derive(Debug, PartialEq)]
@@ -24,7 +24,7 @@ impl std::error::Error for ParseError {}
 pub fn parse_unit(symbol: &str, library: &UnitLibrary) -> Result<Unit, ParseError> {
     let symbol = symbol.trim();
 
-    // Check if it's in the library
+    // Check if it's in the library first (for simple units)
     if let Some(unit) = library.get(symbol) {
         return Ok(unit.clone());
     }
@@ -34,7 +34,68 @@ pub fn parse_unit(symbol: &str, library: &UnitLibrary) -> Result<Unit, ParseErro
         return Ok(Unit::dimensionless());
     }
 
-    Err(ParseError::UnknownUnit(symbol.to_string()))
+    // Try to parse as compound unit with division (e.g., "USD/ft", "mi/hr", "$/ft")
+    if let Some(pos) = symbol.find('/') {
+        let numerator_str = &symbol[..pos];
+        let denominator_str = &symbol[pos + 1..];
+
+        let num_dim = get_base_dimension(numerator_str, library)?;
+        let den_dim = get_base_dimension(denominator_str, library)?;
+
+        return Ok(Unit::compound(
+            symbol.to_string(),
+            vec![(num_dim, 1)],
+            vec![(den_dim, 1)],
+        ));
+    }
+
+    // Try to parse as compound unit with multiplication (e.g., "ft*ft", "kg*m")
+    if let Some(pos) = symbol.find('*') {
+        let left_str = &symbol[..pos];
+        let right_str = &symbol[pos + 1..];
+
+        let left_dim = get_base_dimension(left_str, library)?;
+        let right_dim = get_base_dimension(right_str, library)?;
+
+        return Ok(Unit::compound(
+            symbol.to_string(),
+            vec![(left_dim.clone(), 1), (right_dim, 1)],
+            vec![],
+        ));
+    }
+
+    // Try to parse as simple unit using hardcoded mappings (e.g., "$", "ft")
+    // This handles units that aren't in the library but are commonly used
+    match get_base_dimension(symbol, library) {
+        Ok(base_dim) => Ok(Unit::simple(symbol, base_dim)),
+        Err(e) => Err(e),
+    }
+}
+
+/// Get the base dimension for a unit symbol
+fn get_base_dimension(unit_str: &str, library: &UnitLibrary) -> Result<BaseDimension, ParseError> {
+    // First try to look up in library
+    if let Some(unit) = library.get(unit_str) {
+        if let Some(base) = unit.dimension().as_simple() {
+            return Ok(base.clone());
+        }
+    }
+
+    // Fallback to hardcoded mappings for common units
+    match unit_str {
+        "m" | "cm" | "mm" | "km" | "in" | "ft" | "yd" | "mi" => Ok(BaseDimension::Length),
+        "g" | "kg" | "mg" | "oz" | "lb" => Ok(BaseDimension::Mass),
+        "s" | "min" | "hr" | "h" | "day" | "month" => Ok(BaseDimension::Time),
+        "C" | "F" | "K" => Ok(BaseDimension::Temperature),
+        "USD" | "EUR" | "GBP" | "$" => Ok(BaseDimension::Currency),
+        // Digital storage units (bytes)
+        "B" | "b" | "KB" | "Kb" | "MB" | "Mb" | "GB" | "Gb" | "TB" | "Tb" | "PB" | "Pb" => Ok(BaseDimension::DigitalStorage),
+        // Bits
+        "bits" | "Kbits" | "Mbits" | "Gbits" | "Tbits" => Ok(BaseDimension::DigitalStorage),
+        // Token units
+        "Tok" | "tok" | "KTok" | "Ktok" | "MTok" | "Mtok" => Ok(BaseDimension::DigitalStorage),
+        _ => Err(ParseError::UnknownUnit(unit_str.to_string())),
+    }
 }
 
 #[cfg(test)]

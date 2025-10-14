@@ -4,6 +4,7 @@
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tauri::State;
 use unicel_lib::commands::{AppState, CellData, WorkbookInfo};
+use unicel_lib::core::settings::UnitPreferences;
 
 // Tauri command definitions (must be in binary crate for macro to work)
 
@@ -51,6 +52,39 @@ fn set_display_mode(state: State<AppState>, mode: String) -> Result<(), String> 
     unicel_lib::commands::set_display_mode_impl(&state, mode)
 }
 
+#[tauri::command]
+fn get_unit_preferences(state: State<AppState>) -> Result<UnitPreferences, String> {
+    unicel_lib::commands::get_unit_preferences_impl(&state)
+}
+
+#[tauri::command]
+fn update_unit_preferences(
+    state: State<AppState>,
+    preferences: UnitPreferences,
+) -> Result<(), String> {
+    unicel_lib::commands::update_unit_preferences_impl(&state, preferences)
+}
+
+#[tauri::command]
+fn set_metric_system(state: State<AppState>, system: String) -> Result<(), String> {
+    unicel_lib::commands::set_metric_system_impl(&state, system)
+}
+
+#[tauri::command]
+fn set_currency_rate(state: State<AppState>, currency: String, rate: f64) -> Result<(), String> {
+    unicel_lib::commands::set_currency_rate_impl(&state, currency, rate)
+}
+
+#[tauri::command]
+fn get_currencies(state: State<AppState>) -> Result<Vec<String>, String> {
+    unicel_lib::commands::get_currencies_impl(&state)
+}
+
+#[tauri::command]
+fn get_units_in_use(state: State<AppState>) -> Result<Vec<String>, String> {
+    unicel_lib::commands::get_units_in_use_impl(&state)
+}
+
 fn main() {
     // Initialize logging
     tracing_subscriber::registry()
@@ -75,6 +109,12 @@ fn main() {
             load_workbook,
             get_current_file,
             set_display_mode,
+            get_unit_preferences,
+            update_unit_preferences,
+            set_metric_system,
+            set_currency_rate,
+            get_currencies,
+            get_units_in_use,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
