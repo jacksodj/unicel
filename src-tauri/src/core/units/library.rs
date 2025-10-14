@@ -559,4 +559,166 @@ mod tests {
         let back_to_c = library.convert(temp_f, "F", "C").unwrap();
         assert!((temp_c - back_to_c).abs() < 0.0001);
     }
+
+    // Property-based tests for conversion commutativity
+    #[cfg(test)]
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        // Define unit pairs for each dimension to test
+        const LENGTH_UNITS: &[&str] = &["m", "cm", "mm", "km", "in", "ft", "yd", "mi"];
+        const MASS_UNITS: &[&str] = &["g", "kg", "mg", "oz", "lb"];
+        const TIME_UNITS: &[&str] = &["s", "min", "hr", "h", "hour", "day", "month", "year"];
+        const TEMPERATURE_UNITS: &[&str] = &["C", "F", "K"];
+        const CURRENCY_UNITS: &[&str] = &["USD", "EUR", "GBP"];
+        const STORAGE_UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB", "b", "Kb", "Mb", "Gb", "Tb"];
+
+        /// Test that converting A → B → A returns the original value (within tolerance)
+        fn test_round_trip_conversion(library: &UnitLibrary, from: &str, to: &str, value: f64, tolerance: f64) {
+            if let Some(forward) = library.convert(value, from, to) {
+                if let Some(back) = library.convert(forward, to, from) {
+                    let diff = (value - back).abs();
+                    let relative_error = if value != 0.0 { diff / value.abs() } else { diff };
+                    assert!(
+                        relative_error < tolerance,
+                        "Round-trip conversion failed: {} {} → {} → {} (got {}, expected {}, error: {})",
+                        value, from, to, from, back, value, relative_error
+                    );
+                }
+            }
+        }
+
+        proptest! {
+            #[test]
+            fn prop_length_round_trip(
+                value in -1e6..1e6f64,
+                from_idx in 0..LENGTH_UNITS.len(),
+                to_idx in 0..LENGTH_UNITS.len()
+            ) {
+                let library = UnitLibrary::new();
+                let from = LENGTH_UNITS[from_idx];
+                let to = LENGTH_UNITS[to_idx];
+                // Use 0.01% tolerance for floating point errors
+                test_round_trip_conversion(&library, from, to, value, 1e-4);
+            }
+
+            #[test]
+            fn prop_mass_round_trip(
+                value in -1e6..1e6f64,
+                from_idx in 0..MASS_UNITS.len(),
+                to_idx in 0..MASS_UNITS.len()
+            ) {
+                let library = UnitLibrary::new();
+                let from = MASS_UNITS[from_idx];
+                let to = MASS_UNITS[to_idx];
+                test_round_trip_conversion(&library, from, to, value, 1e-4);
+            }
+
+            #[test]
+            fn prop_time_round_trip(
+                value in -1e6..1e6f64,
+                from_idx in 0..TIME_UNITS.len(),
+                to_idx in 0..TIME_UNITS.len()
+            ) {
+                let library = UnitLibrary::new();
+                let from = TIME_UNITS[from_idx];
+                let to = TIME_UNITS[to_idx];
+                test_round_trip_conversion(&library, from, to, value, 1e-4);
+            }
+
+            #[test]
+            fn prop_temperature_round_trip(
+                value in -273.15..1e4f64, // Absolute zero minimum for Celsius
+                from_idx in 0..TEMPERATURE_UNITS.len(),
+                to_idx in 0..TEMPERATURE_UNITS.len()
+            ) {
+                let library = UnitLibrary::new();
+                let from = TEMPERATURE_UNITS[from_idx];
+                let to = TEMPERATURE_UNITS[to_idx];
+                // Temperature conversions with offsets need slightly higher tolerance
+                test_round_trip_conversion(&library, from, to, value, 1e-3);
+            }
+
+            #[test]
+            fn prop_currency_round_trip(
+                value in -1e9..1e9f64,
+                from_idx in 0..CURRENCY_UNITS.len(),
+                to_idx in 0..CURRENCY_UNITS.len()
+            ) {
+                let library = UnitLibrary::new();
+                let from = CURRENCY_UNITS[from_idx];
+                let to = CURRENCY_UNITS[to_idx];
+                test_round_trip_conversion(&library, from, to, value, 1e-4);
+            }
+
+            #[test]
+            fn prop_storage_round_trip(
+                value in 0.0..1e15f64, // Storage must be non-negative
+                from_idx in 0..STORAGE_UNITS.len(),
+                to_idx in 0..STORAGE_UNITS.len()
+            ) {
+                let library = UnitLibrary::new();
+                let from = STORAGE_UNITS[from_idx];
+                let to = STORAGE_UNITS[to_idx];
+                test_round_trip_conversion(&library, from, to, value, 1e-4);
+            }
+
+            /// Test that conversion is commutative: if A→B exists, then B→A should exist
+            #[test]
+            fn prop_conversion_symmetry(
+                from_idx in 0..LENGTH_UNITS.len(),
+                to_idx in 0..LENGTH_UNITS.len()
+            ) {
+                let library = UnitLibrary::new();
+                let from = LENGTH_UNITS[from_idx];
+                let to = LENGTH_UNITS[to_idx];
+
+                let forward_exists = library.can_convert(from, to);
+                let backward_exists = library.can_convert(to, from);
+
+                // If forward conversion exists, backward should also exist (except for same unit)
+                if forward_exists && from != to {
+                    assert!(backward_exists, "Conversion {} → {} exists but {} → {} doesn't", from, to, to, from);
+                }
+            }
+
+            /// Test edge cases: zero, very small, very large numbers
+            #[test]
+            fn prop_zero_conversion(
+                from_idx in 0..LENGTH_UNITS.len(),
+                to_idx in 0..LENGTH_UNITS.len()
+            ) {
+                let library = UnitLibrary::new();
+                let from = LENGTH_UNITS[from_idx];
+                let to = LENGTH_UNITS[to_idx];
+
+                if let Some(result) = library.convert(0.0, from, to) {
+                    // Zero should always convert to zero (except temperature with offsets)
+                    if !TEMPERATURE_UNITS.contains(&from) {
+                        assert_eq!(result, 0.0, "Converting 0 {} to {} should yield 0, got {}", from, to, result);
+                    }
+                }
+            }
+
+            /// Test negative values work correctly
+            #[test]
+            fn prop_negative_values(
+                value in -1e6..-1.0f64,
+                from_idx in 0..LENGTH_UNITS.len(),
+                to_idx in 0..LENGTH_UNITS.len()
+            ) {
+                let library = UnitLibrary::new();
+                let from = LENGTH_UNITS[from_idx];
+                let to = LENGTH_UNITS[to_idx];
+
+                if let Some(converted) = library.convert(value, from, to) {
+                    // Negative input should generally give negative output (except temperature)
+                    if !TEMPERATURE_UNITS.contains(&from) && value < 0.0 {
+                        assert!(converted < 0.0, "Converting negative {} {} to {} should remain negative", value, from, to);
+                    }
+                }
+            }
+        }
+    }
 }
