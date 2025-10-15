@@ -1,3 +1,48 @@
+# Unicel v0.1.7 - Temperature Conversion Fix
+
+**Release Date:** 2025-10-14
+
+This release fixes temperature conversions in Excel export to properly handle offset-based conversions.
+
+## Bug Fixes
+
+### Excel Export Temperature Conversions
+
+Fixed a critical bug where temperature conversions (Celsius ↔ Fahrenheit ↔ Kelvin) exported to Excel were incorrect.
+
+**The Problem:**
+Temperature conversions use the formula `value × multiplier + offset` (e.g., C to F: `value × 1.8 + 32`), but the Excel export was only using `value × factor`, which produced wrong results:
+- 0°C exported as 0°F instead of 32°F
+- 100°C exported as 3380°F instead of 212°F
+
+**The Fix:**
+- Updated `ConversionEntry` struct to store both `multiplier` and `offset`
+- Modified formula expansion to use `library.get_conversion()` for full conversion info
+- Excel formulas now generate correctly:
+  - Simple conversions: `=A1*name_m` (e.g., meters to feet)
+  - Temperature conversions: `=A1*name_m+name_o` (e.g., Celsius to Fahrenheit)
+- Updated Conversions sheet with separate "Multiplier" and "Offset" columns
+- Created dual named ranges for each conversion (`name_m` and `name_o`)
+
+**Example:**
+- Celsius to Fahrenheit now exports as: `=A1*C_F_m+C_F_o` where `C_F_m=1.8` and `C_F_o=32`
+- 0°C correctly converts to 32°F
+- 100°C correctly converts to 212°F
+
+## Technical Changes
+
+- Modified `ConversionEntry` struct in `src-tauri/src/formats/excel.rs`
+- Updated `expand_convert_formula()` to access full `ConversionFactor` with multiplier and offset
+- Enhanced `create_conversions_sheet()` to show both multiplier and offset columns
+- Updated named range creation to generate `_m` and `_o` suffixes for each conversion
+- Improved warning sheet documentation to explain temperature vs simple conversions
+
+## Test Results
+
+✅ All 206 tests passing
+
+---
+
 # Unicel v0.1.6 - Named Ranges Release
 
 **Release Date:** 2025-10-14

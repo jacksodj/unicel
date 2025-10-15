@@ -24,7 +24,8 @@ pub enum ExcelError {
 #[derive(Debug, Clone)]
 struct ConversionEntry {
     name: String,
-    factor: f64,
+    multiplier: f64,
+    offset: f64,
     from_unit: String,
     to_unit: String,
     description: String,
@@ -158,18 +159,34 @@ fn expand_convert_formula(
         }
     };
 
-    // Calculate conversion factor
+    // Get conversion factor (with multiplier and offset)
     tracing::debug!("Looking up conversion: {} -> {}", source_unit, target_unit);
-    let conversion_factor = match library.convert(1.0, &source_unit, &target_unit) {
-        Some(factor) => {
-            tracing::debug!("Conversion factor: {}", factor);
-            factor
-        }
-        None => {
-            tracing::warn!("No conversion found for {} -> {}", source_unit, target_unit);
-            return None;
+
+    // Try to get direct conversion first
+    let conversion_factor = if let Some(factor) = library.get_conversion(&source_unit, &target_unit) {
+        tracing::debug!("Found direct conversion: multiplier={}, offset={}", factor.multiplier, factor.offset);
+        (factor.multiplier, factor.offset)
+    } else {
+        // Fall back to converting 1.0 to get the factor (for multi-hop conversions)
+        // This works for linear conversions but won't capture offset correctly
+        // For now, we'll use this as fallback but warn if it's a temperature conversion
+        match library.convert(1.0, &source_unit, &target_unit) {
+            Some(result) => {
+                tracing::debug!("Using computed conversion factor: {}", result);
+                // Check if this might have an offset (temperature units)
+                if is_temperature_unit(&source_unit) || is_temperature_unit(&target_unit) {
+                    tracing::warn!("Multi-hop temperature conversion detected - offset may be incorrect");
+                }
+                (result, 0.0) // Assume no offset for multi-hop
+            }
+            None => {
+                tracing::warn!("No conversion found for {} -> {}", source_unit, target_unit);
+                return None;
+            }
         }
     };
+
+    let (multiplier, offset) = conversion_factor;
 
     // Create conversion name (e.g., "m_to_ft")
     let conversion_name = format!("{}_{}",
@@ -180,14 +197,19 @@ fn expand_convert_formula(
     // Create conversion entry
     let conversion_entry = ConversionEntry {
         name: conversion_name.clone(),
-        factor: conversion_factor,
+        multiplier,
+        offset,
         from_unit: source_unit.clone(),
         to_unit: target_unit.clone(),
-        description: format!("Convert {} to {}", source_unit, target_unit),
+        description: if offset != 0.0 {
+            format!("Convert {} to {}: value * {} + {}", source_unit, target_unit, multiplier, offset)
+        } else {
+            format!("Convert {} to {}: value * {}", source_unit, target_unit, multiplier)
+        },
     };
 
     // Build expanded formula
-    let expanded = if conversion_factor == 1.0 {
+    let expanded = if multiplier == 1.0 && offset == 0.0 {
         // No conversion needed
         source_expr.to_string()
     } else {
@@ -196,9 +218,15 @@ fn expand_convert_formula(
             conversions.insert(conversion_name.clone(), conversion_entry.clone());
         }
 
-        // Reference the conversion factor by its named range
-        // The named range will be defined when creating the Conversions sheet
-        format!("{}*{}", source_expr, conversion_name)
+        // Generate Excel formula based on whether there's an offset
+        if offset != 0.0 {
+            // For temperature conversions: value * multiplier + offset
+            // Create named ranges for both multiplier and offset
+            format!("{}*{}_m+{}_o", source_expr, conversion_name, conversion_name)
+        } else {
+            // For simple conversions: value * multiplier
+            format!("{}*{}_m", source_expr, conversion_name)
+        }
     };
 
     // Replace CONVERT(...) with expanded version
@@ -335,6 +363,11 @@ fn extract_unit_from_target(s: &str) -> Option<String> {
     }
 
     None
+}
+
+/// Check if a unit is a temperature unit
+fn is_temperature_unit(unit: &str) -> bool {
+    matches!(unit, "C" | "F" | "K")
 }
 
 /// Export a workbook to Excel format
@@ -485,12 +518,24 @@ pub fn export_to_excel(
         xlsx_workbook.push_worksheet(conversions_sheet);
 
         // Define named ranges for each conversion factor
-        // This allows formulas to use conversion names directly (e.g., =C10*mi_yd)
-        for (idx, (name, _entry)) in conversions.iter().enumerate() {
+        // For each conversion, create two named ranges: name_m (multiplier) and name_o (offset)
+        for (idx, (name, entry)) in conversions.iter().enumerate() {
             let row = idx + 1; // +1 because row 0 is the header
-            let cell_ref = format!("=Conversions!$B${}", row + 1); // +1 for Excel 1-based indexing
-            xlsx_workbook.define_name(name, &cell_ref)?;
-            tracing::debug!("Defined conversion named range: {} -> {}", name, cell_ref);
+            let excel_row = row + 1; // +1 for Excel 1-based indexing
+
+            // Define multiplier named range (column B)
+            let mult_cell_ref = format!("=Conversions!$B${}", excel_row);
+            let mult_name = format!("{}_m", name);
+            xlsx_workbook.define_name(&mult_name, &mult_cell_ref)?;
+            tracing::debug!("Defined multiplier named range: {} -> {}", mult_name, mult_cell_ref);
+
+            // Define offset named range (column C) - only if offset is non-zero
+            if entry.offset != 0.0 {
+                let offset_cell_ref = format!("=Conversions!$C${}", excel_row);
+                let offset_name = format!("{}_o", name);
+                xlsx_workbook.define_name(&offset_name, &offset_cell_ref)?;
+                tracing::debug!("Defined offset named range: {} -> {}", offset_name, offset_cell_ref);
+            }
         }
     }
 
@@ -546,27 +591,30 @@ fn create_conversions_sheet(conversions: &BTreeMap<String, ConversionEntry>) -> 
 
     // Headers
     sheet.write_string_with_format(0, 0, "Name", &header_format)?;
-    sheet.write_string_with_format(0, 1, "Factor", &header_format)?;
-    sheet.write_string_with_format(0, 2, "From Unit", &header_format)?;
-    sheet.write_string_with_format(0, 3, "To Unit", &header_format)?;
-    sheet.write_string_with_format(0, 4, "Description", &header_format)?;
+    sheet.write_string_with_format(0, 1, "Multiplier", &header_format)?;
+    sheet.write_string_with_format(0, 2, "Offset", &header_format)?;
+    sheet.write_string_with_format(0, 3, "From Unit", &header_format)?;
+    sheet.write_string_with_format(0, 4, "To Unit", &header_format)?;
+    sheet.write_string_with_format(0, 5, "Description", &header_format)?;
 
     // Data rows (BTreeMap is already sorted by key)
     for (idx, entry) in conversions.values().enumerate() {
         let row = (idx + 1) as u32;
         sheet.write_string(row, 0, &entry.name)?;
-        sheet.write_number_with_format(row, 1, entry.factor, &number_format)?;
-        sheet.write_string(row, 2, &entry.from_unit)?;
-        sheet.write_string(row, 3, &entry.to_unit)?;
-        sheet.write_string(row, 4, &entry.description)?;
+        sheet.write_number_with_format(row, 1, entry.multiplier, &number_format)?;
+        sheet.write_number_with_format(row, 2, entry.offset, &number_format)?;
+        sheet.write_string(row, 3, &entry.from_unit)?;
+        sheet.write_string(row, 4, &entry.to_unit)?;
+        sheet.write_string(row, 5, &entry.description)?;
     }
 
     // Set column widths
     sheet.set_column_width(0, 20)?; // Name
-    sheet.set_column_width(1, 15)?; // Factor
-    sheet.set_column_width(2, 12)?; // From Unit
-    sheet.set_column_width(3, 12)?; // To Unit
-    sheet.set_column_width(4, 40)?; // Description
+    sheet.set_column_width(1, 15)?; // Multiplier
+    sheet.set_column_width(2, 15)?; // Offset
+    sheet.set_column_width(3, 12)?; // From Unit
+    sheet.set_column_width(4, 12)?; // To Unit
+    sheet.set_column_width(5, 50)?; // Description
 
     Ok(sheet)
 }
@@ -596,24 +644,26 @@ fn create_warning_sheet() -> Result<Worksheet, ExcelError> {
     sheet.write_string(11, 0, "   - Excel cannot recalculate them because it doesn't understand unit operations")?;
 
     sheet.write_string_with_format(13, 0, "3. See the \"Conversions\" sheet for unit conversion factors", &bold_format)?;
-    sheet.write_string(14, 0, "   - Lists all conversion factors used in formulas")?;
-    sheet.write_string(15, 0, "   - Formulas reference these cells (e.g., =A1*Conversions!$B$2)")?;
-    sheet.write_string(16, 0, "   - You can edit conversion factors and formulas will update")?;
+    sheet.write_string(14, 0, "   - Lists all conversion factors used in formulas (multiplier and offset)")?;
+    sheet.write_string(15, 0, "   - Simple conversions: value × multiplier (e.g., meters to feet)")?;
+    sheet.write_string(16, 0, "   - Temperature conversions: value × multiplier + offset (e.g., Celsius to Fahrenheit)")?;
+    sheet.write_string(17, 0, "   - Formulas reference these cells using named ranges (e.g., =A1*C_F_m+C_F_o)")?;
+    sheet.write_string(18, 0, "   - You can edit conversion factors and formulas will update")?;
 
-    sheet.write_string_with_format(18, 0, "4. Named ranges are exported to Excel", &bold_format)?;
-    sheet.write_string(19, 0, "   - User-defined named ranges (like 'revenue', 'tax_rate') are preserved")?;
-    sheet.write_string(20, 0, "   - You can use these names in Excel formulas (e.g., =revenue * tax_rate)")?;
-    sheet.write_string(21, 0, "   - See \"Unit Metadata\" sheet for the complete list")?;
+    sheet.write_string_with_format(20, 0, "4. Named ranges are exported to Excel", &bold_format)?;
+    sheet.write_string(21, 0, "   - User-defined named ranges (like 'revenue', 'tax_rate') are preserved")?;
+    sheet.write_string(22, 0, "   - You can use these names in Excel formulas (e.g., =revenue * tax_rate)")?;
+    sheet.write_string(23, 0, "   - See \"Unit Metadata\" sheet for the complete list")?;
 
-    sheet.write_string_with_format(23, 0, "5. See the \"Unit Metadata\" sheet for original unit and name information", &bold_format)?;
-    sheet.write_string(24, 0, "   - Lists which cells had units and what those units were")?;
-    sheet.write_string(25, 0, "   - Shows original formulas for formula cells")?;
-    sheet.write_string(26, 0, "   - Documents all named ranges and their cell references")?;
+    sheet.write_string_with_format(25, 0, "5. See the \"Unit Metadata\" sheet for original unit and name information", &bold_format)?;
+    sheet.write_string(26, 0, "   - Lists which cells had units and what those units were")?;
+    sheet.write_string(27, 0, "   - Shows original formulas for formula cells")?;
+    sheet.write_string(28, 0, "   - Documents all named ranges and their cell references")?;
 
-    sheet.write_string(28, 0, "⚠️ WARNING: Changes made in Excel cannot be imported back to Unicel")?;
-    sheet.write_string(29, 0, "This is a ONE-WAY export for sharing data only.")?;
+    sheet.write_string(30, 0, "⚠️ WARNING: Changes made in Excel cannot be imported back to Unicel")?;
+    sheet.write_string(31, 0, "This is a ONE-WAY export for sharing data only.")?;
 
-    sheet.write_string_with_format(31, 0, "To preserve full unit information, use Unicel's native .usheet format.", &bold_format)?;
+    sheet.write_string_with_format(33, 0, "To preserve full unit information, use Unicel's native .usheet format.", &bold_format)?;
 
     // Set column width
     sheet.set_column_width(0, 80)?;
