@@ -192,17 +192,13 @@ fn expand_convert_formula(
         source_expr.to_string()
     } else {
         // Add to conversions map if not already present
-        let row_index = if let Some(existing) = conversions.get(&conversion_name) {
-            // Find the row index of this existing conversion
-            conversions.keys().position(|k| k == &conversion_name).unwrap() + 2 // +2 for header row and 1-indexing
-        } else {
-            let new_index = conversions.len() + 2; // +2 for header row and 1-indexing
+        if !conversions.contains_key(&conversion_name) {
             conversions.insert(conversion_name.clone(), conversion_entry.clone());
-            new_index
-        };
+        }
 
-        // Reference the conversion factor in the Conversions sheet
-        format!("{}*Conversions!$B${}", source_expr, row_index)
+        // Reference the conversion factor by its named range
+        // The named range will be defined when creating the Conversions sheet
+        format!("{}*{}", source_expr, conversion_name)
     };
 
     // Replace CONVERT(...) with expanded version
@@ -213,17 +209,25 @@ fn expand_convert_formula(
 }
 
 /// Parse a cell reference like "A1", "B2", etc.
+/// Valid format: LETTERS followed by NUMBERS (e.g., "A1", "AB123")
+/// Invalid: "1m" (numbers before letters)
 fn parse_cell_ref(s: &str) -> Option<crate::core::table::CellAddr> {
     use crate::core::table::CellAddr;
 
     let trimmed = s.trim();
     let mut col = String::new();
     let mut row = String::new();
+    let mut seen_digit = false;
 
     for ch in trimmed.chars() {
         if ch.is_ascii_alphabetic() {
+            if seen_digit {
+                // Letters after digits -> not a valid cell reference (e.g., "1m")
+                return None;
+            }
             col.push(ch.to_ascii_uppercase());
         } else if ch.is_ascii_digit() {
+            seen_digit = true;
             row.push(ch);
         } else {
             return None; // Invalid character
@@ -236,6 +240,74 @@ fn parse_cell_ref(s: &str) -> Option<crate::core::table::CellAddr> {
 
     let row_num: usize = row.parse().ok()?;
     Some(CellAddr::new(col, row_num))
+}
+
+/// Transform cell references in a formula to account for doubled columns in Excel export
+/// Example: "=A1+B2" becomes "=A1+C2" because B maps to Excel column C
+/// Handles both uppercase and lowercase cell references
+fn transform_formula_for_excel(formula: &str) -> String {
+    let mut result = String::new();
+    let mut chars = formula.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch.is_ascii_alphabetic() {
+            // Potential cell reference - collect the column letters
+            let mut col = String::new();
+            col.push(ch.to_ascii_uppercase());
+
+            // Collect additional column letters
+            while let Some(&next_ch) = chars.peek() {
+                if next_ch.is_ascii_alphabetic() {
+                    col.push(chars.next().unwrap().to_ascii_uppercase());
+                } else {
+                    break;
+                }
+            }
+
+            // Check if followed by digits (making it a cell reference)
+            let mut row = String::new();
+            while let Some(&next_ch) = chars.peek() {
+                if next_ch.is_ascii_digit() {
+                    row.push(chars.next().unwrap());
+                } else {
+                    break;
+                }
+            }
+
+            if !row.is_empty() {
+                // This is a cell reference - transform it
+                let col_num = column_letter_to_number(&col);
+                let excel_col_num = col_num * 2; // Double for value/unit layout
+                let excel_col = number_to_column_letter(excel_col_num);
+                result.push_str(&excel_col);
+                result.push_str(&row);
+            } else {
+                // Not a cell reference, just letters (like a function name)
+                // Preserve original case for function names
+                result.push_str(&col);
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+
+    result
+}
+
+/// Convert column number to letter (inverse of column_letter_to_number)
+/// 0 -> "A", 1 -> "B", 25 -> "Z", 26 -> "AA", etc.
+fn number_to_column_letter(mut num: u32) -> String {
+    let mut result = String::new();
+    num += 1; // Convert from 0-indexed to 1-indexed
+
+    while num > 0 {
+        num -= 1; // Adjust for 0-based modulo
+        let remainder = (num % 26) as u8;
+        result.push((b'A' + remainder) as char);
+        num /= 26;
+    }
+
+    result.chars().rev().collect()
 }
 
 /// Extract unit from a value expression like "100 m" or "1 km"
@@ -318,32 +390,15 @@ pub fn export_to_excel(
 
                 // Export the cell based on its content
                 if let Some(formula) = cell.formula() {
-                    // Try to expand CONVERT functions to Excel-compatible formulas
-                    if let Some((expanded_formula, _conversion_entry)) = expand_convert_formula(formula, sheet, &mut conversions) {
-                        tracing::debug!("Exporting CONVERT formula: {} → {}", formula, expanded_formula);
-                        // Export as Excel formula with expanded CONVERT
-                        worksheet.write_formula_with_format(row_num, col_num as u16, expanded_formula.as_str(), &formula_format)?;
-
-                        // Unit in column N*2+1
-                        let unit_str = cell.storage_unit().canonical();
-                        if !unit_str.is_empty() && unit_str != "1" {
-                            worksheet.write_string(row_num, (col_num + 1) as u16, unit_str)?;
-
-                            // Track metadata
-                            metadata_rows.push((
-                                sheet.name().to_string(),
-                                cell_ref,
-                                format!("Original: {} → Excel: {}", formula, expanded_formula),
-                                unit_str.to_string(),
-                            ));
-                        }
-                    } else {
-                        tracing::debug!("Exporting formula as VALUE (no CONVERT): {}", formula);
-                        // For other formulas, export the CALCULATED VALUE
-                        // because Excel can't recalculate with unit logic
-                        if let Some(value) = cell.as_number() {
-                            // Value in column N*2
-                            worksheet.write_number_with_format(row_num, col_num as u16, value, &formula_format)?;
+                    // Check if formula contains CONVERT function
+                    if formula.to_uppercase().contains("CONVERT") {
+                        // Try to expand CONVERT functions to Excel-compatible formulas
+                        if let Some((expanded_formula, _conversion_entry)) = expand_convert_formula(formula, sheet, &mut conversions) {
+                            // Transform cell references for doubled-column layout
+                            let excel_formula = transform_formula_for_excel(&expanded_formula);
+                            tracing::debug!("Exporting CONVERT formula: {} → {} → {}", formula, expanded_formula, excel_formula);
+                            // Export as Excel formula with expanded CONVERT
+                            worksheet.write_formula_with_format(row_num, col_num as u16, excel_formula.as_str(), &formula_format)?;
 
                             // Unit in column N*2+1
                             let unit_str = cell.storage_unit().canonical();
@@ -353,11 +408,47 @@ pub fn export_to_excel(
                                 // Track metadata
                                 metadata_rows.push((
                                     sheet.name().to_string(),
-                                    cell_ref,
-                                    format!("Formula: {}", formula),
+                                    cell_ref.clone(),
+                                    format!("Original: {} → Excel: {}", formula, excel_formula),
                                     unit_str.to_string(),
                                 ));
                             }
+                        } else {
+                            tracing::warn!("Failed to expand CONVERT formula, exporting as VALUE: {}", formula);
+                            // CONVERT expansion failed, export the CALCULATED VALUE
+                            if let Some(value) = cell.as_number() {
+                                worksheet.write_number_with_format(row_num, col_num as u16, value, &formula_format)?;
+
+                                let unit_str = cell.storage_unit().canonical();
+                                if !unit_str.is_empty() && unit_str != "1" {
+                                    worksheet.write_string(row_num, (col_num + 1) as u16, unit_str)?;
+                                    metadata_rows.push((
+                                        sheet.name().to_string(),
+                                        cell_ref.clone(),
+                                        format!("Failed CONVERT: {}", formula),
+                                        unit_str.to_string(),
+                                    ));
+                                }
+                            }
+                        }
+                    } else {
+                        // Regular formula (no CONVERT) - transform and export
+                        let excel_formula = transform_formula_for_excel(formula);
+                        tracing::debug!("Exporting regular formula: {} → {}", formula, excel_formula);
+                        worksheet.write_formula_with_format(row_num, col_num as u16, excel_formula.as_str(), &formula_format)?;
+
+                        // Unit in column N*2+1
+                        let unit_str = cell.storage_unit().canonical();
+                        if !unit_str.is_empty() && unit_str != "1" {
+                            worksheet.write_string(row_num, (col_num + 1) as u16, unit_str)?;
+
+                            // Track metadata
+                            metadata_rows.push((
+                                sheet.name().to_string(),
+                                cell_ref.clone(),
+                                format!("Formula: {}", formula),
+                                unit_str.to_string(),
+                            ));
                         }
                     }
                 } else if let Some(value) = cell.as_number() {
@@ -392,6 +483,15 @@ pub fn export_to_excel(
     if !conversions.is_empty() {
         let conversions_sheet = create_conversions_sheet(&conversions)?;
         xlsx_workbook.push_worksheet(conversions_sheet);
+
+        // Define named ranges for each conversion factor
+        // This allows formulas to use conversion names directly (e.g., =C10*mi_yd)
+        for (idx, (name, _entry)) in conversions.iter().enumerate() {
+            let row = idx + 1; // +1 because row 0 is the header
+            let cell_ref = format!("=Conversions!$B${}", row + 1); // +1 for Excel 1-based indexing
+            xlsx_workbook.define_name(name, &cell_ref)?;
+            tracing::debug!("Defined named range: {} -> {}", name, cell_ref);
+        }
     }
 
     // Add metadata sheet at the end
@@ -542,5 +642,50 @@ mod tests {
         assert_eq!(column_letter_to_number("AB"), 27);
         assert_eq!(column_letter_to_number("AZ"), 51);
         assert_eq!(column_letter_to_number("BA"), 52);
+    }
+
+    #[test]
+    fn test_number_to_column_letter() {
+        assert_eq!(number_to_column_letter(0), "A");
+        assert_eq!(number_to_column_letter(1), "B");
+        assert_eq!(number_to_column_letter(25), "Z");
+        assert_eq!(number_to_column_letter(26), "AA");
+        assert_eq!(number_to_column_letter(27), "AB");
+        assert_eq!(number_to_column_letter(51), "AZ");
+        assert_eq!(number_to_column_letter(52), "BA");
+    }
+
+    #[test]
+    fn test_transform_formula_for_excel() {
+        // Simple cell references
+        assert_eq!(transform_formula_for_excel("=A1"), "=A1"); // A*2 = 0, stays A
+        assert_eq!(transform_formula_for_excel("=B1"), "=C1"); // B*2 = 2, becomes C
+        assert_eq!(transform_formula_for_excel("=C1"), "=E1"); // C*2 = 4, becomes E
+
+        // Formulas with operations
+        assert_eq!(transform_formula_for_excel("=B11/B12"), "=C11/C12");
+        assert_eq!(transform_formula_for_excel("=A1+B2"), "=A1+C2");
+        assert_eq!(transform_formula_for_excel("=2*(B20+B21)"), "=2*(C20+C21)");
+
+        // Mixed case
+        assert_eq!(transform_formula_for_excel("=b1"), "=C1");
+        assert_eq!(transform_formula_for_excel("=B1+b2"), "=C1+C2");
+
+        // Functions (should not be transformed)
+        assert_eq!(transform_formula_for_excel("=SUM(B1:B10)"), "=SUM(C1:C10)");
+        assert_eq!(transform_formula_for_excel("=AVERAGE(A1:A5)"), "=AVERAGE(A1:A5)");
+    }
+
+    #[test]
+    fn test_parse_cell_ref_rejects_invalid() {
+        // Should reject "1m" (number before letter)
+        assert!(parse_cell_ref("1m").is_none());
+        assert!(parse_cell_ref("1kg").is_none());
+        assert!(parse_cell_ref("5ft").is_none());
+
+        // Should accept valid cell references
+        assert!(parse_cell_ref("A1").is_some());
+        assert!(parse_cell_ref("B12").is_some());
+        assert!(parse_cell_ref("AA100").is_some());
     }
 }

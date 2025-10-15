@@ -4,12 +4,16 @@ use super::{BaseDimension, Unit};
 use std::collections::HashMap;
 
 /// Conversion factor from one unit to another
+/// Stores conversions as rational numbers (numerator/denominator) to preserve precision
 #[derive(Debug, Clone)]
 pub struct ConversionFactor {
     /// Multiplier to convert from source to target
     pub multiplier: f64,
     /// Offset to apply after multiplying (for temperature)
     pub offset: f64,
+    /// Optional rational representation: numerator / denominator
+    /// Used for exact integer arithmetic when possible
+    pub rational: Option<(i64, i64)>,
 }
 
 impl ConversionFactor {
@@ -17,16 +21,35 @@ impl ConversionFactor {
         Self {
             multiplier,
             offset: 0.0,
+            rational: None,
+        }
+    }
+
+    /// Create a conversion factor from a rational number (exact fraction)
+    pub fn from_rational(numerator: i64, denominator: i64) -> Self {
+        Self {
+            multiplier: numerator as f64 / denominator as f64,
+            offset: 0.0,
+            rational: Some((numerator, denominator)),
         }
     }
 
     pub fn with_offset(multiplier: f64, offset: f64) -> Self {
-        Self { multiplier, offset }
+        Self {
+            multiplier,
+            offset,
+            rational: None,
+        }
     }
 
     /// Convert a value using this conversion factor
     pub fn convert(&self, value: f64) -> f64 {
         value * self.multiplier + self.offset
+    }
+
+    /// Get the rational representation if available
+    pub fn as_rational(&self) -> Option<(i64, i64)> {
+        self.rational
     }
 }
 
@@ -109,6 +132,7 @@ impl UnitLibrary {
     }
 
     /// Find and apply a multi-hop conversion path using BFS
+    /// Optimizes order of operations to preserve precision by grouping multiplications and divisions
     fn convert_via_path(&self, value: f64, from: &str, to: &str) -> Option<f64> {
         use std::collections::{VecDeque, HashSet};
 
@@ -134,13 +158,64 @@ impl UnitLibrary {
 
                 path.reverse();
 
-                // Apply conversions along the path
+                // Check if all factors have rational representations (for exact arithmetic)
+                let mut all_rational = true;
+                let mut has_offset = false;
+                let mut rational_numerators = Vec::new();
+                let mut rational_denominators = Vec::new();
+
+                for (from_unit, to_unit) in &path {
+                    if let Some(factor) = self.get_conversion(from_unit, to_unit) {
+                        // Check for offset (temperature conversions)
+                        if factor.offset != 0.0 {
+                            has_offset = true;
+                        }
+
+                        // Check if this factor has a rational representation
+                        if let Some((num, denom)) = factor.as_rational() {
+                            rational_numerators.push(num);
+                            rational_denominators.push(denom);
+                        } else {
+                            all_rational = false;
+                        }
+                    } else {
+                        return None;
+                    }
+                }
+
+                // If any conversion has an offset (temperature), fall back to sequential application
+                // because offsets don't commute with multiplication/division
+                if has_offset {
+                    let mut result = value;
+                    for (from_unit, to_unit) in path {
+                        if let Some(factor) = self.get_conversion(&from_unit, &to_unit) {
+                            result = factor.convert(result);
+                        } else {
+                            return None;
+                        }
+                    }
+                    return Some(result);
+                }
+
+                // If all factors are rational, use exact rational arithmetic
+                if all_rational {
+                    // Compute total factor as: (n1 × n2 × ...) / (d1 × d2 × ...)
+                    let total_numerator: i64 = rational_numerators.iter().product();
+                    let total_denominator: i64 = rational_denominators.iter().product();
+
+                    // Apply conversion: value × (total_numerator / total_denominator)
+                    // Do multiplication first, then division to preserve precision
+                    let result = (value * total_numerator as f64) / total_denominator as f64;
+                    return Some(result);
+                }
+
+                // Fall back to floating-point arithmetic
                 let mut result = value;
                 for (from_unit, to_unit) in path {
                     if let Some(factor) = self.get_conversion(&from_unit, &to_unit) {
                         result = factor.convert(result);
                     } else {
-                        return None; // Path exists but conversion missing (shouldn't happen)
+                        return None;
                     }
                 }
 
@@ -148,12 +223,25 @@ impl UnitLibrary {
             }
 
             // Explore neighbors (all units that current can convert to)
-            for ((conv_from, conv_to), _) in &self.conversions {
+            // Prioritize rational conversions to maintain precision
+            let mut rational_neighbors = Vec::new();
+            let mut other_neighbors = Vec::new();
+
+            for ((conv_from, conv_to), factor) in &self.conversions {
                 if conv_from == &current && !visited.contains(conv_to) {
-                    visited.insert(conv_to.clone());
-                    parent.insert(conv_to.clone(), current.clone());
-                    queue.push_back(conv_to.clone());
+                    if factor.as_rational().is_some() {
+                        rational_neighbors.push(conv_to.clone());
+                    } else {
+                        other_neighbors.push(conv_to.clone());
+                    }
                 }
+            }
+
+            // Add rational neighbors first (they'll be explored first in BFS)
+            for neighbor in rational_neighbors.iter().chain(other_neighbors.iter()) {
+                visited.insert(neighbor.clone());
+                parent.insert(neighbor.clone(), current.clone());
+                queue.push_back(neighbor.clone());
             }
         }
 
@@ -206,13 +294,15 @@ impl UnitLibrary {
         self.add_conversion("mi", "m", ConversionFactor::new(1609.34));
         self.add_conversion("m", "mi", ConversionFactor::new(0.000621371));
 
-        // Imperial to Imperial
-        self.add_conversion("ft", "in", ConversionFactor::new(12.0));
-        self.add_conversion("in", "ft", ConversionFactor::new(1.0 / 12.0));
-        self.add_conversion("yd", "ft", ConversionFactor::new(3.0));
-        self.add_conversion("ft", "yd", ConversionFactor::new(1.0 / 3.0));
-        self.add_conversion("mi", "ft", ConversionFactor::new(5280.0));
-        self.add_conversion("ft", "mi", ConversionFactor::new(1.0 / 5280.0));
+        // Imperial to Imperial (using rational numbers for exact arithmetic)
+        self.add_conversion("ft", "in", ConversionFactor::from_rational(12, 1));
+        self.add_conversion("in", "ft", ConversionFactor::from_rational(1, 12));
+        self.add_conversion("yd", "ft", ConversionFactor::from_rational(3, 1));
+        self.add_conversion("ft", "yd", ConversionFactor::from_rational(1, 3));
+        self.add_conversion("mi", "ft", ConversionFactor::from_rational(5280, 1));
+        self.add_conversion("ft", "mi", ConversionFactor::from_rational(1, 5280));
+        // Note: mi ↔ yd conversions handled via multi-hop path (mi → ft → yd)
+        // Using rational arithmetic: (value × 5280/1 × 1/3) = (value × 5280) / 3 = exact result
     }
 
     // === Mass Units ===
@@ -241,7 +331,7 @@ impl UnitLibrary {
 
         // Imperial to Imperial
         self.add_conversion("lb", "oz", ConversionFactor::new(16.0));
-        self.add_conversion("oz", "lb", ConversionFactor::new(1.0 / 16.0));
+        self.add_conversion("oz", "lb", ConversionFactor::from_rational(1, 16));
     }
 
     // === Time Units ===
@@ -613,6 +703,25 @@ mod tests {
         let temp_f = library.convert(temp_c, "C", "F").unwrap();
         let back_to_c = library.convert(temp_f, "F", "C").unwrap();
         assert!((temp_c - back_to_c).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_multi_hop_precision() {
+        let library = UnitLibrary::new();
+
+        // Test mi → yd conversion via multi-hop path (mi → ft → yd)
+        // This tests the optimized order of operations: (value × 5280) / 3
+        let mi_to_yd = library.convert(1.0, "mi", "yd").unwrap();
+        assert_eq!(mi_to_yd, 1760.0, "1 mile should equal exactly 1760 yards");
+
+        // Test the reverse: yd → mi
+        let yd_to_mi = library.convert(1760.0, "yd", "mi").unwrap();
+        assert_eq!(yd_to_mi, 1.0, "1760 yards should equal exactly 1 mile");
+
+        // Test another multi-hop: in → yd (in → ft → yd)
+        // 36 inches = 3 feet = 1 yard
+        let in_to_yd = library.convert(36.0, "in", "yd").unwrap();
+        assert_eq!(in_to_yd, 1.0, "36 inches should equal exactly 1 yard");
     }
 
     // Property-based tests for conversion commutativity
