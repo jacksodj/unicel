@@ -1,7 +1,8 @@
 // Workbook management
 
-use crate::core::table::Sheet;
+use crate::core::table::{CellAddr, Sheet};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -17,6 +18,15 @@ pub enum WorkbookError {
 
     #[error("Invalid sheet index: {0}")]
     InvalidSheetIndex(usize),
+
+    #[error("Named range already exists: {0}")]
+    NamedRangeExists(String),
+
+    #[error("Named range not found: {0}")]
+    NamedRangeNotFound(String),
+
+    #[error("Invalid name: {0}")]
+    InvalidName(String),
 }
 
 /// Display preference for units
@@ -74,6 +84,9 @@ pub struct Workbook {
     /// Workbook settings
     settings: WorkbookSettings,
 
+    /// Named cell references (name -> (sheet_index, cell_address))
+    named_ranges: HashMap<String, (usize, CellAddr)>,
+
     /// Dirty flag (has unsaved changes)
     dirty: bool,
 }
@@ -86,6 +99,7 @@ impl Workbook {
             sheets: vec![Sheet::with_name("Sheet1")],
             active_sheet: 0,
             settings: WorkbookSettings::default(),
+            named_ranges: HashMap::new(),
             dirty: false,
         };
         workbook.mark_clean(); // New workbook starts clean
@@ -242,6 +256,90 @@ impl Workbook {
     pub fn mark_clean(&mut self) {
         self.dirty = false;
     }
+
+    /// Add or update a named range
+    pub fn set_named_range(
+        &mut self,
+        name: impl Into<String>,
+        sheet_index: usize,
+        addr: CellAddr,
+    ) -> Result<(), WorkbookError> {
+        let name = name.into();
+
+        // Validate name
+        if !Self::is_valid_name(&name) {
+            return Err(WorkbookError::InvalidName(name));
+        }
+
+        // Validate sheet index
+        if sheet_index >= self.sheets.len() {
+            return Err(WorkbookError::InvalidSheetIndex(sheet_index));
+        }
+
+        self.named_ranges.insert(name, (sheet_index, addr));
+        self.mark_dirty();
+        Ok(())
+    }
+
+    /// Get a named range
+    pub fn get_named_range(&self, name: &str) -> Option<(usize, &CellAddr)> {
+        self.named_ranges.get(name).map(|(idx, addr)| (*idx, addr))
+    }
+
+    /// Remove a named range
+    pub fn remove_named_range(&mut self, name: &str) -> Result<(), WorkbookError> {
+        if self.named_ranges.remove(name).is_some() {
+            self.mark_dirty();
+            Ok(())
+        } else {
+            Err(WorkbookError::NamedRangeNotFound(name.to_string()))
+        }
+    }
+
+    /// List all named ranges
+    pub fn list_named_ranges(&self) -> Vec<(String, usize, CellAddr)> {
+        self.named_ranges
+            .iter()
+            .map(|(name, (sheet_idx, addr))| (name.clone(), *sheet_idx, addr.clone()))
+            .collect()
+    }
+
+    /// Resolve all named ranges to their current values
+    /// Returns a HashMap mapping name to (value, unit)
+    pub fn resolve_named_ranges(&self) -> HashMap<String, (f64, crate::core::units::Unit)> {
+        let mut resolved = HashMap::new();
+
+        for (name, (sheet_idx, addr)) in &self.named_ranges {
+            if let Some(sheet) = self.get_sheet(*sheet_idx) {
+                if let Some(cell) = sheet.get(addr) {
+                    if let Some(value) = cell.as_number() {
+                        resolved.insert(name.clone(), (value, cell.storage_unit().clone()));
+                    }
+                }
+            }
+        }
+
+        resolved
+    }
+
+    /// Check if a name is valid for a named range
+    /// Must start with lowercase letter or underscore, contain only alphanumerics and underscores
+    fn is_valid_name(name: &str) -> bool {
+        if name.is_empty() {
+            return false;
+        }
+
+        let mut chars = name.chars();
+        let first = chars.next().unwrap();
+
+        // Must start with lowercase letter or underscore
+        if !first.is_ascii_lowercase() && first != '_' {
+            return false;
+        }
+
+        // Rest must be alphanumeric or underscore
+        chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+    }
 }
 
 impl Default for Workbook {
@@ -393,5 +491,116 @@ mod tests {
         let retrieved = wb.active_sheet().get(&addr);
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().as_number(), Some(42.0));
+    }
+
+    #[test]
+    fn test_set_named_range() {
+        let mut wb = Workbook::new("Test");
+        let addr = CellAddr::new("A", 1);
+
+        // Set a named range
+        wb.set_named_range("revenue", 0, addr.clone()).unwrap();
+
+        // Retrieve it
+        let result = wb.get_named_range("revenue");
+        assert!(result.is_some());
+        let (sheet_idx, cell_addr) = result.unwrap();
+        assert_eq!(sheet_idx, 0);
+        assert_eq!(cell_addr, &addr);
+    }
+
+    #[test]
+    fn test_named_range_validation() {
+        let mut wb = Workbook::new("Test");
+        let addr = CellAddr::new("A", 1);
+
+        // Valid names
+        assert!(wb.set_named_range("revenue", 0, addr.clone()).is_ok());
+        assert!(wb.set_named_range("tax_rate", 0, addr.clone()).is_ok());
+        assert!(wb.set_named_range("_private", 0, addr.clone()).is_ok());
+        assert!(wb.set_named_range("value123", 0, addr.clone()).is_ok());
+
+        // Invalid names (uppercase, starts with number, etc.)
+        assert!(wb.set_named_range("Revenue", 0, addr.clone()).is_err()); // Starts with uppercase
+        assert!(wb.set_named_range("123value", 0, addr.clone()).is_err()); // Starts with number
+        assert!(wb.set_named_range("my-value", 0, addr.clone()).is_err()); // Contains hyphen
+        assert!(wb.set_named_range("", 0, addr.clone()).is_err()); // Empty
+    }
+
+    #[test]
+    fn test_remove_named_range() {
+        let mut wb = Workbook::new("Test");
+        let addr = CellAddr::new("A", 1);
+
+        wb.set_named_range("revenue", 0, addr).unwrap();
+        assert!(wb.get_named_range("revenue").is_some());
+
+        // Remove it
+        wb.remove_named_range("revenue").unwrap();
+        assert!(wb.get_named_range("revenue").is_none());
+
+        // Removing non-existent range should error
+        let result = wb.remove_named_range("nonexistent");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_list_named_ranges() {
+        let mut wb = Workbook::new("Test");
+
+        wb.set_named_range("revenue", 0, CellAddr::new("A", 1)).unwrap();
+        wb.set_named_range("cost", 0, CellAddr::new("A", 2)).unwrap();
+        wb.set_named_range("profit", 0, CellAddr::new("A", 3)).unwrap();
+
+        let ranges = wb.list_named_ranges();
+        assert_eq!(ranges.len(), 3);
+
+        // Check that all names are present
+        let names: Vec<String> = ranges.iter().map(|(name, _, _)| name.clone()).collect();
+        assert!(names.contains(&"revenue".to_string()));
+        assert!(names.contains(&"cost".to_string()));
+        assert!(names.contains(&"profit".to_string()));
+    }
+
+    #[test]
+    fn test_named_range_invalid_sheet() {
+        let mut wb = Workbook::new("Test");
+        let addr = CellAddr::new("A", 1);
+
+        // Try to set named range for non-existent sheet
+        let result = wb.set_named_range("test", 999, addr);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), WorkbookError::InvalidSheetIndex(999)));
+    }
+
+    #[test]
+    fn test_named_range_dirty_flag() {
+        let mut wb = Workbook::new("Test");
+        wb.mark_clean();
+        assert!(!wb.is_dirty());
+
+        let addr = CellAddr::new("A", 1);
+        wb.set_named_range("revenue", 0, addr).unwrap();
+        assert!(wb.is_dirty());
+
+        wb.mark_clean();
+        wb.remove_named_range("revenue").unwrap();
+        assert!(wb.is_dirty());
+    }
+
+    #[test]
+    fn test_named_range_overwrite() {
+        let mut wb = Workbook::new("Test");
+
+        wb.set_named_range("value", 0, CellAddr::new("A", 1)).unwrap();
+
+        let result = wb.get_named_range("value");
+        assert_eq!(result.unwrap().1, &CellAddr::new("A", 1));
+
+        // Overwrite with new address
+        wb.set_named_range("value", 0, CellAddr::new("B", 2)).unwrap();
+
+        let result = wb.get_named_range("value");
+        assert_eq!(result.unwrap().1, &CellAddr::new("B", 2));
     }
 }

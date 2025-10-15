@@ -41,6 +41,12 @@ export interface UnitPreferences {
   imperial_temperature: string;
 }
 
+export interface NamedRangeInfo {
+  name: string;
+  sheet_index: number;
+  cell_address: string;
+}
+
 // Tauri command wrappers
 export const tauriApi = {
   // Workbook operations
@@ -134,6 +140,23 @@ export const tauriApi = {
 
   async sheetHasData(index: number): Promise<boolean> {
     return invoke('sheet_has_data', { index });
+  },
+
+  // Named ranges
+  async listNamedRanges(): Promise<NamedRangeInfo[]> {
+    return invoke('list_named_ranges');
+  },
+
+  async createNamedRange(name: string, sheetIndex: number, cellAddress: string): Promise<void> {
+    return invoke('create_named_range', { name, sheetIndex, cellAddress });
+  },
+
+  async deleteNamedRange(name: string): Promise<void> {
+    return invoke('delete_named_range', { name });
+  },
+
+  async getNamedRange(name: string): Promise<NamedRangeInfo> {
+    return invoke('get_named_range', { name });
   },
 
   // File dialogs

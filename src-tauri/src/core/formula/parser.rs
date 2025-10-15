@@ -124,6 +124,11 @@ fn parse_expr(pair: pest::iterators::Pair<Rule>) -> Result<Expr, ParseError> {
             parse_cell_ref(cell_str)
         }
 
+        Rule::named_ref => {
+            let name = pair.as_str();
+            Ok(Expr::named_ref(name))
+        }
+
         Rule::function_call => {
             let mut pairs = pair.into_inner();
             let name = pairs.next().unwrap().as_str();
@@ -374,5 +379,68 @@ mod tests {
         // Test 2ft * $15/ft
         let expr = parse_formula("=2ft * $15").unwrap();
         assert!(matches!(expr, Expr::Multiply(_, _)));
+    }
+
+    #[test]
+    fn test_parse_named_ref() {
+        // Test lowercase named reference
+        let expr = parse_formula("revenue").unwrap();
+        match expr {
+            Expr::NamedRef { name } => {
+                assert_eq!(name, "revenue");
+            }
+            _ => panic!("Expected NamedRef, got: {:?}", expr),
+        }
+
+        // Test with underscores
+        let expr = parse_formula("tax_rate").unwrap();
+        assert!(matches!(expr, Expr::NamedRef { ref name } if name == "tax_rate"));
+
+        // Test starting with underscore
+        let expr = parse_formula("_private").unwrap();
+        assert!(matches!(expr, Expr::NamedRef { ref name } if name == "_private"));
+
+        // Test with numbers
+        let expr = parse_formula("value123").unwrap();
+        assert!(matches!(expr, Expr::NamedRef { ref name } if name == "value123"));
+    }
+
+    #[test]
+    fn test_parse_named_ref_in_expression() {
+        // Test revenue * tax_rate
+        let expr = parse_formula("=revenue * tax_rate").unwrap();
+        match expr {
+            Expr::Multiply(left, right) => {
+                assert!(matches!(*left, Expr::NamedRef { ref name } if name == "revenue"));
+                assert!(matches!(*right, Expr::NamedRef { ref name } if name == "tax_rate"));
+            }
+            _ => panic!("Expected Multiply expression"),
+        }
+    }
+
+    #[test]
+    fn test_parse_named_ref_vs_cell_ref() {
+        // Cell references should still work (uppercase + digits)
+        let expr = parse_formula("A1").unwrap();
+        assert!(matches!(expr, Expr::CellRef { .. }));
+
+        // Named refs (lowercase start) should parse as NamedRef
+        let expr = parse_formula("a1").unwrap();
+        assert!(matches!(expr, Expr::NamedRef { .. }));
+
+        // All uppercase should be cell ref
+        let expr = parse_formula("AA100").unwrap();
+        assert!(matches!(expr, Expr::CellRef { .. }));
+    }
+
+    #[test]
+    fn test_parse_function_vs_named_ref() {
+        // Function calls have parentheses
+        let expr = parse_formula("SUM(A1:A10)").unwrap();
+        assert!(matches!(expr, Expr::Function { .. }));
+
+        // Named refs don't have parentheses
+        let expr = parse_formula("sum_value").unwrap();
+        assert!(matches!(expr, Expr::NamedRef { .. }));
     }
 }

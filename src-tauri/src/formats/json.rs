@@ -64,6 +64,16 @@ pub struct WorkbookData {
 
     /// Active sheet index
     active_sheet: usize,
+
+    /// Named ranges (name -> (sheet_index, cell_address))
+    #[serde(default)]
+    named_ranges: HashMap<String, NamedRangeData>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NamedRangeData {
+    sheet_index: usize,
+    cell_address: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -171,11 +181,27 @@ impl WorkbookData {
             .map(SheetData::from_sheet)
             .collect();
 
+        // Serialize named ranges
+        let named_ranges: HashMap<String, NamedRangeData> = workbook
+            .list_named_ranges()
+            .into_iter()
+            .map(|(name, sheet_index, addr)| {
+                (
+                    name,
+                    NamedRangeData {
+                        sheet_index,
+                        cell_address: addr.to_string(),
+                    },
+                )
+            })
+            .collect();
+
         Self {
             name: workbook.name().to_string(),
             settings: WorkbookSettingsData::from_settings(workbook.settings()),
             sheets,
             active_sheet: workbook.active_sheet_index(),
+            named_ranges,
         }
     }
 
@@ -214,6 +240,13 @@ impl WorkbookData {
         workbook.set_display_preference(self.settings.to_display_preference());
         workbook.settings_mut().auto_recalculate = self.settings.auto_recalculate;
         workbook.settings_mut().show_warnings = self.settings.show_warnings;
+
+        // Restore named ranges
+        for (name, range_data) in &self.named_ranges {
+            if let Ok(addr) = CellAddr::from_string(&range_data.cell_address) {
+                workbook.set_named_range(name, range_data.sheet_index, addr).ok();
+            }
+        }
 
         workbook.mark_clean();
 
@@ -503,5 +536,64 @@ mod tests {
         assert_eq!(workbook2.get_sheet(0).unwrap().name(), "Sheet1");
         assert_eq!(workbook2.get_sheet(1).unwrap().name(), "Sheet2");
         assert_eq!(workbook2.get_sheet(2).unwrap().name(), "Sheet3");
+    }
+
+    #[test]
+    fn test_named_ranges_serialization() {
+        let mut workbook = Workbook::new("Test");
+
+        // Add some cells
+        workbook
+            .active_sheet_mut()
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(100.0, Unit::simple("USD", BaseDimension::Currency)),
+            )
+            .unwrap();
+
+        workbook
+            .active_sheet_mut()
+            .set(
+                CellAddr::new("B", 1),
+                Cell::new(0.15, Unit::dimensionless()),
+            )
+            .unwrap();
+
+        // Add named ranges
+        workbook
+            .set_named_range("revenue", 0, CellAddr::new("A", 1))
+            .unwrap();
+        workbook
+            .set_named_range("tax_rate", 0, CellAddr::new("B", 1))
+            .unwrap();
+
+        // Serialize
+        let file = WorkbookFile::from_workbook(&workbook);
+        let json = file.to_json().unwrap();
+
+        // Verify JSON contains named ranges
+        assert!(json.contains("named_ranges"));
+        assert!(json.contains("revenue"));
+        assert!(json.contains("tax_rate"));
+
+        // Deserialize
+        let file2 = WorkbookFile::from_json(&json).unwrap();
+        let workbook2 = file2.to_workbook().unwrap();
+
+        // Verify named ranges are restored
+        let ranges = workbook2.list_named_ranges();
+        assert_eq!(ranges.len(), 2);
+
+        let revenue_range = workbook2.get_named_range("revenue");
+        assert!(revenue_range.is_some());
+        let (sheet_idx, addr) = revenue_range.unwrap();
+        assert_eq!(sheet_idx, 0);
+        assert_eq!(addr.to_string(), "A1");
+
+        let tax_rate_range = workbook2.get_named_range("tax_rate");
+        assert!(tax_rate_range.is_some());
+        let (sheet_idx, addr) = tax_rate_range.unwrap();
+        assert_eq!(sheet_idx, 0);
+        assert_eq!(addr.to_string(), "B1");
     }
 }

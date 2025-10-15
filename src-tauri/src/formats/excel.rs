@@ -490,13 +490,39 @@ pub fn export_to_excel(
             let row = idx + 1; // +1 because row 0 is the header
             let cell_ref = format!("=Conversions!$B${}", row + 1); // +1 for Excel 1-based indexing
             xlsx_workbook.define_name(name, &cell_ref)?;
-            tracing::debug!("Defined named range: {} -> {}", name, cell_ref);
+            tracing::debug!("Defined conversion named range: {} -> {}", name, cell_ref);
         }
     }
 
-    // Add metadata sheet at the end
-    if !metadata_rows.is_empty() {
-        let metadata_sheet = create_metadata_sheet(metadata_rows)?;
+    // Export user-defined named ranges from the workbook
+    let named_ranges = workbook.list_named_ranges();
+    for (name, sheet_index, addr) in &named_ranges {
+        // Get the sheet name for the named range
+        if let Some(sheet) = workbook.get_sheet(*sheet_index) {
+            // Convert column letter to number and double it (for value/unit layout)
+            let col_num = column_letter_to_number(&addr.col) * 2;
+            let excel_col = number_to_column_letter(col_num);
+
+            // Excel uses 1-based row indexing
+            let excel_row = addr.row;
+
+            // Create the reference in Excel format
+            // If sheet name contains spaces or special chars, wrap in single quotes
+            let cell_ref = if sheet.name().contains(' ') || sheet.name().contains('!') {
+                format!("='{}'!${}${}", sheet.name(), excel_col, excel_row)
+            } else {
+                format!("={}!${}${}", sheet.name(), excel_col, excel_row)
+            };
+
+            // Define the named range in Excel
+            xlsx_workbook.define_name(name, &cell_ref)?;
+            tracing::debug!("Defined user named range: {} -> {}", name, cell_ref);
+        }
+    }
+
+    // Add metadata sheet at the end (include named ranges info)
+    if !metadata_rows.is_empty() || !named_ranges.is_empty() {
+        let metadata_sheet = create_metadata_sheet(metadata_rows, named_ranges)?;
         xlsx_workbook.push_worksheet(metadata_sheet);
     }
 
@@ -574,14 +600,20 @@ fn create_warning_sheet() -> Result<Worksheet, ExcelError> {
     sheet.write_string(15, 0, "   - Formulas reference these cells (e.g., =A1*Conversions!$B$2)")?;
     sheet.write_string(16, 0, "   - You can edit conversion factors and formulas will update")?;
 
-    sheet.write_string_with_format(18, 0, "4. See the \"Unit Metadata\" sheet for original unit information", &bold_format)?;
-    sheet.write_string(19, 0, "   - Lists which cells had units and what those units were")?;
-    sheet.write_string(20, 0, "   - Shows original formulas for formula cells")?;
+    sheet.write_string_with_format(18, 0, "4. Named ranges are exported to Excel", &bold_format)?;
+    sheet.write_string(19, 0, "   - User-defined named ranges (like 'revenue', 'tax_rate') are preserved")?;
+    sheet.write_string(20, 0, "   - You can use these names in Excel formulas (e.g., =revenue * tax_rate)")?;
+    sheet.write_string(21, 0, "   - See \"Unit Metadata\" sheet for the complete list")?;
 
-    sheet.write_string(22, 0, "⚠️ WARNING: Changes made in Excel cannot be imported back to Unicel")?;
-    sheet.write_string(23, 0, "This is a ONE-WAY export for sharing data only.")?;
+    sheet.write_string_with_format(23, 0, "5. See the \"Unit Metadata\" sheet for original unit and name information", &bold_format)?;
+    sheet.write_string(24, 0, "   - Lists which cells had units and what those units were")?;
+    sheet.write_string(25, 0, "   - Shows original formulas for formula cells")?;
+    sheet.write_string(26, 0, "   - Documents all named ranges and their cell references")?;
 
-    sheet.write_string_with_format(25, 0, "To preserve full unit information, use Unicel's native .usheet format.", &bold_format)?;
+    sheet.write_string(28, 0, "⚠️ WARNING: Changes made in Excel cannot be imported back to Unicel")?;
+    sheet.write_string(29, 0, "This is a ONE-WAY export for sharing data only.")?;
+
+    sheet.write_string_with_format(31, 0, "To preserve full unit information, use Unicel's native .usheet format.", &bold_format)?;
 
     // Set column width
     sheet.set_column_width(0, 80)?;
@@ -589,33 +621,78 @@ fn create_warning_sheet() -> Result<Worksheet, ExcelError> {
     Ok(sheet)
 }
 
-/// Create a metadata sheet documenting which cells have units
-fn create_metadata_sheet(rows: Vec<(String, String, String, String)>) -> Result<Worksheet, ExcelError> {
+/// Create a metadata sheet documenting which cells have units and named ranges
+fn create_metadata_sheet(
+    rows: Vec<(String, String, String, String)>,
+    named_ranges: Vec<(String, usize, crate::core::table::CellAddr)>,
+) -> Result<Worksheet, ExcelError> {
     let mut sheet = Worksheet::new();
     sheet.set_name("Unit Metadata")?;
 
     let header_format = Format::new().set_bold().set_background_color(rust_xlsxwriter::Color::RGB(0xD3D3D3));
 
-    // Headers
-    sheet.write_string_with_format(0, 0, "Sheet", &header_format)?;
-    sheet.write_string_with_format(0, 1, "Cell", &header_format)?;
-    sheet.write_string_with_format(0, 2, "Type", &header_format)?;
-    sheet.write_string_with_format(0, 3, "Unit", &header_format)?;
+    let section_header_format = Format::new()
+        .set_bold()
+        .set_font_size(14)
+        .set_background_color(rust_xlsxwriter::Color::RGB(0x4CAF50))
+        .set_font_color(rust_xlsxwriter::Color::White);
 
-    // Data rows
-    for (idx, (sheet_name, cell_ref, cell_type, unit)) in rows.iter().enumerate() {
-        let row = (idx + 1) as u32;
-        sheet.write_string(row, 0, sheet_name)?;
-        sheet.write_string(row, 1, cell_ref)?;
-        sheet.write_string(row, 2, cell_type)?;
-        sheet.write_string(row, 3, unit)?;
+    let mut current_row = 0u32;
+
+    // Section 1: Unit Information
+    if !rows.is_empty() {
+        sheet.write_string_with_format(current_row, 0, "Unit Information", &section_header_format)?;
+        current_row += 1;
+
+        // Headers
+        sheet.write_string_with_format(current_row, 0, "Sheet", &header_format)?;
+        sheet.write_string_with_format(current_row, 1, "Cell", &header_format)?;
+        sheet.write_string_with_format(current_row, 2, "Type", &header_format)?;
+        sheet.write_string_with_format(current_row, 3, "Unit", &header_format)?;
+        current_row += 1;
+
+        // Data rows
+        for (sheet_name, cell_ref, cell_type, unit) in rows.iter() {
+            sheet.write_string(current_row, 0, sheet_name)?;
+            sheet.write_string(current_row, 1, cell_ref)?;
+            sheet.write_string(current_row, 2, cell_type)?;
+            sheet.write_string(current_row, 3, unit)?;
+            current_row += 1;
+        }
+
+        current_row += 1; // Blank row
+    }
+
+    // Section 2: Named Ranges
+    if !named_ranges.is_empty() {
+        sheet.write_string_with_format(current_row, 0, "Named Ranges", &section_header_format)?;
+        current_row += 1;
+
+        // Headers
+        sheet.write_string_with_format(current_row, 0, "Name", &header_format)?;
+        sheet.write_string_with_format(current_row, 1, "Refers To", &header_format)?;
+        sheet.write_string_with_format(current_row, 2, "Excel Formula", &header_format)?;
+        current_row += 1;
+
+        // Data rows
+        for (name, _sheet_index, addr) in named_ranges.iter() {
+            let unicel_ref = format!("{}", addr);
+            let col_num = column_letter_to_number(&addr.col) * 2;
+            let excel_col = number_to_column_letter(col_num);
+            let excel_ref = format!("{}{}", excel_col, addr.row);
+
+            sheet.write_string(current_row, 0, name)?;
+            sheet.write_string(current_row, 1, &unicel_ref)?;
+            sheet.write_string(current_row, 2, &excel_ref)?;
+            current_row += 1;
+        }
     }
 
     // Set column widths
     sheet.set_column_width(0, 20)?;
-    sheet.set_column_width(1, 10)?;
+    sheet.set_column_width(1, 15)?;
     sheet.set_column_width(2, 30)?;
-    sheet.set_column_width(3, 15)?;
+    sheet.set_column_width(3, 20)?;
 
     Ok(sheet)
 }

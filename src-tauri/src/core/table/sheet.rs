@@ -358,12 +358,22 @@ impl Sheet {
 
     /// Evaluate a formula in the context of this sheet
     pub fn evaluate_formula(&self, formula: &str) -> Result<(f64, crate::core::units::Unit), SheetError> {
+        self.evaluate_formula_with_named_refs(formula, None)
+    }
+
+    /// Evaluate a formula with named range context
+    pub fn evaluate_formula_with_named_refs(
+        &self,
+        formula: &str,
+        named_refs: Option<&HashMap<String, (f64, crate::core::units::Unit)>>,
+    ) -> Result<(f64, crate::core::units::Unit), SheetError> {
         let expr = parse_formula(formula)
             .map_err(|e| SheetError::ParseError(e.to_string()))?;
 
         let evaluator = SheetEvaluator {
             sheet: self,
             library: &self.library,
+            named_refs,
         };
 
         let result = evaluator.eval(&expr)?;
@@ -372,12 +382,21 @@ impl Sheet {
 
     /// Recalculate cells that depend on changed cells
     pub fn recalculate(&mut self, changed: &[CellAddr]) -> Result<(), SheetError> {
+        self.recalculate_with_named_refs(changed, None)
+    }
+
+    /// Recalculate cells with named range context
+    pub fn recalculate_with_named_refs(
+        &mut self,
+        changed: &[CellAddr],
+        named_refs: Option<&HashMap<String, (f64, crate::core::units::Unit)>>,
+    ) -> Result<(), SheetError> {
         let order = self.dependencies.calculation_order(changed);
 
         for addr in order {
             if let Some(cell) = self.cells.get(&addr).cloned() {
                 if let Some(formula) = cell.formula() {
-                    match self.evaluate_formula(formula) {
+                    match self.evaluate_formula_with_named_refs(formula, named_refs) {
                         Ok((value, unit)) => {
                             let mut updated_cell = cell;
                             updated_cell.set_value(CellValue::Number(value));
@@ -440,6 +459,7 @@ fn extract_cell_refs_recursive(expr: &Expr, refs: &mut HashSet<CellAddr>) {
 struct SheetEvaluator<'a> {
     sheet: &'a Sheet,
     library: &'a UnitLibrary,
+    named_refs: Option<&'a HashMap<String, (f64, crate::core::units::Unit)>>,
 }
 
 impl<'a> SheetEvaluator<'a> {
@@ -470,6 +490,19 @@ impl<'a> SheetEvaluator<'a> {
                     value,
                     cell.storage_unit().clone(),
                 ))
+            }
+
+            Expr::NamedRef { name } => {
+                // Look up named reference in the provided HashMap
+                if let Some(named_refs) = self.named_refs {
+                    if let Some((value, unit)) = named_refs.get(name) {
+                        Ok(EvalResult::new(*value, unit.clone()))
+                    } else {
+                        Err(EvalError::NamedRefNotFound(format!("Named reference '{}' not found", name)))
+                    }
+                } else {
+                    Err(EvalError::NamedRefNotFound(format!("Named reference '{}' requires workbook context", name)))
+                }
             }
 
             Expr::Add(left, right) => {

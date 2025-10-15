@@ -20,6 +20,11 @@ pub enum Expr {
         row: usize,
     },
 
+    /// A named cell/range reference (e.g., revenue, tax_rate)
+    NamedRef {
+        name: String,
+    },
+
     /// A cell range (e.g., A1:B10)
     Range {
         start: Box<Expr>,
@@ -67,6 +72,13 @@ impl Expr {
         Self::CellRef {
             col: col.into(),
             row,
+        }
+    }
+
+    /// Create a named reference
+    pub fn named_ref(name: impl Into<String>) -> Self {
+        Self::NamedRef {
+            name: name.into(),
         }
     }
 
@@ -118,6 +130,7 @@ impl std::fmt::Display for Expr {
             Expr::Number(n) => write!(f, "{}", n),
             Expr::NumberWithUnit { value, unit } => write!(f, "{}{}", value, unit),
             Expr::CellRef { col, row } => write!(f, "{}{}", col, row),
+            Expr::NamedRef { name } => write!(f, "{}", name),
             Expr::Range { start, end } => write!(f, "{}:{}", start, end),
             Expr::Add(l, r) => write!(f, "({} + {})", l, r),
             Expr::Subtract(l, r) => write!(f, "({} - {})", l, r),

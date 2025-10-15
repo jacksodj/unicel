@@ -6,6 +6,7 @@ import { ToastContainer } from './Toast';
 import { LoadingOverlay } from './LoadingSpinner';
 import UnitPreferencesDialog from './UnitPreferencesDialog';
 import ExamplePickerDialog from './ExamplePickerDialog';
+import NamedRangesDialog from './NamedRangesDialog';
 import { Cell, CellAddress, getCellAddress } from '../types/workbook';
 import { tauriApi, convertCellData } from '../api/tauri';
 
@@ -71,6 +72,7 @@ export default function Spreadsheet() {
   const [workbookName, setWorkbookName] = useState('Untitled');
   const [showPreferences, setShowPreferences] = useState(false);
   const [showExamplePicker, setShowExamplePicker] = useState(false);
+  const [showNamedRanges, setShowNamedRanges] = useState(false);
   const [sheetNames, setSheetNames] = useState<string[]>(['Sheet1']);
   const [activeSheetIndex, setActiveSheetIndex] = useState(0);
   const [renamingSheetIndex, setRenamingSheetIndex] = useState<number | null>(null);
@@ -355,6 +357,14 @@ export default function Spreadsheet() {
     setShowExamplePicker(false);
   };
 
+  const handleOpenNamedRanges = () => {
+    setShowNamedRanges(true);
+  };
+
+  const handleCloseNamedRanges = () => {
+    setShowNamedRanges(false);
+  };
+
   const handleSelectExample = async (filename: string) => {
     try {
       const examplePath = await tauriApi.getExampleWorkbookPath(filename);
@@ -493,6 +503,11 @@ export default function Spreadsheet() {
         onClose={handleCloseExamplePicker}
         onSelectExample={handleSelectExample}
       />
+      <NamedRangesDialog
+        isOpen={showNamedRanges}
+        onClose={handleCloseNamedRanges}
+        currentSheetIndex={activeSheetIndex}
+      />
       <div className="h-screen w-screen flex flex-col bg-white">
       {/* Title bar */}
       <div className="bg-gray-800 text-white px-4 py-2">
@@ -511,6 +526,7 @@ export default function Spreadsheet() {
         onSave={handleSave}
         onSaveAs={handleSaveAs}
         onOpenPreferences={handleOpenPreferences}
+        onOpenNamedRanges={handleOpenNamedRanges}
         onDebugExport={handleDebugExport}
         onExportExcel={handleExportExcel}
         onOpenExampleDialog={handleOpenExampleDialog}

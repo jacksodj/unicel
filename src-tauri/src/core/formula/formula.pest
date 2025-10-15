@@ -21,6 +21,7 @@ primary = _{
     "(" ~ expr ~ ")" |
     function_call |
     cell_ref |
+    named_ref |
     currency_with_number |
     number_with_unit |
     number
@@ -42,9 +43,15 @@ unit = @{ simple_unit ~ ("/" ~ simple_unit | "*" ~ simple_unit)? }
 simple_unit = @{ (ASCII_ALPHA | "$")+ }
 
 // Cell reference (e.g., A1, B12, AA100)
+// Must be all uppercase letters followed by digits to distinguish from named refs
 cell_ref = @{ col_ref ~ row_ref }
-col_ref = @{ ASCII_ALPHA+ }
+col_ref = @{ ASCII_ALPHA_UPPER+ }
 row_ref = @{ ASCII_DIGIT+ }
+
+// Named reference (e.g., revenue, tax_rate, conversion_usd_to_eur)
+// Must start with lowercase letter or underscore to distinguish from cell refs
+// Can contain letters, numbers, underscores
+named_ref = @{ (ASCII_ALPHA_LOWER | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
 // Function call (e.g., SUM(A1:A10))
 function_call = { function_name ~ "(" ~ arg_list? ~ ")" }

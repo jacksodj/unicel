@@ -3,7 +3,7 @@
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tauri::{Manager, State};
-use unicel_lib::commands::{AppState, CellData, WorkbookInfo};
+use unicel_lib::commands::{AppState, CellData, WorkbookInfo, NamedRangeInfo};
 use unicel_lib::core::settings::UnitPreferences;
 
 // Tauri command definitions (must be in binary crate for macro to work)
@@ -154,6 +154,31 @@ fn sheet_has_data(state: State<AppState>, index: usize) -> Result<bool, String> 
     unicel_lib::commands::sheet_has_data_impl(&state, index)
 }
 
+#[tauri::command]
+fn list_named_ranges(state: State<AppState>) -> Result<Vec<NamedRangeInfo>, String> {
+    unicel_lib::commands::list_named_ranges_impl(&state)
+}
+
+#[tauri::command]
+fn create_named_range(
+    state: State<AppState>,
+    name: String,
+    sheet_index: usize,
+    cell_address: String,
+) -> Result<(), String> {
+    unicel_lib::commands::create_named_range_impl(&state, name, sheet_index, cell_address)
+}
+
+#[tauri::command]
+fn delete_named_range(state: State<AppState>, name: String) -> Result<(), String> {
+    unicel_lib::commands::delete_named_range_impl(&state, name)
+}
+
+#[tauri::command]
+fn get_named_range(state: State<AppState>, name: String) -> Result<NamedRangeInfo, String> {
+    unicel_lib::commands::get_named_range_impl(&state, name)
+}
+
 fn main() {
     // Initialize logging
     tracing_subscriber::registry()
@@ -193,6 +218,10 @@ fn main() {
             rename_sheet,
             delete_sheet,
             sheet_has_data,
+            list_named_ranges,
+            create_named_range,
+            delete_named_range,
+            get_named_range,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

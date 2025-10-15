@@ -1,3 +1,63 @@
+# Unicel v0.1.6 - Named Ranges Release
+
+**Release Date:** 2025-10-14
+
+This release adds Named Ranges functionality, allowing you to assign memorable names to cells and reference them in formulas.
+
+## New Features
+
+### Named Ranges (Named Cells)
+
+You can now create user-defined names for cells and use them in formulas:
+
+**Inline Label Syntax:**
+```
+tax_rate: 0.15          # Creates named range "tax_rate" with value 0.15
+price: $100             # Creates named range "price" with value $100
+total:= A1+A2          # Creates named range "total" with formula =A1+A2
+```
+
+**Formula References:**
+```
+A1: price: $100
+A2: tax_rate: 0.15
+A3: =price * tax_rate   # Result: $15
+```
+
+**Key Features:**
+- User-friendly names for cells (e.g., `revenue`, `tax_rate`, `conversion_usd_to_eur`)
+- Two inline syntaxes: `name: value` and `name:= formula`
+- Reference named ranges in formulas instead of cell addresses
+- Full serialization - named ranges persist in `.usheet` files
+- Excel export support - named ranges exported to Excel workbooks
+- Validation: names must start with lowercase letter or underscore, no conflicts
+- UI: New "Named Ranges" button (🏷️) in ribbon opens management dialog
+- Management dialog shows all named ranges with sheet names and addresses
+- Delete functionality with confirmation dialog
+
+**Benefits:**
+- More readable formulas: `=revenue * tax_rate` vs `=A1 * B2`
+- Self-documenting spreadsheets
+- Easier maintenance when cell positions change
+- Ideal for constants, assumptions, and key metrics
+
+## Bug Fixes
+
+- Fixed formula evaluation for named references - they now properly resolve in workbook context
+- All 206 tests passing
+
+## Technical Changes
+
+- Modified `SheetEvaluator` to accept optional named ranges HashMap
+- Added `resolve_named_ranges()` method to Workbook
+- Added `evaluate_formula_with_named_refs()` and `recalculate_with_named_refs()` methods to Sheet
+- Updated all recalculation call sites to resolve named ranges before evaluation
+- Added Tauri commands: `list_named_ranges`, `create_named_range`, `delete_named_range`, `get_named_range`
+- Added NamedRangesDialog React component
+- Integrated Named Ranges button in Ribbon component
+
+---
+
 # Unicel v0.1.0 - MVP Release
 
 **Release Date:** 2025-10-14

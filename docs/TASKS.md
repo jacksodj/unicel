@@ -274,17 +274,25 @@
     - Show which units are currently set as preferred
     - Allow quick conversion tests by clicking units
 
+### Recent Additions (v0.1.6 - 2025-10-14)
+- [x] **Named Cells / Named Ranges** - Completed ✅
+  - Backend implementation complete with all features:
+    - User-defined names for cells (e.g., `revenue`, `tax_rate`, `conversion_usd_to_eur`)
+    - Inline label syntax: `tax_rate: 0.15` or `total:= A1+A2`
+    - Formula support: `=revenue * tax_rate` instead of `=A1 * B2`
+    - Full serialization (persists in .usheet files)
+    - Excel export support (named ranges exported to Excel)
+    - Validation (lowercase start, no conflicts)
+    - 206 tests passing
+  - Tauri commands: list_named_ranges, create_named_range, delete_named_range, get_named_range
+  - UI implementation complete:
+    - NamedRangesDialog component with full CRUD functionality
+    - Ribbon button integration (🏷️ Named Ranges)
+    - Real-time list with sheet names and cell addresses
+    - Delete functionality with confirmation
+    - Formula evaluation fix: named references now resolve in workbook context
+
 ### Advanced Features
-- **Named Cells / Named Ranges** (High priority)
-  - Allow cells to have user-defined names instead of just A1, B2, etc.
-  - Examples: `revenue`, `tax_rate`, `conversion_usd_to_eur`
-  - Use in formulas: `=revenue * tax_rate` instead of `=A1 * B2`
-  - Benefits:
-    - Self-documenting formulas
-    - Easier to understand complex calculations
-    - Excel compatibility (import/export named ranges)
-    - Better for conversion factors and constants
-  - UI: Right-click cell → "Name Cell" or dedicated name box in formula bar
 
 - **Support arbitrary units/dimensions with conversion tables (stocks)** (High priority)
   - Allow custom units with no intrinsic dimension (e.g., AAPL shares, MSFT shares)

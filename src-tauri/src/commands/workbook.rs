@@ -481,11 +481,31 @@ pub fn set_cell_impl(
     address: String,
     value: String,
 ) -> Result<CellData, String> {
+    use crate::core::cell_input::{parse_cell_input as parse_label_input, CellInput};
+
     let mut workbook_guard = state.workbook.lock().unwrap();
     let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
 
     let addr = CellAddr::from_string(&address).map_err(|e| e.to_string())?;
-    let cell = parse_cell_input(&value)?;
+    let active_sheet_idx = workbook.active_sheet_index();
+
+    // Parse input to check for inline label definition
+    let parsed_input = parse_label_input(&value).map_err(|e| e.to_string())?;
+
+    let cell = match parsed_input {
+        CellInput::Plain(content) => {
+            // No label, parse normally
+            parse_cell_input(&content)?
+        }
+        CellInput::Labeled { label, content, .. } => {
+            // Has label, register it as named range
+            workbook.set_named_range(&label, active_sheet_idx, addr.clone())
+                .map_err(|e| e.to_string())?;
+
+            // Parse the content
+            parse_cell_input(&content)?
+        }
+    };
 
     // Set the cell
     workbook
@@ -493,11 +513,14 @@ pub fn set_cell_impl(
         .set(addr.clone(), cell.clone())
         .map_err(|e| e.to_string())?;
 
+    // Resolve all named ranges to their current values
+    let named_refs = workbook.resolve_named_ranges();
+
     // Always recalculate dependent cells when ANY cell changes
     // This ensures formulas that reference this cell get updated
     workbook
         .active_sheet_mut()
-        .recalculate(&[addr.clone()])
+        .recalculate_with_named_refs(&[addr.clone()], Some(&named_refs))
         .map_err(|e| e.to_string())?;
 
     // Return the updated cell (which may have been evaluated)
@@ -552,9 +575,11 @@ pub fn load_workbook_impl(state: &AppState, path: String) -> Result<(), String> 
             .collect();
 
         if !changed_cells.is_empty() {
+            // Resolve named ranges before recalculation
+            let named_refs = workbook.resolve_named_ranges();
             workbook
                 .active_sheet_mut()
-                .recalculate(&changed_cells)
+                .recalculate_with_named_refs(&changed_cells, Some(&named_refs))
                 .map_err(|e| e.to_string())?;
         }
     }
@@ -1033,9 +1058,11 @@ pub fn set_active_sheet_impl(state: &AppState, index: usize) -> Result<(), Strin
         .collect();
 
     if !changed_cells.is_empty() {
+        // Resolve named ranges before recalculation
+        let named_refs = workbook.resolve_named_ranges();
         workbook
             .active_sheet_mut()
-            .recalculate(&changed_cells)
+            .recalculate_with_named_refs(&changed_cells, Some(&named_refs))
             .map_err(|e| e.to_string())?;
     }
 
@@ -1078,4 +1105,79 @@ pub fn sheet_has_data_impl(state: &AppState, index: usize) -> Result<bool, Strin
     let has_data = !sheet.cell_addresses().is_empty();
 
     Ok(has_data)
+}
+
+// Named range commands
+
+/// Data structure for named range information
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NamedRangeInfo {
+    pub name: String,
+    pub sheet_index: usize,
+    pub cell_address: String,
+}
+
+/// List all named ranges in the workbook
+pub fn list_named_ranges_impl(state: &AppState) -> Result<Vec<NamedRangeInfo>, String> {
+    let workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_ref().ok_or("No workbook loaded")?;
+
+    let ranges = workbook
+        .list_named_ranges()
+        .into_iter()
+        .map(|(name, sheet_index, addr)| NamedRangeInfo {
+            name,
+            sheet_index,
+            cell_address: addr.to_string(),
+        })
+        .collect();
+
+    Ok(ranges)
+}
+
+/// Create a named range
+pub fn create_named_range_impl(
+    state: &AppState,
+    name: String,
+    sheet_index: usize,
+    cell_address: String,
+) -> Result<(), String> {
+    let mut workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
+
+    let addr = CellAddr::from_string(&cell_address).map_err(|e| e.to_string())?;
+
+    workbook
+        .set_named_range(&name, sheet_index, addr)
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// Delete a named range
+pub fn delete_named_range_impl(state: &AppState, name: String) -> Result<(), String> {
+    let mut workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
+
+    workbook
+        .remove_named_range(&name)
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+/// Get information about a specific named range
+pub fn get_named_range_impl(state: &AppState, name: String) -> Result<NamedRangeInfo, String> {
+    let workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_ref().ok_or("No workbook loaded")?;
+
+    let (sheet_index, addr) = workbook
+        .get_named_range(&name)
+        .ok_or_else(|| format!("Named range not found: {}", name))?;
+
+    Ok(NamedRangeInfo {
+        name,
+        sheet_index,
+        cell_address: addr.to_string(),
+    })
 }

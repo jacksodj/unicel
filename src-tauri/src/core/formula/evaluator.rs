@@ -20,6 +20,9 @@ pub enum EvalError {
     #[error("Cell reference not found: {0}")]
     CellNotFound(String),
 
+    #[error("Named reference not found: {0}")]
+    NamedRefNotFound(String),
+
     #[error("Unknown unit: {0}")]
     UnknownUnit(String),
 
@@ -92,6 +95,10 @@ impl<'a> Evaluator<'a> {
 
             Expr::CellRef { .. } => {
                 Err(EvalError::CellNotFound("Cell references not supported in standalone evaluation".to_string()))
+            }
+
+            Expr::NamedRef { name } => {
+                Err(EvalError::NamedRefNotFound(format!("Named reference '{}' not supported in standalone evaluation", name)))
             }
 
             Expr::Range { .. } => {
