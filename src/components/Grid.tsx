@@ -28,11 +28,17 @@ export default function Grid({
 }: GridProps) {
   const [isFormulaMode, setIsFormulaMode] = useState(false);
   const [pickerCell, setPickerCell] = useState<CellAddress | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [initialEditValue, setInitialEditValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Focus and select input when editing starts (but not on every value change)
   useEffect(() => {
     if (editingCell) {
+      // Reset dirty state and save initial value when entering edit mode
+      setIsDirty(false);
+      setInitialEditValue(editValue);
+
       // Focus after a brief delay to ensure input is rendered
       setTimeout(() => {
         if (inputRef.current) {
@@ -42,6 +48,13 @@ export default function Grid({
       }, 0);
     }
   }, [editingCell]); // Only depend on editingCell, not editValue
+
+  // Track if the cell has been modified
+  useEffect(() => {
+    if (editingCell && editValue !== initialEditValue) {
+      setIsDirty(true);
+    }
+  }, [editValue, initialEditValue, editingCell]);
 
   // Update formula mode when edit value changes
   useEffect(() => {
@@ -193,33 +206,84 @@ export default function Grid({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, col: string, row: number) => {
-    // Handle formula mode with cell picker
-    if (isFormulaMode && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    // Handle Tab and Shift+Tab for horizontal navigation
+    if (e.key === 'Tab') {
       e.preventDefault();
 
-      // Initialize picker on first arrow key press (start from current cell)
-      if (!pickerCell) {
-        // Start picker at current editing cell
-        setPickerCell({ col, row });
-        return; // Don't move on first press, just initialize
-      }
+      if (!isDirty && onCellEdit && onCellDoubleClick) {
+        // If cell is not dirty, move to next/previous cell and enter edit mode
+        const currentColNum = colLetterToNumber(col);
+        const newColNum = e.shiftKey
+          ? Math.max(1, currentColNum - 1)
+          : Math.min(colCount, currentColNum + 1);
+        const newCol = colNumberToLetter(newColNum);
 
-      // Move picker
-      switch (e.key) {
-        case 'ArrowUp':
-          movePicker(0, -1);
-          break;
-        case 'ArrowDown':
-          movePicker(0, 1);
-          break;
-        case 'ArrowLeft':
-          movePicker(-1, 0);
-          break;
-        case 'ArrowRight':
-          movePicker(1, 0);
-          break;
+        // Save current cell (even though it's not modified) and move
+        onCellEdit({ col, row }, editValue);
+        setTimeout(() => onCellDoubleClick({ col: newCol, row }), 50);
       }
       return;
+    }
+
+    // Handle arrow keys for unmodified cells or formula mode
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      // Handle formula mode with cell picker
+      if (isFormulaMode) {
+        e.preventDefault();
+
+        // Initialize picker on first arrow key press (start from current cell)
+        if (!pickerCell) {
+          // Start picker at current editing cell
+          setPickerCell({ col, row });
+          return; // Don't move on first press, just initialize
+        }
+
+        // Move picker
+        switch (e.key) {
+          case 'ArrowUp':
+            movePicker(0, -1);
+            break;
+          case 'ArrowDown':
+            movePicker(0, 1);
+            break;
+          case 'ArrowLeft':
+            movePicker(-1, 0);
+            break;
+          case 'ArrowRight':
+            movePicker(1, 0);
+            break;
+        }
+        return;
+      }
+
+      // If cell is not dirty and not in formula mode, move to adjacent cell
+      if (!isDirty && onCellEdit && onCellDoubleClick) {
+        e.preventDefault();
+
+        const currentColNum = colLetterToNumber(col);
+        let newCol = col;
+        let newRow = row;
+
+        switch (e.key) {
+          case 'ArrowUp':
+            newRow = Math.max(1, row - 1);
+            break;
+          case 'ArrowDown':
+            newRow = Math.min(rowCount, row + 1);
+            break;
+          case 'ArrowLeft':
+            newCol = colNumberToLetter(Math.max(1, currentColNum - 1));
+            break;
+          case 'ArrowRight':
+            newCol = colNumberToLetter(Math.min(colCount, currentColNum + 1));
+            break;
+        }
+
+        // Save current cell (even though it's not modified) and move
+        onCellEdit({ col, row }, editValue);
+        setTimeout(() => onCellDoubleClick({ col: newCol, row: newRow }), 50);
+        return;
+      }
     }
 
     // In formula mode with picker active, math operators insert cell reference + operator

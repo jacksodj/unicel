@@ -466,7 +466,15 @@ export default function Spreadsheet() {
       // Check for Ctrl/Cmd key combinations
       const isMod = e.metaKey || e.ctrlKey;
 
-      if (isMod && e.key === 's') {
+      if (isMod && e.key === 'Tab') {
+        // Ctrl+Tab (or Cmd+Tab on Mac) cycles through sheet tabs
+        e.preventDefault();
+        if (sheetNames.length > 1) {
+          const direction = e.shiftKey ? -1 : 1;
+          const newIndex = (activeSheetIndex + direction + sheetNames.length) % sheetNames.length;
+          handleSheetChange(newIndex);
+        }
+      } else if (isMod && e.key === 's') {
         e.preventDefault();
         handleSave();
       } else if (isMod && e.shiftKey && e.key === 'S') {
@@ -487,7 +495,7 @@ export default function Spreadsheet() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isDirty, selectedCell, editingCell]);
+  }, [isDirty, selectedCell, editingCell, sheetNames.length, activeSheetIndex]);
 
   return (
     <>
