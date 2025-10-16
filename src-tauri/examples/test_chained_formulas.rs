@@ -12,18 +12,38 @@ fn main() {
     let sheet1 = workbook.active_sheet_mut();
 
     // Set up input cells
-    sheet1.set(CellAddr::new("A", 1), Cell::new(10.0, Unit::simple("USD", BaseDimension::Currency))).unwrap();
-    sheet1.set(CellAddr::new("B", 1), Cell::new(2.0, Unit::dimensionless())).unwrap();
+    sheet1
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(10.0, Unit::simple("USD", BaseDimension::Currency)),
+        )
+        .unwrap();
+    sheet1
+        .set(CellAddr::new("B", 1), Cell::new(2.0, Unit::dimensionless()))
+        .unwrap();
 
-    sheet1.set(CellAddr::new("A", 2), Cell::new(20.0, Unit::simple("USD", BaseDimension::Currency))).unwrap();
-    sheet1.set(CellAddr::new("B", 2), Cell::new(3.0, Unit::dimensionless())).unwrap();
+    sheet1
+        .set(
+            CellAddr::new("A", 2),
+            Cell::new(20.0, Unit::simple("USD", BaseDimension::Currency)),
+        )
+        .unwrap();
+    sheet1
+        .set(CellAddr::new("B", 2), Cell::new(3.0, Unit::dimensionless()))
+        .unwrap();
 
     // Set multiplication formulas (like E5, E6 in AWS estimator)
-    sheet1.set(CellAddr::new("C", 1), Cell::with_formula("=A1 * B1")).unwrap(); // Should be 20
-    sheet1.set(CellAddr::new("C", 2), Cell::with_formula("=A2 * B2")).unwrap(); // Should be 60
+    sheet1
+        .set(CellAddr::new("C", 1), Cell::with_formula("=A1 * B1"))
+        .unwrap(); // Should be 20
+    sheet1
+        .set(CellAddr::new("C", 2), Cell::with_formula("=A2 * B2"))
+        .unwrap(); // Should be 60
 
     // Set SUM formula that depends on formula cells (like E8 in AWS estimator)
-    sheet1.set(CellAddr::new("C", 3), Cell::with_formula("=SUM(C1:C2)")).unwrap(); // Should be 80
+    sheet1
+        .set(CellAddr::new("C", 3), Cell::with_formula("=SUM(C1:C2)"))
+        .unwrap(); // Should be 80
 
     println!("Before recalculation:");
     if let Some(cell) = sheet1.get(&CellAddr::new("C", 3)) {
@@ -31,10 +51,14 @@ fn main() {
     }
 
     // Recalculate with ONLY input cells (same pattern as AWS estimator)
-    sheet1.recalculate(&[
-        CellAddr::new("A", 1), CellAddr::new("B", 1),
-        CellAddr::new("A", 2), CellAddr::new("B", 2),
-    ]).unwrap();
+    sheet1
+        .recalculate(&[
+            CellAddr::new("A", 1),
+            CellAddr::new("B", 1),
+            CellAddr::new("A", 2),
+            CellAddr::new("B", 2),
+        ])
+        .unwrap();
 
     println!("\nAfter recalculation:");
     if let Some(cell) = sheet1.get(&CellAddr::new("C", 1)) {

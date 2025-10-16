@@ -6,13 +6,13 @@
 // - Error messages are informative
 // - System remains in valid state after errors
 
+use std::fs;
+use std::path::PathBuf;
 use unicel_lib::core::cell::Cell;
 use unicel_lib::core::table::{CellAddr, Sheet};
 use unicel_lib::core::units::{BaseDimension, Unit};
 use unicel_lib::core::workbook::Workbook;
 use unicel_lib::formats::json::WorkbookFile;
-use std::fs;
-use std::path::PathBuf;
 
 /// Helper to create a temporary test file path
 fn temp_test_path(name: &str) -> PathBuf {
@@ -81,19 +81,18 @@ fn test_circular_reference_detection() {
     let mut sheet = Sheet::new();
 
     // Create circular reference: A1 = A2, A2 = A1
-    sheet.set(
-        CellAddr::new("A", 1),
-        Cell::with_formula("=A2")
-    ).unwrap();
+    sheet
+        .set(CellAddr::new("A", 1), Cell::with_formula("=A2"))
+        .unwrap();
 
     // Setting A2 to reference A1 should fail (circular reference detected)
-    let result = sheet.set(
-        CellAddr::new("A", 2),
-        Cell::with_formula("=A1")
-    );
+    let result = sheet.set(CellAddr::new("A", 2), Cell::with_formula("=A1"));
 
     // Should detect circular reference
-    assert!(result.is_err(), "Circular reference should be detected during set()");
+    assert!(
+        result.is_err(),
+        "Circular reference should be detected during set()"
+    );
 }
 
 #[test]
@@ -101,13 +100,13 @@ fn test_self_reference() {
     let mut sheet = Sheet::new();
 
     // Cell references itself - should fail during set()
-    let result = sheet.set(
-        CellAddr::new("A", 1),
-        Cell::with_formula("=A1 + 1")
-    );
+    let result = sheet.set(CellAddr::new("A", 1), Cell::with_formula("=A1 + 1"));
 
     // Should detect self-reference as circular dependency
-    assert!(result.is_err(), "Self-reference should be detected during set()");
+    assert!(
+        result.is_err(),
+        "Self-reference should be detected during set()"
+    );
 }
 
 // ============================================================================
@@ -185,12 +184,12 @@ fn test_invalid_formula_syntax() {
 
     // Invalid formulas may be rejected during set() or evaluation
     let formulas = vec![
-        "=",           // Empty expression
-        "=+",          // Invalid operator
-        "=A1 +",       // Incomplete expression
-        "=A1 + + B1",  // Double operator
-        "=(A1",        // Unclosed parenthesis
-        "=A1)",        // Unmatched parenthesis
+        "=",          // Empty expression
+        "=+",         // Invalid operator
+        "=A1 +",      // Incomplete expression
+        "=A1 + + B1", // Double operator
+        "=(A1",       // Unclosed parenthesis
+        "=A1)",       // Unmatched parenthesis
     ];
 
     for (i, formula) in formulas.iter().enumerate() {
@@ -207,8 +206,11 @@ fn test_invalid_formula_syntax() {
         sheet.recalculate(&[addr.clone()]).ok();
 
         let cell = sheet.get(&addr).unwrap();
-        assert!(cell.is_error() || cell.is_empty(),
-                "Cell should have error for formula: {}", formula);
+        assert!(
+            cell.is_error() || cell.is_empty(),
+            "Cell should have error for formula: {}",
+            formula
+        );
     }
 }
 
@@ -216,11 +218,22 @@ fn test_invalid_formula_syntax() {
 fn test_division_by_zero() {
     let mut sheet = Sheet::new();
 
-    sheet.set(CellAddr::new("A", 1), Cell::new(10.0, Unit::dimensionless())).unwrap();
-    sheet.set(CellAddr::new("A", 2), Cell::new(0.0, Unit::dimensionless())).unwrap();
-    sheet.set(CellAddr::new("A", 3), Cell::with_formula("=A1 / A2")).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(10.0, Unit::dimensionless()),
+        )
+        .unwrap();
+    sheet
+        .set(CellAddr::new("A", 2), Cell::new(0.0, Unit::dimensionless()))
+        .unwrap();
+    sheet
+        .set(CellAddr::new("A", 3), Cell::with_formula("=A1 / A2"))
+        .unwrap();
 
-    sheet.recalculate(&[CellAddr::new("A", 1), CellAddr::new("A", 2)]).ok();
+    sheet
+        .recalculate(&[CellAddr::new("A", 1), CellAddr::new("A", 2)])
+        .ok();
 
     let result = sheet.get(&CellAddr::new("A", 3)).unwrap();
     assert!(result.is_error(), "Division by zero should produce error");
@@ -231,10 +244,9 @@ fn test_reference_to_nonexistent_cell() {
     let mut sheet = Sheet::new();
 
     // Formula references cell that doesn't exist
-    sheet.set(
-        CellAddr::new("A", 1),
-        Cell::with_formula("=Z999")
-    ).unwrap();
+    sheet
+        .set(CellAddr::new("A", 1), Cell::with_formula("=Z999"))
+        .unwrap();
 
     sheet.recalculate(&[]).ok();
 
@@ -254,28 +266,35 @@ fn test_incompatible_unit_operations() {
     let mut sheet = Sheet::new();
 
     // Add length and mass (incompatible for addition)
-    sheet.set(
-        CellAddr::new("A", 1),
-        Cell::new(10.0, Unit::simple("m", BaseDimension::Length))
-    ).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(10.0, Unit::simple("m", BaseDimension::Length)),
+        )
+        .unwrap();
 
-    sheet.set(
-        CellAddr::new("A", 2),
-        Cell::new(5.0, Unit::simple("kg", BaseDimension::Mass))
-    ).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 2),
+            Cell::new(5.0, Unit::simple("kg", BaseDimension::Mass)),
+        )
+        .unwrap();
 
-    sheet.set(
-        CellAddr::new("A", 3),
-        Cell::with_formula("=A1 + A2")
-    ).unwrap();
+    sheet
+        .set(CellAddr::new("A", 3), Cell::with_formula("=A1 + A2"))
+        .unwrap();
 
-    sheet.recalculate(&[CellAddr::new("A", 1), CellAddr::new("A", 2)]).ok();
+    sheet
+        .recalculate(&[CellAddr::new("A", 1), CellAddr::new("A", 2)])
+        .ok();
 
     let result = sheet.get(&CellAddr::new("A", 3)).unwrap();
 
     // Should either error or warn
-    assert!(result.is_error() || result.has_warning(),
-            "Incompatible units should produce error or warning");
+    assert!(
+        result.is_error() || result.has_warning(),
+        "Incompatible units should produce error or warning"
+    );
 }
 
 // ============================================================================
@@ -384,15 +403,16 @@ fn test_very_large_numbers() {
     let mut sheet = Sheet::new();
 
     // Very large numbers
-    sheet.set(
-        CellAddr::new("A", 1),
-        Cell::new(1e308, Unit::dimensionless())
-    ).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(1e308, Unit::dimensionless()),
+        )
+        .unwrap();
 
-    sheet.set(
-        CellAddr::new("A", 2),
-        Cell::with_formula("=A1 * 2")
-    ).unwrap();
+    sheet
+        .set(CellAddr::new("A", 2), Cell::with_formula("=A1 * 2"))
+        .unwrap();
 
     sheet.recalculate(&[CellAddr::new("A", 1)]).ok();
 
@@ -409,15 +429,16 @@ fn test_very_small_numbers() {
     let mut sheet = Sheet::new();
 
     // Very small positive number
-    sheet.set(
-        CellAddr::new("A", 1),
-        Cell::new(1e-308, Unit::dimensionless())
-    ).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(1e-308, Unit::dimensionless()),
+        )
+        .unwrap();
 
-    sheet.set(
-        CellAddr::new("A", 2),
-        Cell::with_formula("=A1 / 2")
-    ).unwrap();
+    sheet
+        .set(CellAddr::new("A", 2), Cell::with_formula("=A1 / 2"))
+        .unwrap();
 
     sheet.recalculate(&[CellAddr::new("A", 1)]).ok();
 
@@ -432,11 +453,19 @@ fn test_nan_handling() {
     let mut sheet = Sheet::new();
 
     // Create NaN through 0/0
-    sheet.set(CellAddr::new("A", 1), Cell::new(0.0, Unit::dimensionless())).unwrap();
-    sheet.set(CellAddr::new("A", 2), Cell::new(0.0, Unit::dimensionless())).unwrap();
-    sheet.set(CellAddr::new("A", 3), Cell::with_formula("=A1 / A2")).unwrap();
+    sheet
+        .set(CellAddr::new("A", 1), Cell::new(0.0, Unit::dimensionless()))
+        .unwrap();
+    sheet
+        .set(CellAddr::new("A", 2), Cell::new(0.0, Unit::dimensionless()))
+        .unwrap();
+    sheet
+        .set(CellAddr::new("A", 3), Cell::with_formula("=A1 / A2"))
+        .unwrap();
 
-    sheet.recalculate(&[CellAddr::new("A", 1), CellAddr::new("A", 2)]).ok();
+    sheet
+        .recalculate(&[CellAddr::new("A", 1), CellAddr::new("A", 2)])
+        .ok();
 
     let result = sheet.get(&CellAddr::new("A", 3)).unwrap();
 
@@ -448,11 +477,25 @@ fn test_nan_handling() {
 fn test_negative_numbers_in_formulas() {
     let mut sheet = Sheet::new();
 
-    sheet.set(CellAddr::new("A", 1), Cell::new(-10.0, Unit::dimensionless())).unwrap();
-    sheet.set(CellAddr::new("A", 2), Cell::new(-5.0, Unit::dimensionless())).unwrap();
-    sheet.set(CellAddr::new("A", 3), Cell::with_formula("=A1 + A2")).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(-10.0, Unit::dimensionless()),
+        )
+        .unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 2),
+            Cell::new(-5.0, Unit::dimensionless()),
+        )
+        .unwrap();
+    sheet
+        .set(CellAddr::new("A", 3), Cell::with_formula("=A1 + A2"))
+        .unwrap();
 
-    sheet.recalculate(&[CellAddr::new("A", 1), CellAddr::new("A", 2)]).unwrap();
+    sheet
+        .recalculate(&[CellAddr::new("A", 1), CellAddr::new("A", 2)])
+        .unwrap();
 
     let result = sheet.get(&CellAddr::new("A", 3)).unwrap();
     assert_eq!(result.as_number(), Some(-15.0));

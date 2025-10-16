@@ -7,12 +7,12 @@
 // - Asset allocation summary
 // - Percentage calculations
 
+use std::path::PathBuf;
 use unicel_lib::core::cell::Cell;
 use unicel_lib::core::table::CellAddr;
 use unicel_lib::core::units::{BaseDimension, Unit};
 use unicel_lib::core::workbook::Workbook;
 use unicel_lib::formats::json::WorkbookFile;
-use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut workbook = Workbook::new("Investment Portfolio Tracker");
@@ -34,36 +34,72 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // AAPL
     sheet1.set(CellAddr::new("A", 4), Cell::with_text("AAPL"))?;
-    sheet1.set(CellAddr::new("B", 4), Cell::new(100.0, Unit::dimensionless()))?;
-    sheet1.set(CellAddr::new("C", 4), Cell::new(145.50, Unit::simple("USD", BaseDimension::Currency)))?;
-    sheet1.set(CellAddr::new("D", 4), Cell::new(178.25, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet1.set(
+        CellAddr::new("B", 4),
+        Cell::new(100.0, Unit::dimensionless()),
+    )?;
+    sheet1.set(
+        CellAddr::new("C", 4),
+        Cell::new(145.50, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
+    sheet1.set(
+        CellAddr::new("D", 4),
+        Cell::new(178.25, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
     sheet1.set(CellAddr::new("E", 4), Cell::with_formula("=B4 * C4"))?;
     sheet1.set(CellAddr::new("F", 4), Cell::with_formula("=B4 * D4"))?;
     sheet1.set(CellAddr::new("G", 4), Cell::with_formula("=F4 - E4"))?;
 
     // MSFT
     sheet1.set(CellAddr::new("A", 5), Cell::with_text("MSFT"))?;
-    sheet1.set(CellAddr::new("B", 5), Cell::new(75.0, Unit::dimensionless()))?;
-    sheet1.set(CellAddr::new("C", 5), Cell::new(310.00, Unit::simple("USD", BaseDimension::Currency)))?;
-    sheet1.set(CellAddr::new("D", 5), Cell::new(385.50, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet1.set(
+        CellAddr::new("B", 5),
+        Cell::new(75.0, Unit::dimensionless()),
+    )?;
+    sheet1.set(
+        CellAddr::new("C", 5),
+        Cell::new(310.00, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
+    sheet1.set(
+        CellAddr::new("D", 5),
+        Cell::new(385.50, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
     sheet1.set(CellAddr::new("E", 5), Cell::with_formula("=B5 * C5"))?;
     sheet1.set(CellAddr::new("F", 5), Cell::with_formula("=B5 * D5"))?;
     sheet1.set(CellAddr::new("G", 5), Cell::with_formula("=F5 - E5"))?;
 
     // GOOGL
     sheet1.set(CellAddr::new("A", 6), Cell::with_text("GOOGL"))?;
-    sheet1.set(CellAddr::new("B", 6), Cell::new(50.0, Unit::dimensionless()))?;
-    sheet1.set(CellAddr::new("C", 6), Cell::new(125.75, Unit::simple("USD", BaseDimension::Currency)))?;
-    sheet1.set(CellAddr::new("D", 6), Cell::new(142.80, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet1.set(
+        CellAddr::new("B", 6),
+        Cell::new(50.0, Unit::dimensionless()),
+    )?;
+    sheet1.set(
+        CellAddr::new("C", 6),
+        Cell::new(125.75, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
+    sheet1.set(
+        CellAddr::new("D", 6),
+        Cell::new(142.80, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
     sheet1.set(CellAddr::new("E", 6), Cell::with_formula("=B6 * C6"))?;
     sheet1.set(CellAddr::new("F", 6), Cell::with_formula("=B6 * D6"))?;
     sheet1.set(CellAddr::new("G", 6), Cell::with_formula("=F6 - E6"))?;
 
     // TSLA
     sheet1.set(CellAddr::new("A", 7), Cell::with_text("TSLA"))?;
-    sheet1.set(CellAddr::new("B", 7), Cell::new(30.0, Unit::dimensionless()))?;
-    sheet1.set(CellAddr::new("C", 7), Cell::new(215.00, Unit::simple("USD", BaseDimension::Currency)))?;
-    sheet1.set(CellAddr::new("D", 7), Cell::new(248.50, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet1.set(
+        CellAddr::new("B", 7),
+        Cell::new(30.0, Unit::dimensionless()),
+    )?;
+    sheet1.set(
+        CellAddr::new("C", 7),
+        Cell::new(215.00, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
+    sheet1.set(
+        CellAddr::new("D", 7),
+        Cell::new(248.50, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
     sheet1.set(CellAddr::new("E", 7), Cell::with_formula("=B7 * C7"))?;
     sheet1.set(CellAddr::new("F", 7), Cell::with_formula("=B7 * D7"))?;
     sheet1.set(CellAddr::new("G", 7), Cell::with_formula("=F7 - E7"))?;
@@ -80,10 +116,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Recalculate Sheet 1
     let changed1: Vec<CellAddr> = vec![
-        CellAddr::new("B", 4), CellAddr::new("C", 4), CellAddr::new("D", 4),
-        CellAddr::new("B", 5), CellAddr::new("C", 5), CellAddr::new("D", 5),
-        CellAddr::new("B", 6), CellAddr::new("C", 6), CellAddr::new("D", 6),
-        CellAddr::new("B", 7), CellAddr::new("C", 7), CellAddr::new("D", 7),
+        CellAddr::new("B", 4),
+        CellAddr::new("C", 4),
+        CellAddr::new("D", 4),
+        CellAddr::new("B", 5),
+        CellAddr::new("C", 5),
+        CellAddr::new("D", 5),
+        CellAddr::new("B", 6),
+        CellAddr::new("C", 6),
+        CellAddr::new("D", 6),
+        CellAddr::new("B", 7),
+        CellAddr::new("C", 7),
+        CellAddr::new("D", 7),
     ];
     sheet1.recalculate(&changed1)?;
 
@@ -91,7 +135,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let sheet2_idx = workbook.add_sheet_with_name("EU Holdings");
     let sheet2 = workbook.get_sheet_mut(sheet2_idx).unwrap();
 
-    sheet2.set(CellAddr::new("A", 1), Cell::with_text("European Stock Holdings (EUR)"))?;
+    sheet2.set(
+        CellAddr::new("A", 1),
+        Cell::with_text("European Stock Holdings (EUR)"),
+    )?;
 
     sheet2.set(CellAddr::new("A", 3), Cell::with_text("Symbol"))?;
     sheet2.set(CellAddr::new("B", 3), Cell::with_text("Shares"))?;
@@ -103,18 +150,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // SAP
     sheet2.set(CellAddr::new("A", 4), Cell::with_text("SAP"))?;
-    sheet2.set(CellAddr::new("B", 4), Cell::new(80.0, Unit::dimensionless()))?;
-    sheet2.set(CellAddr::new("C", 4), Cell::new(115.50, Unit::simple("EUR", BaseDimension::Currency)))?;
-    sheet2.set(CellAddr::new("D", 4), Cell::new(128.75, Unit::simple("EUR", BaseDimension::Currency)))?;
+    sheet2.set(
+        CellAddr::new("B", 4),
+        Cell::new(80.0, Unit::dimensionless()),
+    )?;
+    sheet2.set(
+        CellAddr::new("C", 4),
+        Cell::new(115.50, Unit::simple("EUR", BaseDimension::Currency)),
+    )?;
+    sheet2.set(
+        CellAddr::new("D", 4),
+        Cell::new(128.75, Unit::simple("EUR", BaseDimension::Currency)),
+    )?;
     sheet2.set(CellAddr::new("E", 4), Cell::with_formula("=B4 * C4"))?;
     sheet2.set(CellAddr::new("F", 4), Cell::with_formula("=B4 * D4"))?;
     sheet2.set(CellAddr::new("G", 4), Cell::with_formula("=F4 - E4"))?;
 
     // Siemens
     sheet2.set(CellAddr::new("A", 5), Cell::with_text("SIE"))?;
-    sheet2.set(CellAddr::new("B", 5), Cell::new(60.0, Unit::dimensionless()))?;
-    sheet2.set(CellAddr::new("C", 5), Cell::new(142.00, Unit::simple("EUR", BaseDimension::Currency)))?;
-    sheet2.set(CellAddr::new("D", 5), Cell::new(168.50, Unit::simple("EUR", BaseDimension::Currency)))?;
+    sheet2.set(
+        CellAddr::new("B", 5),
+        Cell::new(60.0, Unit::dimensionless()),
+    )?;
+    sheet2.set(
+        CellAddr::new("C", 5),
+        Cell::new(142.00, Unit::simple("EUR", BaseDimension::Currency)),
+    )?;
+    sheet2.set(
+        CellAddr::new("D", 5),
+        Cell::new(168.50, Unit::simple("EUR", BaseDimension::Currency)),
+    )?;
     sheet2.set(CellAddr::new("E", 5), Cell::with_formula("=B5 * C5"))?;
     sheet2.set(CellAddr::new("F", 5), Cell::with_formula("=B5 * D5"))?;
     sheet2.set(CellAddr::new("G", 5), Cell::with_formula("=F5 - E5"))?;
@@ -131,8 +196,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Recalculate Sheet 2
     let changed2: Vec<CellAddr> = vec![
-        CellAddr::new("B", 4), CellAddr::new("C", 4), CellAddr::new("D", 4),
-        CellAddr::new("B", 5), CellAddr::new("C", 5), CellAddr::new("D", 5),
+        CellAddr::new("B", 4),
+        CellAddr::new("C", 4),
+        CellAddr::new("D", 4),
+        CellAddr::new("B", 5),
+        CellAddr::new("C", 5),
+        CellAddr::new("D", 5),
     ];
     sheet2.recalculate(&changed2)?;
 
@@ -140,7 +209,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let sheet3_idx = workbook.add_sheet_with_name("UK Holdings");
     let sheet3 = workbook.get_sheet_mut(sheet3_idx).unwrap();
 
-    sheet3.set(CellAddr::new("A", 1), Cell::with_text("UK Stock Holdings (GBP)"))?;
+    sheet3.set(
+        CellAddr::new("A", 1),
+        Cell::with_text("UK Stock Holdings (GBP)"),
+    )?;
 
     sheet3.set(CellAddr::new("A", 3), Cell::with_text("Symbol"))?;
     sheet3.set(CellAddr::new("B", 3), Cell::with_text("Shares"))?;
@@ -152,18 +224,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // HSBC
     sheet3.set(CellAddr::new("A", 4), Cell::with_text("HSBA"))?;
-    sheet3.set(CellAddr::new("B", 4), Cell::new(500.0, Unit::dimensionless()))?;
-    sheet3.set(CellAddr::new("C", 4), Cell::new(5.85, Unit::simple("GBP", BaseDimension::Currency)))?;
-    sheet3.set(CellAddr::new("D", 4), Cell::new(6.45, Unit::simple("GBP", BaseDimension::Currency)))?;
+    sheet3.set(
+        CellAddr::new("B", 4),
+        Cell::new(500.0, Unit::dimensionless()),
+    )?;
+    sheet3.set(
+        CellAddr::new("C", 4),
+        Cell::new(5.85, Unit::simple("GBP", BaseDimension::Currency)),
+    )?;
+    sheet3.set(
+        CellAddr::new("D", 4),
+        Cell::new(6.45, Unit::simple("GBP", BaseDimension::Currency)),
+    )?;
     sheet3.set(CellAddr::new("E", 4), Cell::with_formula("=B4 * C4"))?;
     sheet3.set(CellAddr::new("F", 4), Cell::with_formula("=B4 * D4"))?;
     sheet3.set(CellAddr::new("G", 4), Cell::with_formula("=F4 - E4"))?;
 
     // BP
     sheet3.set(CellAddr::new("A", 5), Cell::with_text("BP"))?;
-    sheet3.set(CellAddr::new("B", 5), Cell::new(400.0, Unit::dimensionless()))?;
-    sheet3.set(CellAddr::new("C", 5), Cell::new(4.20, Unit::simple("GBP", BaseDimension::Currency)))?;
-    sheet3.set(CellAddr::new("D", 5), Cell::new(4.75, Unit::simple("GBP", BaseDimension::Currency)))?;
+    sheet3.set(
+        CellAddr::new("B", 5),
+        Cell::new(400.0, Unit::dimensionless()),
+    )?;
+    sheet3.set(
+        CellAddr::new("C", 5),
+        Cell::new(4.20, Unit::simple("GBP", BaseDimension::Currency)),
+    )?;
+    sheet3.set(
+        CellAddr::new("D", 5),
+        Cell::new(4.75, Unit::simple("GBP", BaseDimension::Currency)),
+    )?;
     sheet3.set(CellAddr::new("E", 5), Cell::with_formula("=B5 * C5"))?;
     sheet3.set(CellAddr::new("F", 5), Cell::with_formula("=B5 * D5"))?;
     sheet3.set(CellAddr::new("G", 5), Cell::with_formula("=F5 - E5"))?;
@@ -180,8 +270,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Recalculate Sheet 3
     let changed3: Vec<CellAddr> = vec![
-        CellAddr::new("B", 4), CellAddr::new("C", 4), CellAddr::new("D", 4),
-        CellAddr::new("B", 5), CellAddr::new("C", 5), CellAddr::new("D", 5),
+        CellAddr::new("B", 4),
+        CellAddr::new("C", 4),
+        CellAddr::new("D", 4),
+        CellAddr::new("B", 5),
+        CellAddr::new("C", 5),
+        CellAddr::new("D", 5),
     ];
     sheet3.recalculate(&changed3)?;
 
@@ -191,7 +285,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     sheet4.set(CellAddr::new("A", 1), Cell::with_text("Portfolio Summary"))?;
 
-    sheet4.set(CellAddr::new("A", 3), Cell::with_text("Asset Allocation by Region"))?;
+    sheet4.set(
+        CellAddr::new("A", 3),
+        Cell::with_text("Asset Allocation by Region"),
+    )?;
     sheet4.set(CellAddr::new("A", 5), Cell::with_text("Region"))?;
     sheet4.set(CellAddr::new("B", 5), Cell::with_text("Current Value"))?;
     sheet4.set(CellAddr::new("C", 5), Cell::with_text("Currency"))?;
@@ -199,23 +296,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Note: In a real implementation, we'd convert all to a single currency
     // For this demo, we'll just list them separately
     sheet4.set(CellAddr::new("A", 6), Cell::with_text("United States"))?;
-    sheet4.set(CellAddr::new("B", 6), Cell::new(54825.0, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet4.set(
+        CellAddr::new("B", 6),
+        Cell::new(54825.0, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
     sheet4.set(CellAddr::new("C", 6), Cell::with_text("USD"))?;
 
     sheet4.set(CellAddr::new("A", 7), Cell::with_text("Europe"))?;
-    sheet4.set(CellAddr::new("B", 7), Cell::new(19400.0, Unit::simple("EUR", BaseDimension::Currency)))?;
+    sheet4.set(
+        CellAddr::new("B", 7),
+        Cell::new(19400.0, Unit::simple("EUR", BaseDimension::Currency)),
+    )?;
     sheet4.set(CellAddr::new("C", 7), Cell::with_text("EUR"))?;
 
     sheet4.set(CellAddr::new("A", 8), Cell::with_text("United Kingdom"))?;
-    sheet4.set(CellAddr::new("B", 8), Cell::new(5125.0, Unit::simple("GBP", BaseDimension::Currency)))?;
+    sheet4.set(
+        CellAddr::new("B", 8),
+        Cell::new(5125.0, Unit::simple("GBP", BaseDimension::Currency)),
+    )?;
     sheet4.set(CellAddr::new("C", 8), Cell::with_text("GBP"))?;
 
     sheet4.set(CellAddr::new("A", 10), Cell::with_text("NOTES:"))?;
-    sheet4.set(CellAddr::new("A", 11), Cell::with_text("- Each region tracks holdings in local currency"))?;
-    sheet4.set(CellAddr::new("A", 12), Cell::with_text("- Shares (dimensionless) × Price (USD) = Value (USD)"))?;
-    sheet4.set(CellAddr::new("A", 13), Cell::with_text("- Gain/Loss calculated with proper unit handling"))?;
-    sheet4.set(CellAddr::new("A", 14), Cell::with_text("- Return % is dimensionless (USD/USD × 100)"))?;
-    sheet4.set(CellAddr::new("A", 15), Cell::with_text("- Multi-currency demonstration (USD, EUR, GBP)"))?;
+    sheet4.set(
+        CellAddr::new("A", 11),
+        Cell::with_text("- Each region tracks holdings in local currency"),
+    )?;
+    sheet4.set(
+        CellAddr::new("A", 12),
+        Cell::with_text("- Shares (dimensionless) × Price (USD) = Value (USD)"),
+    )?;
+    sheet4.set(
+        CellAddr::new("A", 13),
+        Cell::with_text("- Gain/Loss calculated with proper unit handling"),
+    )?;
+    sheet4.set(
+        CellAddr::new("A", 14),
+        Cell::with_text("- Return % is dimensionless (USD/USD × 100)"),
+    )?;
+    sheet4.set(
+        CellAddr::new("A", 15),
+        Cell::with_text("- Multi-currency demonstration (USD, EUR, GBP)"),
+    )?;
 
     // Save to file
     let file = WorkbookFile::from_workbook(&workbook);

@@ -11,9 +11,10 @@ fn main() {
     println!("Testing multi-hop unit conversions...\n");
 
     // Load the tutorial workbook
-    let file = WorkbookFile::load_from_file(
-        std::path::Path::new("examples/unit_conversion_tutorial.usheet")
-    ).expect("Failed to load tutorial workbook");
+    let file = WorkbookFile::load_from_file(std::path::Path::new(
+        "examples/unit_conversion_tutorial.usheet",
+    ))
+    .expect("Failed to load tutorial workbook");
 
     let workbook = file.to_workbook().expect("Failed to convert to workbook");
 
@@ -23,7 +24,11 @@ fn main() {
 
     // B5 should be 5 km
     if let Some(b5) = sheet.get(&CellAddr::new("B", 5)) {
-        println!("B5: {} {}", b5.as_number().unwrap_or(0.0), b5.storage_unit().canonical());
+        println!(
+            "B5: {} {}",
+            b5.as_number().unwrap_or(0.0),
+            b5.storage_unit().canonical()
+        );
     }
 
     // B7 should be km → cm conversion (multi-hop: km → m → cm)

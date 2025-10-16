@@ -136,7 +136,11 @@ mod tests {
     fn test_labeled_value() {
         let result = parse_cell_input("tax_rate: 0.15").unwrap();
         match result {
-            CellInput::Labeled { label, content, is_formula } => {
+            CellInput::Labeled {
+                label,
+                content,
+                is_formula,
+            } => {
                 assert_eq!(label, "tax_rate");
                 assert_eq!(content, "0.15");
                 assert!(!is_formula);
@@ -149,7 +153,11 @@ mod tests {
     fn test_labeled_formula() {
         let result = parse_cell_input("total:= A1+A2").unwrap();
         match result {
-            CellInput::Labeled { label, content, is_formula } => {
+            CellInput::Labeled {
+                label,
+                content,
+                is_formula,
+            } => {
                 assert_eq!(label, "total");
                 assert_eq!(content, "=A1+A2");
                 assert!(is_formula);
@@ -162,7 +170,11 @@ mod tests {
     fn test_labeled_formula_with_equals() {
         let result = parse_cell_input("total:= =A1+A2").unwrap();
         match result {
-            CellInput::Labeled { label, content, is_formula } => {
+            CellInput::Labeled {
+                label,
+                content,
+                is_formula,
+            } => {
                 assert_eq!(label, "total");
                 assert_eq!(content, "=A1+A2");
                 assert!(is_formula);
@@ -175,7 +187,11 @@ mod tests {
     fn test_labeled_with_currency() {
         let result = parse_cell_input("price: $15").unwrap();
         match result {
-            CellInput::Labeled { label, content, is_formula } => {
+            CellInput::Labeled {
+                label,
+                content,
+                is_formula,
+            } => {
                 assert_eq!(label, "price");
                 assert_eq!(content, "$15");
                 assert!(!is_formula);

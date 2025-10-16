@@ -1,9 +1,9 @@
 // Core library for Unicel unit-aware spreadsheet
 
+pub mod commands;
 pub mod core;
 pub mod formats;
 pub mod mcp;
-pub mod commands;
 
 // Re-export main types
 pub use core::{

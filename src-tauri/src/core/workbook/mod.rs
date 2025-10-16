@@ -204,15 +204,26 @@ impl Workbook {
     }
 
     /// Rename a sheet
-    pub fn rename_sheet(&mut self, index: usize, new_name: impl Into<String>) -> Result<(), WorkbookError> {
+    pub fn rename_sheet(
+        &mut self,
+        index: usize,
+        new_name: impl Into<String>,
+    ) -> Result<(), WorkbookError> {
         let new_name = new_name.into();
 
         // Check if name already exists (excluding the sheet being renamed)
-        if self.sheets.iter().enumerate().any(|(i, s)| i != index && s.name() == new_name) {
+        if self
+            .sheets
+            .iter()
+            .enumerate()
+            .any(|(i, s)| i != index && s.name() == new_name)
+        {
             return Err(WorkbookError::SheetNameExists(new_name));
         }
 
-        let sheet = self.sheets.get_mut(index)
+        let sheet = self
+            .sheets
+            .get_mut(index)
             .ok_or_else(|| WorkbookError::InvalidSheetIndex(index))?;
 
         sheet.set_name(new_name);
@@ -397,7 +408,10 @@ mod tests {
 
         let result = wb.remove_sheet(0);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), WorkbookError::CannotRemoveLastSheet));
+        assert!(matches!(
+            result.unwrap_err(),
+            WorkbookError::CannotRemoveLastSheet
+        ));
     }
 
     #[test]
@@ -421,7 +435,10 @@ mod tests {
 
         let result = wb.rename_sheet(1, "MySheet");
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), WorkbookError::SheetNameExists(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            WorkbookError::SheetNameExists(_)
+        ));
     }
 
     #[test]
@@ -454,7 +471,10 @@ mod tests {
     fn test_workbook_settings() {
         let mut wb = Workbook::new("Test");
 
-        assert_eq!(wb.settings().display_preference, DisplayPreference::AsEntered);
+        assert_eq!(
+            wb.settings().display_preference,
+            DisplayPreference::AsEntered
+        );
 
         wb.set_display_preference(DisplayPreference::Metric);
         assert_eq!(wb.settings().display_preference, DisplayPreference::Metric);
@@ -548,9 +568,12 @@ mod tests {
     fn test_list_named_ranges() {
         let mut wb = Workbook::new("Test");
 
-        wb.set_named_range("revenue", 0, CellAddr::new("A", 1)).unwrap();
-        wb.set_named_range("cost", 0, CellAddr::new("A", 2)).unwrap();
-        wb.set_named_range("profit", 0, CellAddr::new("A", 3)).unwrap();
+        wb.set_named_range("revenue", 0, CellAddr::new("A", 1))
+            .unwrap();
+        wb.set_named_range("cost", 0, CellAddr::new("A", 2))
+            .unwrap();
+        wb.set_named_range("profit", 0, CellAddr::new("A", 3))
+            .unwrap();
 
         let ranges = wb.list_named_ranges();
         assert_eq!(ranges.len(), 3);
@@ -570,7 +593,10 @@ mod tests {
         // Try to set named range for non-existent sheet
         let result = wb.set_named_range("test", 999, addr);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), WorkbookError::InvalidSheetIndex(999)));
+        assert!(matches!(
+            result.unwrap_err(),
+            WorkbookError::InvalidSheetIndex(999)
+        ));
     }
 
     #[test]
@@ -592,13 +618,15 @@ mod tests {
     fn test_named_range_overwrite() {
         let mut wb = Workbook::new("Test");
 
-        wb.set_named_range("value", 0, CellAddr::new("A", 1)).unwrap();
+        wb.set_named_range("value", 0, CellAddr::new("A", 1))
+            .unwrap();
 
         let result = wb.get_named_range("value");
         assert_eq!(result.unwrap().1, &CellAddr::new("A", 1));
 
         // Overwrite with new address
-        wb.set_named_range("value", 0, CellAddr::new("B", 2)).unwrap();
+        wb.set_named_range("value", 0, CellAddr::new("B", 2))
+            .unwrap();
 
         let result = wb.get_named_range("value");
         assert_eq!(result.unwrap().1, &CellAddr::new("B", 2));

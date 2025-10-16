@@ -244,7 +244,9 @@ impl WorkbookData {
         // Restore named ranges
         for (name, range_data) in &self.named_ranges {
             if let Ok(addr) = CellAddr::from_string(&range_data.cell_address) {
-                workbook.set_named_range(name, range_data.sheet_index, addr).ok();
+                workbook
+                    .set_named_range(name, range_data.sheet_index, addr)
+                    .ok();
             }
         }
 
@@ -283,9 +285,9 @@ impl SheetData {
             .cell_addresses()
             .into_iter()
             .filter_map(|addr| {
-                sheet.get(&addr).map(|cell| {
-                    (addr.to_string(), CellData::from_cell(cell))
-                })
+                sheet
+                    .get(&addr)
+                    .map(|cell| (addr.to_string(), CellData::from_cell(cell)))
             })
             .collect();
 
@@ -357,9 +359,7 @@ impl CellValueData {
             CellValue::Empty => Self::Empty,
             CellValue::Number(n) => Self::Number { value: *n },
             CellValue::Text(t) => Self::Text { text: t.clone() },
-            CellValue::Error(e) => Self::Error {
-                message: e.clone(),
-            },
+            CellValue::Error(e) => Self::Error { message: e.clone() },
         }
     }
 }
@@ -408,11 +408,7 @@ fn parse_unit_from_canonical(canonical: &str) -> Unit {
 
         if let Ok(power) = power_str.parse::<i32>() {
             let dimension = get_base_dimension_for_json(base_str);
-            return Unit::compound(
-                canonical.to_string(),
-                vec![(dimension, power)],
-                vec![],
-            );
+            return Unit::compound(canonical.to_string(), vec![(dimension, power)], vec![]);
         }
     }
 
@@ -443,7 +439,8 @@ fn get_base_dimension_for_json(unit_str: &str) -> BaseDimension {
         "s" | "min" | "hr" | "h" | "hour" | "day" | "month" | "year" => BaseDimension::Time,
         "C" | "F" | "K" => BaseDimension::Temperature,
         "USD" | "EUR" | "GBP" | "$" => BaseDimension::Currency,
-        "B" | "KB" | "MB" | "GB" | "TB" | "PB" | "Kb" | "Mb" | "Gb" | "Tb" | "Pb" | "Tok" | "MTok" => BaseDimension::DigitalStorage,
+        "B" | "KB" | "MB" | "GB" | "TB" | "PB" | "Kb" | "Mb" | "Gb" | "Tb" | "Pb" | "Tok"
+        | "MTok" => BaseDimension::DigitalStorage,
         _ => BaseDimension::Custom(unit_str.to_string()),
     }
 }
@@ -515,7 +512,10 @@ mod tests {
         let workbook2 = file2.to_workbook().unwrap();
 
         // Verify formula
-        let cell = workbook2.active_sheet().get(&CellAddr::new("A", 2)).unwrap();
+        let cell = workbook2
+            .active_sheet()
+            .get(&CellAddr::new("A", 2))
+            .unwrap();
         assert!(cell.is_formula());
         assert_eq!(cell.formula(), Some("=A1 * 2"));
     }

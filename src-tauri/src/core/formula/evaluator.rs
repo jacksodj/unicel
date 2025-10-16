@@ -93,21 +93,20 @@ impl<'a> Evaluator<'a> {
                 Ok(EvalResult::new(-result.value, result.unit))
             }
 
-            Expr::CellRef { .. } => {
-                Err(EvalError::CellNotFound("Cell references not supported in standalone evaluation".to_string()))
-            }
+            Expr::CellRef { .. } => Err(EvalError::CellNotFound(
+                "Cell references not supported in standalone evaluation".to_string(),
+            )),
 
-            Expr::NamedRef { name } => {
-                Err(EvalError::NamedRefNotFound(format!("Named reference '{}' not supported in standalone evaluation", name)))
-            }
+            Expr::NamedRef { name } => Err(EvalError::NamedRefNotFound(format!(
+                "Named reference '{}' not supported in standalone evaluation",
+                name
+            ))),
 
-            Expr::Range { .. } => {
-                Err(EvalError::InvalidOperation("Ranges can only be used in functions".to_string()))
-            }
+            Expr::Range { .. } => Err(EvalError::InvalidOperation(
+                "Ranges can only be used in functions".to_string(),
+            )),
 
-            Expr::Function { name, .. } => {
-                Err(EvalError::FunctionNotImplemented(name.clone()))
-            }
+            Expr::Function { name, .. } => Err(EvalError::FunctionNotImplemented(name.clone())),
         }
     }
 
@@ -142,15 +141,18 @@ impl<'a> Evaluator<'a> {
         }
 
         // Units are compatible but different - convert right to left's unit
-        let right_value_converted = self.library.convert(
-            right_result.value,
-            right_result.unit.canonical(),
-            left_result.unit.canonical(),
-        ).ok_or_else(|| EvalError::IncompatibleUnits {
-            operation: "add".to_string(),
-            left: left_result.unit.to_string(),
-            right: right_result.unit.to_string(),
-        })?;
+        let right_value_converted = self
+            .library
+            .convert(
+                right_result.value,
+                right_result.unit.canonical(),
+                left_result.unit.canonical(),
+            )
+            .ok_or_else(|| EvalError::IncompatibleUnits {
+                operation: "add".to_string(),
+                left: left_result.unit.to_string(),
+                right: right_result.unit.to_string(),
+            })?;
 
         Ok(EvalResult::new(
             left_result.value + right_value_converted,
@@ -189,15 +191,18 @@ impl<'a> Evaluator<'a> {
         }
 
         // Units are compatible but different - convert right to left's unit
-        let right_value_converted = self.library.convert(
-            right_result.value,
-            right_result.unit.canonical(),
-            left_result.unit.canonical(),
-        ).ok_or_else(|| EvalError::IncompatibleUnits {
-            operation: "subtract".to_string(),
-            left: left_result.unit.to_string(),
-            right: right_result.unit.to_string(),
-        })?;
+        let right_value_converted = self
+            .library
+            .convert(
+                right_result.value,
+                right_result.unit.canonical(),
+                left_result.unit.canonical(),
+            )
+            .ok_or_else(|| EvalError::IncompatibleUnits {
+                operation: "subtract".to_string(),
+                left: left_result.unit.to_string(),
+                right: right_result.unit.to_string(),
+            })?;
 
         Ok(EvalResult::new(
             left_result.value - right_value_converted,
@@ -253,7 +258,10 @@ impl<'a> Evaluator<'a> {
             let compound_unit = Unit::compound(
                 compound_symbol.clone(),
                 vec![],
-                vec![(right_result.unit.dimension().as_simple().unwrap().clone(), 1)],
+                vec![(
+                    right_result.unit.dimension().as_simple().unwrap().clone(),
+                    1,
+                )],
             );
             return Ok(EvalResult::new(value, compound_unit));
         }
@@ -270,9 +278,14 @@ impl<'a> Evaluator<'a> {
 
         // For MLP: create a simple compound unit representation
         // Format: "left/right" (e.g., "m/s" for velocity)
-        let compound_symbol = format!("{}/{}", left_result.unit.canonical(), right_result.unit.canonical());
+        let compound_symbol = format!(
+            "{}/{}",
+            left_result.unit.canonical(),
+            right_result.unit.canonical()
+        );
 
-        let compound_unit = create_division_unit(&left_result.unit, &right_result.unit, &compound_symbol);
+        let compound_unit =
+            create_division_unit(&left_result.unit, &right_result.unit, &compound_symbol);
 
         Ok(EvalResult::new(value, compound_unit))
     }
@@ -281,7 +294,9 @@ impl<'a> Evaluator<'a> {
 // Helper function to create compound units for division
 fn create_division_unit(left: &Unit, right: &Unit, symbol: &str) -> Unit {
     // For simple dimensions, create compound unit
-    if let (Some(left_dim), Some(right_dim)) = (left.dimension().as_simple(), right.dimension().as_simple()) {
+    if let (Some(left_dim), Some(right_dim)) =
+        (left.dimension().as_simple(), right.dimension().as_simple())
+    {
         Unit::compound(
             symbol.to_string(),
             vec![(left_dim.clone(), 1)],
@@ -443,7 +458,11 @@ fn build_unit_from_dimensions_with_originals(
 }
 
 // Find the original symbol for a dimension from the input units
-fn find_original_symbol_for_dimension(dim: &BaseDimension, left: &Unit, right: &Unit) -> Option<String> {
+fn find_original_symbol_for_dimension(
+    dim: &BaseDimension,
+    left: &Unit,
+    right: &Unit,
+) -> Option<String> {
     // Check if left unit has this dimension as a simple unit
     if let Dimension::Simple(left_dim) = left.dimension() {
         if left_dim == dim {
@@ -533,12 +552,31 @@ fn extract_symbol_for_dimension_from_part(part: &str, dim: &BaseDimension) -> Op
 // Check if a symbol matches a given dimension
 fn dimension_matches_symbol(dim: &BaseDimension, symbol: &str) -> bool {
     match dim {
-        BaseDimension::Length => matches!(symbol, "m" | "cm" | "mm" | "km" | "in" | "ft" | "yd" | "mi"),
+        BaseDimension::Length => {
+            matches!(symbol, "m" | "cm" | "mm" | "km" | "in" | "ft" | "yd" | "mi")
+        }
         BaseDimension::Mass => matches!(symbol, "g" | "kg" | "mg" | "oz" | "lb"),
-        BaseDimension::Time => matches!(symbol, "s" | "min" | "hr" | "h" | "hour" | "day" | "month" | "year"),
+        BaseDimension::Time => matches!(
+            symbol,
+            "s" | "min" | "hr" | "h" | "hour" | "day" | "month" | "year"
+        ),
         BaseDimension::Temperature => matches!(symbol, "C" | "F" | "K"),
         BaseDimension::Currency => matches!(symbol, "USD" | "EUR" | "GBP" | "$" | "€" | "£"),
-        BaseDimension::DigitalStorage => matches!(symbol, "B" | "KB" | "MB" | "GB" | "TB" | "PB" | "Kb" | "Mb" | "Gb" | "Tb" | "Pb" | "Tok" | "MTok"),
+        BaseDimension::DigitalStorage => matches!(
+            symbol,
+            "B" | "KB"
+                | "MB"
+                | "GB"
+                | "TB"
+                | "PB"
+                | "Kb"
+                | "Mb"
+                | "Gb"
+                | "Tb"
+                | "Pb"
+                | "Tok"
+                | "MTok"
+        ),
         BaseDimension::Custom(name) => symbol == name,
     }
 }
@@ -610,23 +648,28 @@ fn build_unit_symbol_with_originals(
 }
 
 // Extract dimensions from a unit into numerator and denominator maps
-pub fn extract_dimensions(unit: &Unit) -> (HashMap<BaseDimension, i32>, HashMap<BaseDimension, i32>) {
+pub fn extract_dimensions(
+    unit: &Unit,
+) -> (HashMap<BaseDimension, i32>, HashMap<BaseDimension, i32>) {
     let mut numerator = HashMap::new();
     let mut denominator = HashMap::new();
 
     match unit.dimension() {
-        Dimension::Dimensionless => {},
+        Dimension::Dimensionless => {}
         Dimension::Simple(base) => {
             numerator.insert(base.clone(), 1);
-        },
-        Dimension::Compound { numerator: num, denominator: den } => {
+        }
+        Dimension::Compound {
+            numerator: num,
+            denominator: den,
+        } => {
             for (base, power) in num {
                 *numerator.entry(base.clone()).or_insert(0) += power;
             }
             for (base, power) in den {
                 *denominator.entry(base.clone()).or_insert(0) += power;
             }
-        },
+        }
     }
 
     (numerator, denominator)
@@ -674,11 +717,17 @@ pub fn build_unit_from_dimensions(
 }
 
 // Build unit symbol string from dimensions
-fn build_unit_symbol(numerator: &HashMap<BaseDimension, i32>, denominator: &HashMap<BaseDimension, i32>) -> String {
+fn build_unit_symbol(
+    numerator: &HashMap<BaseDimension, i32>,
+    denominator: &HashMap<BaseDimension, i32>,
+) -> String {
     let mut parts = Vec::new();
 
     // Build numerator
-    let mut num_symbols: Vec<_> = numerator.iter().map(|(d, p)| (get_standard_symbol(d), p)).collect();
+    let mut num_symbols: Vec<_> = numerator
+        .iter()
+        .map(|(d, p)| (get_standard_symbol(d), p))
+        .collect();
     num_symbols.sort();
 
     for (symbol, power) in num_symbols {
@@ -696,7 +745,10 @@ fn build_unit_symbol(numerator: &HashMap<BaseDimension, i32>, denominator: &Hash
     };
 
     // Build denominator
-    let mut den_symbols: Vec<_> = denominator.iter().map(|(d, p)| (get_standard_symbol(d), p)).collect();
+    let mut den_symbols: Vec<_> = denominator
+        .iter()
+        .map(|(d, p)| (get_standard_symbol(d), p))
+        .collect();
     den_symbols.sort();
 
     let mut den_parts = Vec::new();
@@ -793,7 +845,10 @@ mod tests {
         );
         let result = eval.eval(&expr);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), EvalError::IncompatibleUnits { .. }));
+        assert!(matches!(
+            result.unwrap_err(),
+            EvalError::IncompatibleUnits { .. }
+        ));
     }
 
     #[test]
@@ -827,10 +882,7 @@ mod tests {
     fn test_multiply_with_dimensionless() {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
-        let expr = Expr::multiply(
-            Expr::number_with_unit(10.0, "m"),
-            Expr::number(2.0),
-        );
+        let expr = Expr::multiply(Expr::number_with_unit(10.0, "m"), Expr::number(2.0));
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 20.0);
         assert_eq!(result.unit.canonical(), "m");
@@ -867,10 +919,7 @@ mod tests {
     fn test_divide_by_zero() {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
-        let expr = Expr::divide(
-            Expr::number(10.0),
-            Expr::number(0.0),
-        );
+        let expr = Expr::divide(Expr::number(10.0), Expr::number(0.0));
         let result = eval.eval(&expr);
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), EvalError::DivisionByZero));
@@ -930,8 +979,11 @@ mod tests {
         assert_eq!(result.value, 30.0);
         // The unit should be USD or $ after cancellation
         assert!(result.unit.canonical() == "USD" || result.unit.canonical() == "$");
-        assert!(!result.unit.canonical().contains("ft"),
-                "Unit should not contain 'ft' after cancellation, got: {}", result.unit.canonical());
+        assert!(
+            !result.unit.canonical().contains("ft"),
+            "Unit should not contain 'ft' after cancellation, got: {}",
+            result.unit.canonical()
+        );
     }
 
     #[test]
@@ -1500,7 +1552,11 @@ mod tests {
         assert_eq!(result.value, 50.0);
         // EUR, USD, GBP all map to Currency dimension, so we accept either
         let canonical = result.unit.canonical();
-        assert!(canonical == "EUR" || canonical == "USD", "Got: {}", canonical);
+        assert!(
+            canonical == "EUR" || canonical == "USD",
+            "Got: {}",
+            canonical
+        );
     }
 
     // Test 31: GBP cancellation (all currencies map to Currency dimension)
@@ -1517,7 +1573,11 @@ mod tests {
         assert_eq!(result.value, 50.0);
         // EUR, USD, GBP all map to Currency dimension, so we accept either
         let canonical = result.unit.canonical();
-        assert!(canonical == "GBP" || canonical == "USD", "Got: {}", canonical);
+        assert!(
+            canonical == "GBP" || canonical == "USD",
+            "Got: {}",
+            canonical
+        );
     }
 
     // Test 32: Velocity times velocity = velocity squared
@@ -1710,8 +1770,11 @@ mod tests {
         let expr = Expr::multiply(gb_hours, price_rate);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 2.4);
-        assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD",
-                "Expected $ or USD, got: {}", result.unit.canonical());
+        assert!(
+            result.unit.canonical() == "$" || result.unit.canonical() == "USD",
+            "Expected $ or USD, got: {}",
+            result.unit.canonical()
+        );
     }
 
     // Test 42: Currency per TB per month (storage pricing)
@@ -1732,8 +1795,11 @@ mod tests {
         let expr = Expr::multiply(tb_months, price_rate);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 150.0);
-        assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD",
-                "Expected $ or USD, got: {}", result.unit.canonical());
+        assert!(
+            result.unit.canonical() == "$" || result.unit.canonical() == "USD",
+            "Expected $ or USD, got: {}",
+            result.unit.canonical()
+        );
     }
 
     // Test 43: Token cancellation with currency
@@ -1815,8 +1881,11 @@ mod tests {
         let expr = Expr::multiply(mtok_hours, price_rate);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 120.0);
-        assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD",
-                "Expected $ or USD, got: {}", result.unit.canonical());
+        assert!(
+            result.unit.canonical() == "$" || result.unit.canonical() == "USD",
+            "Expected $ or USD, got: {}",
+            result.unit.canonical()
+        );
     }
 
     // Test 48: Mbits per hour (network bandwidth)
@@ -2082,8 +2151,11 @@ mod tests {
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 24000.0);
         // $ and hr cancel, leaving GB²
-        assert!(result.unit.canonical().contains("B"),
-                "Expected units containing B (like B^2 or GB^2), got: {}", result.unit.canonical());
+        assert!(
+            result.unit.canonical().contains("B"),
+            "Expected units containing B (like B^2 or GB^2), got: {}",
+            result.unit.canonical()
+        );
     }
 
     // Test 64: GB²/hr (compound squared with time)

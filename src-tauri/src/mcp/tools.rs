@@ -41,7 +41,9 @@ pub fn get_tool_definitions() -> Vec<ToolDefinition> {
 fn define_read_cell() -> ToolDefinition {
     ToolDefinition {
         name: "read_cell".to_string(),
-        description: "Read a single cell with full metadata including value, unit, formula, and warnings".to_string(),
+        description:
+            "Read a single cell with full metadata including value, unit, formula, and warnings"
+                .to_string(),
         input_schema: json!({
             "type": "object",
             "properties": {
@@ -104,7 +106,9 @@ fn define_query_table() -> ToolDefinition {
 fn define_get_sheet_structure() -> ToolDefinition {
     ToolDefinition {
         name: "get_sheet_structure".to_string(),
-        description: "Get the structure of a sheet including dimensions, used ranges, and table metadata".to_string(),
+        description:
+            "Get the structure of a sheet including dimensions, used ranges, and table metadata"
+                .to_string(),
         input_schema: json!({
             "type": "object",
             "properties": {
@@ -120,7 +124,8 @@ fn define_get_sheet_structure() -> ToolDefinition {
 fn define_list_tables() -> ToolDefinition {
     ToolDefinition {
         name: "list_tables".to_string(),
-        description: "List all available tables (sheets) in the workbook with their metadata".to_string(),
+        description: "List all available tables (sheets) in the workbook with their metadata"
+            .to_string(),
         input_schema: json!({
             "type": "object",
             "properties": {}
@@ -163,7 +168,8 @@ fn define_write_cell() -> ToolDefinition {
 fn define_write_range() -> ToolDefinition {
     ToolDefinition {
         name: "write_range".to_string(),
-        description: "Write multiple cells in a single operation for better performance".to_string(),
+        description: "Write multiple cells in a single operation for better performance"
+            .to_string(),
         input_schema: json!({
             "type": "object",
             "properties": {
@@ -214,7 +220,8 @@ fn define_append_row() -> ToolDefinition {
 fn define_convert_value() -> ToolDefinition {
     ToolDefinition {
         name: "convert_value".to_string(),
-        description: "Convert a value from one unit to another with metadata about the conversion".to_string(),
+        description: "Convert a value from one unit to another with metadata about the conversion"
+            .to_string(),
         input_schema: json!({
             "type": "object",
             "properties": {
@@ -298,7 +305,9 @@ fn define_validate_unit() -> ToolDefinition {
 fn define_get_workbook_metadata() -> ToolDefinition {
     ToolDefinition {
         name: "get_workbook_metadata".to_string(),
-        description: "Get metadata about the entire workbook including sheets, settings, and units in use".to_string(),
+        description:
+            "Get metadata about the entire workbook including sheets, settings, and units in use"
+                .to_string(),
         input_schema: json!({
             "type": "object",
             "properties": {}
@@ -323,7 +332,11 @@ impl ToolHandler {
         }
     }
 
-    pub fn handle_tool_call(&self, name: &str, arguments: Option<HashMap<String, Value>>) -> CallToolResult {
+    pub fn handle_tool_call(
+        &self,
+        name: &str,
+        arguments: Option<HashMap<String, Value>>,
+    ) -> CallToolResult {
         let args = arguments.unwrap_or_default();
 
         let result = match name {
@@ -361,12 +374,15 @@ impl ToolHandler {
             .and_then(|v| v.as_str())
             .ok_or("Missing cell_ref")?;
 
-        let addr = CellAddr::from_string(cell_ref).map_err(|e| format!("Invalid cell reference: {}", e))?;
+        let addr = CellAddr::from_string(cell_ref)
+            .map_err(|e| format!("Invalid cell reference: {}", e))?;
 
         let workbook = self.workbook.lock().unwrap();
         let sheet = workbook.active_sheet();
 
-        let cell = sheet.get(&addr).ok_or_else(|| format!("Cell {} is empty or does not exist", cell_ref))?;
+        let cell = sheet
+            .get(&addr)
+            .ok_or_else(|| format!("Cell {} is empty or does not exist", cell_ref))?;
 
         let result = json!({
             "cell_ref": cell_ref,
@@ -445,7 +461,8 @@ impl ToolHandler {
             .and_then(|v| v.as_str())
             .ok_or("Missing cell_ref")?;
 
-        let addr = CellAddr::from_string(cell_ref).map_err(|e| format!("Invalid cell reference: {}", e))?;
+        let addr = CellAddr::from_string(cell_ref)
+            .map_err(|e| format!("Invalid cell reference: {}", e))?;
 
         let value = args.get("value").ok_or("Missing value")?;
 
@@ -476,7 +493,9 @@ impl ToolHandler {
             return Err("Invalid value type".to_string());
         };
 
-        sheet.set(addr.clone(), cell).map_err(|e| format!("Error writing cell: {}", e))?;
+        sheet
+            .set(addr.clone(), cell)
+            .map_err(|e| format!("Error writing cell: {}", e))?;
 
         let result = json!({
             "success": true,
@@ -571,19 +590,12 @@ impl ToolHandler {
         // Known units by dimension (hardcoded for now)
         let all_known_units = vec![
             // Length
-            "m", "cm", "mm", "km", "in", "ft", "yd", "mi",
-            // Mass
-            "g", "kg", "mg", "oz", "lb",
-            // Time
-            "s", "min", "hr", "h", "hour", "day", "month", "year",
-            // Temperature
-            "C", "F", "K",
-            // Currency
-            "USD", "EUR", "GBP",
-            // Digital storage
-            "B", "KB", "MB", "GB", "TB", "PB",
-            "b", "Kb", "Mb", "Gb", "Tb", "Pb",
-            "Tok", "MTok",
+            "m", "cm", "mm", "km", "in", "ft", "yd", "mi", // Mass
+            "g", "kg", "mg", "oz", "lb", // Time
+            "s", "min", "hr", "h", "hour", "day", "month", "year", // Temperature
+            "C", "F", "K", // Currency
+            "USD", "EUR", "GBP", // Digital storage
+            "B", "KB", "MB", "GB", "TB", "PB", "b", "Kb", "Mb", "Gb", "Tb", "Pb", "Tok", "MTok",
         ];
 
         // Filter for compatible units
@@ -639,7 +651,10 @@ impl ToolHandler {
         }
     }
 
-    fn handle_get_workbook_metadata(&self, _args: HashMap<String, Value>) -> Result<String, String> {
+    fn handle_get_workbook_metadata(
+        &self,
+        _args: HashMap<String, Value>,
+    ) -> Result<String, String> {
         let workbook = self.workbook.lock().unwrap();
 
         let mut sheets = Vec::new();

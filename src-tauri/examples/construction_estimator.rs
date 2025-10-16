@@ -6,12 +6,12 @@
 // - Metric/Imperial display toggle
 // - Real-world construction planning use case
 
+use std::path::PathBuf;
 use unicel_lib::core::cell::Cell;
 use unicel_lib::core::table::CellAddr;
 use unicel_lib::core::units::{BaseDimension, Unit};
 use unicel_lib::core::workbook::Workbook;
 use unicel_lib::formats::json::WorkbookFile;
-use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut workbook = Workbook::new("Construction Estimator");
@@ -28,26 +28,53 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Row 2: Flooring for main room
     sheet.set(CellAddr::new("A", 2), Cell::with_text("Main Room Flooring"))?;
-    sheet.set(CellAddr::new("B", 2), Cell::new(25.0, Unit::simple("ft", BaseDimension::Length)))?;
-    sheet.set(CellAddr::new("C", 2), Cell::new(20.0, Unit::simple("ft", BaseDimension::Length)))?;
+    sheet.set(
+        CellAddr::new("B", 2),
+        Cell::new(25.0, Unit::simple("ft", BaseDimension::Length)),
+    )?;
+    sheet.set(
+        CellAddr::new("C", 2),
+        Cell::new(20.0, Unit::simple("ft", BaseDimension::Length)),
+    )?;
     sheet.set(CellAddr::new("D", 2), Cell::with_formula("=B2 * C2"))?;
-    sheet.set(CellAddr::new("E", 2), Cell::new(5.50, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet.set(
+        CellAddr::new("E", 2),
+        Cell::new(5.50, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
     sheet.set(CellAddr::new("F", 2), Cell::with_formula("=D2 * E2"))?;
 
     // Row 3: Bedroom flooring
     sheet.set(CellAddr::new("A", 3), Cell::with_text("Bedroom Flooring"))?;
-    sheet.set(CellAddr::new("B", 3), Cell::new(15.0, Unit::simple("ft", BaseDimension::Length)))?;
-    sheet.set(CellAddr::new("C", 3), Cell::new(12.0, Unit::simple("ft", BaseDimension::Length)))?;
+    sheet.set(
+        CellAddr::new("B", 3),
+        Cell::new(15.0, Unit::simple("ft", BaseDimension::Length)),
+    )?;
+    sheet.set(
+        CellAddr::new("C", 3),
+        Cell::new(12.0, Unit::simple("ft", BaseDimension::Length)),
+    )?;
     sheet.set(CellAddr::new("D", 3), Cell::with_formula("=B3 * C3"))?;
-    sheet.set(CellAddr::new("E", 3), Cell::new(5.50, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet.set(
+        CellAddr::new("E", 3),
+        Cell::new(5.50, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
     sheet.set(CellAddr::new("F", 3), Cell::with_formula("=D3 * E3"))?;
 
     // Row 4: Kitchen tile
     sheet.set(CellAddr::new("A", 4), Cell::with_text("Kitchen Tile"))?;
-    sheet.set(CellAddr::new("B", 4), Cell::new(12.0, Unit::simple("ft", BaseDimension::Length)))?;
-    sheet.set(CellAddr::new("C", 4), Cell::new(10.0, Unit::simple("ft", BaseDimension::Length)))?;
+    sheet.set(
+        CellAddr::new("B", 4),
+        Cell::new(12.0, Unit::simple("ft", BaseDimension::Length)),
+    )?;
+    sheet.set(
+        CellAddr::new("C", 4),
+        Cell::new(10.0, Unit::simple("ft", BaseDimension::Length)),
+    )?;
     sheet.set(CellAddr::new("D", 4), Cell::with_formula("=B4 * C4"))?;
-    sheet.set(CellAddr::new("E", 4), Cell::new(8.75, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet.set(
+        CellAddr::new("E", 4),
+        Cell::new(8.75, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
     sheet.set(CellAddr::new("F", 4), Cell::with_formula("=D4 * E4"))?;
 
     // Row 6: Total area and cost
@@ -65,26 +92,53 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 2x4 studs
     sheet.set(CellAddr::new("A", 9), Cell::with_text("2x4 Studs"))?;
-    sheet.set(CellAddr::new("B", 9), Cell::new(8.0, Unit::simple("ft", BaseDimension::Length)))?;
-    sheet.set(CellAddr::new("C", 9), Cell::new(24.0, Unit::dimensionless()))?;
+    sheet.set(
+        CellAddr::new("B", 9),
+        Cell::new(8.0, Unit::simple("ft", BaseDimension::Length)),
+    )?;
+    sheet.set(
+        CellAddr::new("C", 9),
+        Cell::new(24.0, Unit::dimensionless()),
+    )?;
     sheet.set(CellAddr::new("D", 9), Cell::with_formula("=B9 * C9"))?;
-    sheet.set(CellAddr::new("E", 9), Cell::new(0.55, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet.set(
+        CellAddr::new("E", 9),
+        Cell::new(0.55, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
     sheet.set(CellAddr::new("F", 9), Cell::with_formula("=D9 * E9"))?;
 
     // 2x6 joists
     sheet.set(CellAddr::new("A", 10), Cell::with_text("2x6 Joists"))?;
-    sheet.set(CellAddr::new("B", 10), Cell::new(12.0, Unit::simple("ft", BaseDimension::Length)))?;
-    sheet.set(CellAddr::new("C", 10), Cell::new(16.0, Unit::dimensionless()))?;
+    sheet.set(
+        CellAddr::new("B", 10),
+        Cell::new(12.0, Unit::simple("ft", BaseDimension::Length)),
+    )?;
+    sheet.set(
+        CellAddr::new("C", 10),
+        Cell::new(16.0, Unit::dimensionless()),
+    )?;
     sheet.set(CellAddr::new("D", 10), Cell::with_formula("=B10 * C10"))?;
-    sheet.set(CellAddr::new("E", 10), Cell::new(1.25, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet.set(
+        CellAddr::new("E", 10),
+        Cell::new(1.25, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
     sheet.set(CellAddr::new("F", 10), Cell::with_formula("=D10 * E10"))?;
 
     // Plywood sheets
     sheet.set(CellAddr::new("A", 11), Cell::with_text("Plywood 4x8"))?;
-    sheet.set(CellAddr::new("B", 11), Cell::new(8.0, Unit::simple("ft", BaseDimension::Length)))?;
-    sheet.set(CellAddr::new("C", 11), Cell::new(10.0, Unit::dimensionless()))?;
+    sheet.set(
+        CellAddr::new("B", 11),
+        Cell::new(8.0, Unit::simple("ft", BaseDimension::Length)),
+    )?;
+    sheet.set(
+        CellAddr::new("C", 11),
+        Cell::new(10.0, Unit::dimensionless()),
+    )?;
     sheet.set(CellAddr::new("D", 11), Cell::with_formula("=B11 * C11"))?;
-    sheet.set(CellAddr::new("E", 11), Cell::new(1.85, Unit::simple("USD", BaseDimension::Currency)))?;
+    sheet.set(
+        CellAddr::new("E", 11),
+        Cell::new(1.85, Unit::simple("USD", BaseDimension::Currency)),
+    )?;
     sheet.set(CellAddr::new("F", 11), Cell::with_formula("=D11 * E11"))?;
 
     // Lumber total
@@ -98,19 +152,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Notes section
     sheet.set(CellAddr::new("A", 17), Cell::with_text("NOTES:"))?;
-    sheet.set(CellAddr::new("A", 18), Cell::with_text("- All flooring prices include installation"))?;
-    sheet.set(CellAddr::new("A", 19), Cell::with_text("- Lumber prices are per linear foot"))?;
-    sheet.set(CellAddr::new("A", 20), Cell::with_text("- Toggle Metric/Imperial to see conversions"))?;
-    sheet.set(CellAddr::new("A", 21), Cell::with_text("- Area formulas automatically cancel units"))?;
+    sheet.set(
+        CellAddr::new("A", 18),
+        Cell::with_text("- All flooring prices include installation"),
+    )?;
+    sheet.set(
+        CellAddr::new("A", 19),
+        Cell::with_text("- Lumber prices are per linear foot"),
+    )?;
+    sheet.set(
+        CellAddr::new("A", 20),
+        Cell::with_text("- Toggle Metric/Imperial to see conversions"),
+    )?;
+    sheet.set(
+        CellAddr::new("A", 21),
+        Cell::with_text("- Area formulas automatically cancel units"),
+    )?;
 
     // Recalculate all formulas
     let changed_cells: Vec<CellAddr> = vec![
-        CellAddr::new("B", 2), CellAddr::new("C", 2), CellAddr::new("E", 2),
-        CellAddr::new("B", 3), CellAddr::new("C", 3), CellAddr::new("E", 3),
-        CellAddr::new("B", 4), CellAddr::new("C", 4), CellAddr::new("E", 4),
-        CellAddr::new("B", 9), CellAddr::new("C", 9), CellAddr::new("E", 9),
-        CellAddr::new("B", 10), CellAddr::new("C", 10), CellAddr::new("E", 10),
-        CellAddr::new("B", 11), CellAddr::new("C", 11), CellAddr::new("E", 11),
+        CellAddr::new("B", 2),
+        CellAddr::new("C", 2),
+        CellAddr::new("E", 2),
+        CellAddr::new("B", 3),
+        CellAddr::new("C", 3),
+        CellAddr::new("E", 3),
+        CellAddr::new("B", 4),
+        CellAddr::new("C", 4),
+        CellAddr::new("E", 4),
+        CellAddr::new("B", 9),
+        CellAddr::new("C", 9),
+        CellAddr::new("E", 9),
+        CellAddr::new("B", 10),
+        CellAddr::new("C", 10),
+        CellAddr::new("E", 10),
+        CellAddr::new("B", 11),
+        CellAddr::new("C", 11),
+        CellAddr::new("E", 11),
     ];
     sheet.recalculate(&changed_cells)?;
 

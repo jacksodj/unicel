@@ -14,12 +14,29 @@ fn main() {
     let sheet1 = workbook.active_sheet_mut();
 
     // Set up cells
-    sheet1.set(CellAddr::new("A", 1), Cell::new(10.0, Unit::simple("USD", BaseDimension::Currency))).unwrap();
-    sheet1.set(CellAddr::new("A", 2), Cell::new(20.0, Unit::simple("USD", BaseDimension::Currency))).unwrap();
-    sheet1.set(CellAddr::new("A", 3), Cell::new(30.0, Unit::simple("USD", BaseDimension::Currency))).unwrap();
+    sheet1
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(10.0, Unit::simple("USD", BaseDimension::Currency)),
+        )
+        .unwrap();
+    sheet1
+        .set(
+            CellAddr::new("A", 2),
+            Cell::new(20.0, Unit::simple("USD", BaseDimension::Currency)),
+        )
+        .unwrap();
+    sheet1
+        .set(
+            CellAddr::new("A", 3),
+            Cell::new(30.0, Unit::simple("USD", BaseDimension::Currency)),
+        )
+        .unwrap();
 
     // Set SUM formula
-    sheet1.set(CellAddr::new("A", 4), Cell::with_formula("=SUM(A1:A3)")).unwrap();
+    sheet1
+        .set(CellAddr::new("A", 4), Cell::with_formula("=SUM(A1:A3)"))
+        .unwrap();
 
     println!("Before recalculation:");
     if let Some(cell) = sheet1.get(&CellAddr::new("A", 4)) {
@@ -28,11 +45,13 @@ fn main() {
     }
 
     // Recalculate (same pattern as AWS estimator)
-    sheet1.recalculate(&[
-        CellAddr::new("A", 1),
-        CellAddr::new("A", 2),
-        CellAddr::new("A", 3),
-    ]).unwrap();
+    sheet1
+        .recalculate(&[
+            CellAddr::new("A", 1),
+            CellAddr::new("A", 2),
+            CellAddr::new("A", 3),
+        ])
+        .unwrap();
 
     println!("\nAfter recalculation:");
     if let Some(cell) = sheet1.get(&CellAddr::new("A", 4)) {
@@ -58,8 +77,11 @@ fn main() {
         } else if cell.as_number() == Some(60.0) && cell.storage_unit().canonical() == "USD" {
             println!("\n✅ SUCCESS! SUM recalculation and serialization work correctly");
         } else {
-            println!("\n❌ FAILED! Expected 60.0 USD, got {:?} {}",
-                cell.as_number(), cell.storage_unit().canonical());
+            println!(
+                "\n❌ FAILED! Expected 60.0 USD, got {:?} {}",
+                cell.as_number(),
+                cell.storage_unit().canonical()
+            );
         }
     }
 }

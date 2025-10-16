@@ -1,7 +1,5 @@
 // Workbook types and helper functions for Tauri commands
 
-use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
 use crate::core::{
     cell::{Cell, CellValue},
     settings::UnitPreferences,
@@ -10,6 +8,8 @@ use crate::core::{
     workbook::Workbook,
 };
 use crate::formats::json::WorkbookFile;
+use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
 
 /// Display mode for unit display
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -72,9 +72,7 @@ pub fn cell_to_data(cell: &Cell) -> CellData {
         CellValue::Empty => CellValueData::Empty,
         CellValue::Number(n) => CellValueData::Number { value: *n },
         CellValue::Text(t) => CellValueData::Text { text: t.clone() },
-        CellValue::Error(e) => CellValueData::Error {
-            message: e.clone(),
-        },
+        CellValue::Error(e) => CellValueData::Error { message: e.clone() },
     };
 
     let storage_unit = cell.storage_unit().canonical().to_string();
@@ -93,13 +91,22 @@ pub fn cell_to_data(cell: &Cell) -> CellData {
     }
 }
 
-pub fn cell_to_data_with_mode(cell: &Cell, mode: &DisplayMode, preferences: &UnitPreferences) -> CellData {
+pub fn cell_to_data_with_mode(
+    cell: &Cell,
+    mode: &DisplayMode,
+    preferences: &UnitPreferences,
+) -> CellData {
     use crate::core::units::UnitLibrary;
 
     let storage_unit = cell.storage_unit().canonical().to_string();
 
-    tracing::debug!("cell_to_data_with_mode: mode={:?}, storage_unit={:?}, contains_star={}, contains_slash={}",
-        mode, storage_unit, storage_unit.contains('*'), storage_unit.contains('/'));
+    tracing::debug!(
+        "cell_to_data_with_mode: mode={:?}, storage_unit={:?}, contains_star={}, contains_slash={}",
+        mode,
+        storage_unit,
+        storage_unit.contains('*'),
+        storage_unit.contains('/')
+    );
 
     // Determine display unit based on mode and preferences
     let display_unit_str = get_display_unit_for_mode(&storage_unit, mode, preferences);
@@ -110,41 +117,79 @@ pub fn cell_to_data_with_mode(cell: &Cell, mode: &DisplayMode, preferences: &Uni
     let (display_value, display_unit_final) = if let Some(target_unit) = display_unit_str {
         if let Some(original_value) = cell.as_number() {
             // Try to convert compound units
-            if let Some(converted) = convert_compound_unit(original_value, &storage_unit, &target_unit) {
-                tracing::debug!("  compound conversion succeeded: {} {} -> {} {}", original_value, storage_unit, converted, target_unit);
-                (CellValueData::Number { value: converted }, Some(format_unit_display(&target_unit)))
+            if let Some(converted) =
+                convert_compound_unit(original_value, &storage_unit, &target_unit)
+            {
+                tracing::debug!(
+                    "  compound conversion succeeded: {} {} -> {} {}",
+                    original_value,
+                    storage_unit,
+                    converted,
+                    target_unit
+                );
+                (
+                    CellValueData::Number { value: converted },
+                    Some(format_unit_display(&target_unit)),
+                )
             } else {
                 // Try simple conversion with normalized units (for currency symbols)
                 let library = UnitLibrary::new();
                 let storage_norm = normalize_unit(&storage_unit);
                 let target_norm = normalize_unit(&target_unit);
 
-                if let Some(converted) = library.convert(original_value, &storage_norm, &target_norm) {
-                    tracing::debug!("  simple conversion succeeded: {} {} -> {} {}", original_value, storage_unit, converted, target_unit);
-                    (CellValueData::Number { value: converted }, Some(format_unit_display(&target_unit)))
+                if let Some(converted) =
+                    library.convert(original_value, &storage_norm, &target_norm)
+                {
+                    tracing::debug!(
+                        "  simple conversion succeeded: {} {} -> {} {}",
+                        original_value,
+                        storage_unit,
+                        converted,
+                        target_unit
+                    );
+                    (
+                        CellValueData::Number { value: converted },
+                        Some(format_unit_display(&target_unit)),
+                    )
                 } else {
                     // Conversion failed, use original
-                    tracing::warn!("  conversion FAILED: {} {} -> {}", original_value, storage_unit, target_unit);
-                    (CellValueData::Number { value: original_value }, None)
+                    tracing::warn!(
+                        "  conversion FAILED: {} {} -> {}",
+                        original_value,
+                        storage_unit,
+                        target_unit
+                    );
+                    (
+                        CellValueData::Number {
+                            value: original_value,
+                        },
+                        None,
+                    )
                 }
             }
         } else {
             // Not a number, use original
-            (match cell.value() {
+            (
+                match cell.value() {
+                    CellValue::Empty => CellValueData::Empty,
+                    CellValue::Number(n) => CellValueData::Number { value: *n },
+                    CellValue::Text(t) => CellValueData::Text { text: t.clone() },
+                    CellValue::Error(e) => CellValueData::Error { message: e.clone() },
+                },
+                None,
+            )
+        }
+    } else {
+        // No conversion needed
+        (
+            match cell.value() {
                 CellValue::Empty => CellValueData::Empty,
                 CellValue::Number(n) => CellValueData::Number { value: *n },
                 CellValue::Text(t) => CellValueData::Text { text: t.clone() },
                 CellValue::Error(e) => CellValueData::Error { message: e.clone() },
-            }, None)
-        }
-    } else {
-        // No conversion needed
-        (match cell.value() {
-            CellValue::Empty => CellValueData::Empty,
-            CellValue::Number(n) => CellValueData::Number { value: *n },
-            CellValue::Text(t) => CellValueData::Text { text: t.clone() },
-            CellValue::Error(e) => CellValueData::Error { message: e.clone() },
-        }, None)
+            },
+            None,
+        )
     };
 
     CellData {
@@ -180,7 +225,9 @@ fn convert_compound_unit(value: f64, from_unit: &str, to_unit: &str) -> Option<f
         let to_power_str = &to_unit[to_pos + 1..];
 
         // Parse the power
-        if let (Ok(from_power), Ok(to_power)) = (from_power_str.parse::<i32>(), to_power_str.parse::<i32>()) {
+        if let (Ok(from_power), Ok(to_power)) =
+            (from_power_str.parse::<i32>(), to_power_str.parse::<i32>())
+        {
             if from_power == to_power {
                 // Get conversion factor for base unit
                 if let Some(base_factor) = library.convert(1.0, from_base, to_base) {
@@ -220,10 +267,16 @@ fn convert_compound_unit(value: f64, from_unit: &str, to_unit: &str) -> Option<f
         let to_left_norm = normalize_unit(to_left);
 
         // Get conversion factors for each component
-        let factor_left = library.convert(1.0, &from_left_norm, &to_left_norm).or_else(|| {
-            // Try converting just the left side if it's the same dimension
-            if from_left_norm == to_left_norm { Some(1.0) } else { None }
-        })?;
+        let factor_left = library
+            .convert(1.0, &from_left_norm, &to_left_norm)
+            .or_else(|| {
+                // Try converting just the left side if it's the same dimension
+                if from_left_norm == to_left_norm {
+                    Some(1.0)
+                } else {
+                    None
+                }
+            })?;
 
         // Special handling for time unit conversions in rates
         let factor_right = convert_time_unit(1.0, from_right, to_right)
@@ -276,12 +329,19 @@ pub fn parse_cell_input(input: &str) -> Result<Cell, String> {
         let number_str = input[..input.len() - 1].trim();
         if let Ok(value) = number_str.parse::<f64>() {
             // Store as fraction (15% -> 0.15)
-            return Ok(Cell::new(value / 100.0, Unit::simple("%", BaseDimension::Custom("%".to_string()))));
+            return Ok(Cell::new(
+                value / 100.0,
+                Unit::simple("%", BaseDimension::Custom("%".to_string())),
+            ));
         }
     }
 
     // Check if it starts with a currency symbol (e.g., "$15", "USD 15")
-    if input.starts_with('$') || input.starts_with("USD") || input.starts_with("EUR") || input.starts_with("GBP") {
+    if input.starts_with('$')
+        || input.starts_with("USD")
+        || input.starts_with("EUR")
+        || input.starts_with("GBP")
+    {
         // Try to parse as currency-first format
         if let Some((currency, number_part)) = parse_currency_first(input) {
             return Ok(Cell::new(number_part, parse_unit(currency)));
@@ -390,11 +450,7 @@ pub fn parse_unit(unit_str: &str) -> Unit {
 
         if let Ok(power) = power_str.parse::<i32>() {
             let dimension = get_base_dimension(base_str);
-            return Unit::compound(
-                unit_str.to_string(),
-                vec![(dimension, power)],
-                vec![],
-            );
+            return Unit::compound(unit_str.to_string(), vec![(dimension, power)], vec![]);
         }
     }
 
@@ -427,7 +483,8 @@ fn get_base_dimension(unit_str: &str) -> BaseDimension {
         "day" | "month" | "year" => BaseDimension::Custom(unit_str.to_string()),
         "C" | "F" | "K" => BaseDimension::Temperature,
         "USD" | "EUR" | "GBP" | "$" => BaseDimension::Currency,
-        "B" | "KB" | "MB" | "GB" | "TB" | "PB" | "Kb" | "Mb" | "Gb" | "Tb" | "Pb" | "Tok" | "MTok" => BaseDimension::DigitalStorage,
+        "B" | "KB" | "MB" | "GB" | "TB" | "PB" | "Kb" | "Mb" | "Gb" | "Tb" | "Pb" | "Tok"
+        | "MTok" => BaseDimension::DigitalStorage,
         _ => BaseDimension::Custom(unit_str.to_string()),
     }
 }
@@ -468,7 +525,10 @@ pub fn get_sheet_cells_impl(state: &AppState) -> Result<Vec<(String, CellData)>,
         .into_iter()
         .filter_map(|addr| {
             sheet.get(&addr).map(|cell| {
-                (addr.to_string(), cell_to_data_with_mode(cell, &display_mode, &preferences))
+                (
+                    addr.to_string(),
+                    cell_to_data_with_mode(cell, &display_mode, &preferences),
+                )
             })
         })
         .collect();
@@ -476,11 +536,7 @@ pub fn get_sheet_cells_impl(state: &AppState) -> Result<Vec<(String, CellData)>,
     Ok(cells)
 }
 
-pub fn set_cell_impl(
-    state: &AppState,
-    address: String,
-    value: String,
-) -> Result<CellData, String> {
+pub fn set_cell_impl(state: &AppState, address: String, value: String) -> Result<CellData, String> {
     use crate::core::cell_input::{parse_cell_input as parse_label_input, CellInput};
 
     let mut workbook_guard = state.workbook.lock().unwrap();
@@ -499,7 +555,8 @@ pub fn set_cell_impl(
         }
         CellInput::Labeled { label, content, .. } => {
             // Has label, register it as named range
-            workbook.set_named_range(&label, active_sheet_idx, addr.clone())
+            workbook
+                .set_named_range(&label, active_sheet_idx, addr.clone())
                 .map_err(|e| e.to_string())?;
 
             // Parse the content
@@ -548,8 +605,8 @@ pub fn save_workbook_impl(state: &AppState, path: String) -> Result<(), String> 
 }
 
 pub fn load_workbook_impl(state: &AppState, path: String) -> Result<(), String> {
-    let file = WorkbookFile::load_from_file(std::path::Path::new(&path))
-        .map_err(|e| e.to_string())?;
+    let file =
+        WorkbookFile::load_from_file(std::path::Path::new(&path)).map_err(|e| e.to_string())?;
 
     let mut workbook = file.to_workbook().map_err(|e| e.to_string())?;
 
@@ -662,7 +719,11 @@ fn format_unit_display(unit: &str) -> String {
 }
 
 /// Get the preferred display unit for a given storage unit based on display mode and preferences
-fn get_display_unit_for_mode(storage_unit: &str, mode: &DisplayMode, preferences: &UnitPreferences) -> Option<String> {
+fn get_display_unit_for_mode(
+    storage_unit: &str,
+    mode: &DisplayMode,
+    preferences: &UnitPreferences,
+) -> Option<String> {
     // Handle compound units (e.g., "ft*ft", "m/s", "ft^2")
     if storage_unit.contains('*') || storage_unit.contains('/') || storage_unit.contains('^') {
         return get_compound_display_unit(storage_unit, mode, preferences);
@@ -689,7 +750,11 @@ fn get_display_unit_for_mode(storage_unit: &str, mode: &DisplayMode, preferences
                     }
                 }
                 BaseDimension::Time => {
-                    tracing::debug!("  Time dimension (Metric): storage_unit={}, metric_time={}", storage_unit, preferences.metric_time);
+                    tracing::debug!(
+                        "  Time dimension (Metric): storage_unit={}, metric_time={}",
+                        storage_unit,
+                        preferences.metric_time
+                    );
                     if storage_unit != preferences.metric_time {
                         Some(preferences.metric_time.clone())
                     } else {
@@ -719,7 +784,7 @@ fn get_display_unit_for_mode(storage_unit: &str, mode: &DisplayMode, preferences
                 }
                 _ => None,
             }
-        },
+        }
         DisplayMode::Imperial => {
             let base_dim = get_base_dimension(storage_unit);
             match base_dim {
@@ -738,7 +803,11 @@ fn get_display_unit_for_mode(storage_unit: &str, mode: &DisplayMode, preferences
                     }
                 }
                 BaseDimension::Time => {
-                    tracing::debug!("  Time dimension (Imperial): storage_unit={}, imperial_time={}", storage_unit, preferences.imperial_time);
+                    tracing::debug!(
+                        "  Time dimension (Imperial): storage_unit={}, imperial_time={}",
+                        storage_unit,
+                        preferences.imperial_time
+                    );
                     if storage_unit != preferences.imperial_time {
                         Some(preferences.imperial_time.clone())
                     } else {
@@ -768,19 +837,24 @@ fn get_display_unit_for_mode(storage_unit: &str, mode: &DisplayMode, preferences
                 }
                 _ => None,
             }
-        },
+        }
     }
 }
 
 /// Get display unit for compound units based on display mode
-fn get_compound_display_unit(storage_unit: &str, mode: &DisplayMode, preferences: &UnitPreferences) -> Option<String> {
+fn get_compound_display_unit(
+    storage_unit: &str,
+    mode: &DisplayMode,
+    preferences: &UnitPreferences,
+) -> Option<String> {
     // Handle power notation (e.g., "ft^2", "m^3")
     if let Some(pos) = storage_unit.find('^') {
         let base = &storage_unit[..pos];
         let power = &storage_unit[pos + 1..];
 
         // Convert the base unit
-        let base_converted = get_display_unit_for_mode(base, mode, preferences).unwrap_or_else(|| base.to_string());
+        let base_converted =
+            get_display_unit_for_mode(base, mode, preferences).unwrap_or_else(|| base.to_string());
 
         // Return with same power
         return Some(format!("{}^{}", base_converted, power));
@@ -791,8 +865,10 @@ fn get_compound_display_unit(storage_unit: &str, mode: &DisplayMode, preferences
         let right = &storage_unit[pos + 1..];
 
         // Convert each component
-        let left_converted = get_display_unit_for_mode(left, mode, preferences).unwrap_or_else(|| left.to_string());
-        let right_converted = get_display_unit_for_mode(right, mode, preferences).unwrap_or_else(|| right.to_string());
+        let left_converted =
+            get_display_unit_for_mode(left, mode, preferences).unwrap_or_else(|| left.to_string());
+        let right_converted = get_display_unit_for_mode(right, mode, preferences)
+            .unwrap_or_else(|| right.to_string());
 
         // Return compound unit
         Some(format!("{}*{}", left_converted, right_converted))
@@ -801,11 +877,13 @@ fn get_compound_display_unit(storage_unit: &str, mode: &DisplayMode, preferences
         let right = &storage_unit[pos + 1..];
 
         // Convert each component, with special handling for time in denominators (rates)
-        let left_converted = get_display_unit_for_mode(left, mode, preferences).unwrap_or_else(|| left.to_string());
+        let left_converted =
+            get_display_unit_for_mode(left, mode, preferences).unwrap_or_else(|| left.to_string());
 
         // For time units in denominators, use the time_rate_unit preference
         let right_dim = get_base_dimension(right);
-        let right_converted = if right_dim == BaseDimension::Time && mode != &DisplayMode::AsEntered {
+        let right_converted = if right_dim == BaseDimension::Time && mode != &DisplayMode::AsEntered
+        {
             // Use the time rate unit preference for rates (e.g., $/hr -> $/month)
             if right != &preferences.time_rate_unit {
                 preferences.time_rate_unit.clone()
@@ -868,11 +946,7 @@ pub fn set_metric_system_impl(state: &AppState, system: String) -> Result<(), St
     Ok(())
 }
 
-pub fn set_currency_rate_impl(
-    state: &AppState,
-    currency: String,
-    rate: f64,
-) -> Result<(), String> {
+pub fn set_currency_rate_impl(state: &AppState, currency: String, rate: f64) -> Result<(), String> {
     let mut prefs = state.unit_preferences.lock().unwrap();
     prefs.set_currency_rate(currency, rate);
     Ok(())
@@ -927,7 +1001,8 @@ pub fn export_debug_to_clipboard_impl(state: &AppState) -> Result<(), String> {
 
     // Copy to clipboard using arboard
     use arboard::Clipboard;
-    let mut clipboard = Clipboard::new().map_err(|e| format!("Failed to access clipboard: {}", e))?;
+    let mut clipboard =
+        Clipboard::new().map_err(|e| format!("Failed to access clipboard: {}", e))?;
     clipboard
         .set_text(debug_text)
         .map_err(|e| format!("Failed to write to clipboard: {}", e))?;
@@ -949,18 +1024,36 @@ pub fn get_debug_export_impl(state: &AppState) -> Result<String, String> {
 
     // Unit settings
     output.push_str("\nunit settings:\n");
-    output.push_str(&format!("  metric system: {:?}\n", preferences.metric_system));
+    output.push_str(&format!(
+        "  metric system: {:?}\n",
+        preferences.metric_system
+    ));
     output.push_str(&format!("  metric length: {}\n", preferences.metric_length));
     output.push_str(&format!("  metric mass: {}\n", preferences.metric_mass));
     output.push_str(&format!("  metric time: {}\n", preferences.metric_time));
-    output.push_str(&format!("  imperial length: {}\n", preferences.imperial_length));
+    output.push_str(&format!(
+        "  imperial length: {}\n",
+        preferences.imperial_length
+    ));
     output.push_str(&format!("  imperial mass: {}\n", preferences.imperial_mass));
     output.push_str(&format!("  imperial time: {}\n", preferences.imperial_time));
-    output.push_str(&format!("  time rate unit: {}\n", preferences.time_rate_unit));
+    output.push_str(&format!(
+        "  time rate unit: {}\n",
+        preferences.time_rate_unit
+    ));
     output.push_str(&format!("  currency: {}\n", preferences.currency));
-    output.push_str(&format!("  digital storage: {}\n", preferences.digital_storage_unit));
-    output.push_str(&format!("  metric temperature: {}\n", preferences.metric_temperature));
-    output.push_str(&format!("  imperial temperature: {}\n", preferences.imperial_temperature));
+    output.push_str(&format!(
+        "  digital storage: {}\n",
+        preferences.digital_storage_unit
+    ));
+    output.push_str(&format!(
+        "  metric temperature: {}\n",
+        preferences.metric_temperature
+    ));
+    output.push_str(&format!(
+        "  imperial temperature: {}\n",
+        preferences.imperial_temperature
+    ));
 
     // Get all cells
     let sheet = workbook.active_sheet();
@@ -1029,8 +1122,7 @@ pub fn export_to_excel_impl(state: &AppState, path: String) -> Result<(), String
     // Use the export_to_excel function from formats module
     use crate::formats::export_to_excel;
 
-    export_to_excel(workbook, &path)
-        .map_err(|e| format!("Failed to export to Excel: {}", e))?;
+    export_to_excel(workbook, &path).map_err(|e| format!("Failed to export to Excel: {}", e))?;
 
     Ok(())
 }
@@ -1040,7 +1132,9 @@ pub fn set_active_sheet_impl(state: &AppState, index: usize) -> Result<(), Strin
     let mut workbook_guard = state.workbook.lock().unwrap();
     let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
 
-    workbook.set_active_sheet(index).map_err(|e| e.to_string())?;
+    workbook
+        .set_active_sheet(index)
+        .map_err(|e| e.to_string())?;
 
     // Recalculate all formulas in the newly active sheet
     // This ensures all formula cells have up-to-date values
@@ -1083,7 +1177,9 @@ pub fn rename_sheet_impl(state: &AppState, index: usize, new_name: String) -> Re
     let mut workbook_guard = state.workbook.lock().unwrap();
     let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
 
-    workbook.rename_sheet(index, new_name).map_err(|e| e.to_string())?;
+    workbook
+        .rename_sheet(index, new_name)
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 

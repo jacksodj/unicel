@@ -9,33 +9,35 @@ fn main() {
     let mut sheet = Sheet::new();
 
     // Simulate user entering "0.0416 USD/hr"
-    sheet.set(
-        CellAddr::new("C", 5),
-        Cell::new(
-            0.0416,
-            Unit::compound(
-                "USD/hr",
-                vec![(BaseDimension::Currency, 1)],
-                vec![(BaseDimension::Time, 1)],
+    sheet
+        .set(
+            CellAddr::new("C", 5),
+            Cell::new(
+                0.0416,
+                Unit::compound(
+                    "USD/hr",
+                    vec![(BaseDimension::Currency, 1)],
+                    vec![(BaseDimension::Time, 1)],
+                ),
             ),
-        ),
-    )
-    .unwrap();
+        )
+        .unwrap();
 
     // Simulate user entering "730 hr/month"
     // This should be parsed as a compound unit: hr in numerator, month in denominator
-    sheet.set(
-        CellAddr::new("D", 5),
-        Cell::new(
-            730.0,
-            Unit::compound(
-                "hr/month",
-                vec![(BaseDimension::Time, 1)],
-                vec![(BaseDimension::Custom("month".to_string()), 1)],
+    sheet
+        .set(
+            CellAddr::new("D", 5),
+            Cell::new(
+                730.0,
+                Unit::compound(
+                    "hr/month",
+                    vec![(BaseDimension::Time, 1)],
+                    vec![(BaseDimension::Custom("month".to_string()), 1)],
+                ),
             ),
-        ),
-    )
-    .unwrap();
+        )
+        .unwrap();
 
     println!("Cell C5: 0.0416 USD/hr");
     println!("Cell D5: 730 hr/month");

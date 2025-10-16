@@ -25,14 +25,14 @@ pub struct UnitPreferences {
     pub metric_system: MetricSystem,
 
     /// Preferred unit for each base dimension when in Metric mode
-    pub metric_length: String,  // e.g., "m" or "cm"
-    pub metric_mass: String,     // e.g., "kg" or "g"
-    pub metric_time: String,     // e.g., "s"
+    pub metric_length: String, // e.g., "m" or "cm"
+    pub metric_mass: String, // e.g., "kg" or "g"
+    pub metric_time: String, // e.g., "s"
 
     /// Preferred unit for each base dimension when in Imperial mode
     pub imperial_length: String, // e.g., "ft" or "in"
-    pub imperial_mass: String,   // e.g., "lb" or "oz"
-    pub imperial_time: String,   // e.g., "s" or "hr"
+    pub imperial_mass: String, // e.g., "lb" or "oz"
+    pub imperial_time: String, // e.g., "s" or "hr"
 
     /// Preferred digital storage unit
     pub digital_storage_unit: String, // e.g., "GB", "MB", "TB"

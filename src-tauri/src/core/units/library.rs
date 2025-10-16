@@ -134,7 +134,7 @@ impl UnitLibrary {
     /// Find and apply a multi-hop conversion path using BFS
     /// Optimizes order of operations to preserve precision by grouping multiplications and divisions
     fn convert_via_path(&self, value: f64, from: &str, to: &str) -> Option<f64> {
-        use std::collections::{VecDeque, HashSet};
+        use std::collections::{HashSet, VecDeque};
 
         // BFS to find shortest conversion path
         let mut queue = VecDeque::new();
@@ -395,7 +395,11 @@ impl UnitLibrary {
         // K to C: K − 273.15
 
         self.add_conversion("C", "F", ConversionFactor::with_offset(1.8, 32.0));
-        self.add_conversion("F", "C", ConversionFactor::with_offset(5.0 / 9.0, -160.0 / 9.0));
+        self.add_conversion(
+            "F",
+            "C",
+            ConversionFactor::with_offset(5.0 / 9.0, -160.0 / 9.0),
+        );
         self.add_conversion("C", "K", ConversionFactor::with_offset(1.0, 273.15));
         self.add_conversion("K", "C", ConversionFactor::with_offset(1.0, -273.15));
         self.add_conversion("F", "K", ConversionFactor::with_offset(5.0 / 9.0, 255.372));
@@ -452,13 +456,25 @@ impl UnitLibrary {
         self.add_conversion("GB", "KB", ConversionFactor::new(1024.0 * 1024.0));
         self.add_conversion("KB", "GB", ConversionFactor::new(1.0 / (1024.0 * 1024.0)));
         self.add_conversion("GB", "B", ConversionFactor::new(1024.0 * 1024.0 * 1024.0));
-        self.add_conversion("B", "GB", ConversionFactor::new(1.0 / (1024.0 * 1024.0 * 1024.0)));
+        self.add_conversion(
+            "B",
+            "GB",
+            ConversionFactor::new(1.0 / (1024.0 * 1024.0 * 1024.0)),
+        );
         self.add_conversion("TB", "GB", ConversionFactor::new(1024.0));
         self.add_conversion("GB", "TB", ConversionFactor::new(1.0 / 1024.0));
         self.add_conversion("TB", "MB", ConversionFactor::new(1024.0 * 1024.0));
         self.add_conversion("MB", "TB", ConversionFactor::new(1.0 / (1024.0 * 1024.0)));
-        self.add_conversion("TB", "B", ConversionFactor::new(1024.0 * 1024.0 * 1024.0 * 1024.0));
-        self.add_conversion("B", "TB", ConversionFactor::new(1.0 / (1024.0 * 1024.0 * 1024.0 * 1024.0)));
+        self.add_conversion(
+            "TB",
+            "B",
+            ConversionFactor::new(1024.0 * 1024.0 * 1024.0 * 1024.0),
+        );
+        self.add_conversion(
+            "B",
+            "TB",
+            ConversionFactor::new(1.0 / (1024.0 * 1024.0 * 1024.0 * 1024.0)),
+        );
         self.add_conversion("PB", "TB", ConversionFactor::new(1024.0));
         self.add_conversion("TB", "PB", ConversionFactor::new(1.0 / 1024.0));
 
@@ -498,7 +514,11 @@ impl UnitLibrary {
 
         // Additional cross-magnitude conversions (bits to bytes)
         // Gb to TB: Gb → GB → TB
-        self.add_conversion("Gb", "TB", ConversionFactor::new(1.0 / (8.589934592 * 1024.0))); // Gb → GB → TB
+        self.add_conversion(
+            "Gb",
+            "TB",
+            ConversionFactor::new(1.0 / (8.589934592 * 1024.0)),
+        ); // Gb → GB → TB
         self.add_conversion("TB", "Gb", ConversionFactor::new(8.589934592 * 1024.0));
         // Mb to GB
         self.add_conversion("Mb", "GB", ConversionFactor::new(1.0 / (8.388608 * 1024.0)));
@@ -739,11 +759,21 @@ mod tests {
         const STORAGE_UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB", "b", "Kb", "Mb", "Gb", "Tb"];
 
         /// Test that converting A → B → A returns the original value (within tolerance)
-        fn test_round_trip_conversion(library: &UnitLibrary, from: &str, to: &str, value: f64, tolerance: f64) {
+        fn test_round_trip_conversion(
+            library: &UnitLibrary,
+            from: &str,
+            to: &str,
+            value: f64,
+            tolerance: f64,
+        ) {
             if let Some(forward) = library.convert(value, from, to) {
                 if let Some(back) = library.convert(forward, to, from) {
                     let diff = (value - back).abs();
-                    let relative_error = if value != 0.0 { diff / value.abs() } else { diff };
+                    let relative_error = if value != 0.0 {
+                        diff / value.abs()
+                    } else {
+                        diff
+                    };
                     assert!(
                         relative_error < tolerance,
                         "Round-trip conversion failed: {} {} → {} → {} (got {}, expected {}, error: {})",

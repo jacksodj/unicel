@@ -92,10 +92,7 @@ impl DependencyGraph {
             .or_default()
             .insert(depends_on.clone());
 
-        self.dependents
-            .entry(depends_on)
-            .or_default()
-            .insert(cell);
+        self.dependents.entry(depends_on).or_default().insert(cell);
     }
 
     /// Remove all dependencies for a cell
@@ -113,18 +110,12 @@ impl DependencyGraph {
 
     /// Get cells that this cell depends on
     pub fn get_dependencies(&self, cell: &CellAddr) -> HashSet<CellAddr> {
-        self.dependencies
-            .get(cell)
-            .cloned()
-            .unwrap_or_default()
+        self.dependencies.get(cell).cloned().unwrap_or_default()
     }
 
     /// Get cells that depend on this cell
     pub fn get_dependents(&self, cell: &CellAddr) -> HashSet<CellAddr> {
-        self.dependents
-            .get(cell)
-            .cloned()
-            .unwrap_or_default()
+        self.dependents.get(cell).cloned().unwrap_or_default()
     }
 
     /// Check for circular references starting from a cell
@@ -338,8 +329,7 @@ impl Sheet {
         self.dependencies.remove_dependencies(addr);
 
         // Parse formula and extract cell references
-        let expr = parse_formula(formula)
-            .map_err(|e| SheetError::ParseError(e.to_string()))?;
+        let expr = parse_formula(formula).map_err(|e| SheetError::ParseError(e.to_string()))?;
 
         let deps = extract_cell_refs(&expr);
 
@@ -357,7 +347,10 @@ impl Sheet {
     }
 
     /// Evaluate a formula in the context of this sheet
-    pub fn evaluate_formula(&self, formula: &str) -> Result<(f64, crate::core::units::Unit), SheetError> {
+    pub fn evaluate_formula(
+        &self,
+        formula: &str,
+    ) -> Result<(f64, crate::core::units::Unit), SheetError> {
         self.evaluate_formula_with_named_refs(formula, None)
     }
 
@@ -367,8 +360,7 @@ impl Sheet {
         formula: &str,
         named_refs: Option<&HashMap<String, (f64, crate::core::units::Unit)>>,
     ) -> Result<(f64, crate::core::units::Unit), SheetError> {
-        let expr = parse_formula(formula)
-            .map_err(|e| SheetError::ParseError(e.to_string()))?;
+        let expr = parse_formula(formula).map_err(|e| SheetError::ParseError(e.to_string()))?;
 
         let evaluator = SheetEvaluator {
             sheet: self,
@@ -464,9 +456,11 @@ struct SheetEvaluator<'a> {
 
 impl<'a> SheetEvaluator<'a> {
     fn eval(&self, expr: &Expr) -> Result<EvalResult, EvalError> {
-
         match expr {
-            Expr::Number(n) => Ok(EvalResult::new(*n, crate::core::units::Unit::dimensionless())),
+            Expr::Number(n) => Ok(EvalResult::new(
+                *n,
+                crate::core::units::Unit::dimensionless(),
+            )),
 
             Expr::NumberWithUnit { value, unit } => {
                 // Parse the unit (supports both simple and compound units)
@@ -478,18 +472,16 @@ impl<'a> SheetEvaluator<'a> {
 
             Expr::CellRef { col, row } => {
                 let addr = CellAddr::new(col.clone(), *row);
-                let cell = self.sheet.get(&addr).ok_or_else(|| {
-                    EvalError::CellNotFound(addr.to_string())
-                })?;
+                let cell = self
+                    .sheet
+                    .get(&addr)
+                    .ok_or_else(|| EvalError::CellNotFound(addr.to_string()))?;
 
                 let value = cell.as_number().ok_or_else(|| {
                     EvalError::InvalidOperation(format!("Cell {} does not contain a number", addr))
                 })?;
 
-                Ok(EvalResult::new(
-                    value,
-                    cell.storage_unit().clone(),
-                ))
+                Ok(EvalResult::new(value, cell.storage_unit().clone()))
             }
 
             Expr::NamedRef { name } => {
@@ -498,10 +490,16 @@ impl<'a> SheetEvaluator<'a> {
                     if let Some((value, unit)) = named_refs.get(name) {
                         Ok(EvalResult::new(*value, unit.clone()))
                     } else {
-                        Err(EvalError::NamedRefNotFound(format!("Named reference '{}' not found", name)))
+                        Err(EvalError::NamedRefNotFound(format!(
+                            "Named reference '{}' not found",
+                            name
+                        )))
                     }
                 } else {
-                    Err(EvalError::NamedRefNotFound(format!("Named reference '{}' requires workbook context", name)))
+                    Err(EvalError::NamedRefNotFound(format!(
+                        "Named reference '{}' requires workbook context",
+                        name
+                    )))
                 }
             }
 
@@ -525,7 +523,10 @@ impl<'a> SheetEvaluator<'a> {
 
                 // If both dimensionless, result is dimensionless
                 if left_result.unit.is_dimensionless() && right_result.unit.is_dimensionless() {
-                    return Ok(EvalResult::new(value, crate::core::units::Unit::dimensionless()));
+                    return Ok(EvalResult::new(
+                        value,
+                        crate::core::units::Unit::dimensionless(),
+                    ));
                 }
 
                 // If one is dimensionless, result has the other's unit
@@ -538,7 +539,8 @@ impl<'a> SheetEvaluator<'a> {
 
                 // Multiply units with cancellation
                 use crate::core::formula::evaluator::multiply_units_with_cancellation;
-                let result_unit = multiply_units_with_cancellation(&left_result.unit, &right_result.unit);
+                let result_unit =
+                    multiply_units_with_cancellation(&left_result.unit, &right_result.unit);
 
                 Ok(EvalResult::new(value, result_unit))
             }
@@ -555,7 +557,10 @@ impl<'a> SheetEvaluator<'a> {
 
                 // If both dimensionless, result is dimensionless
                 if left_result.unit.is_dimensionless() && right_result.unit.is_dimensionless() {
-                    return Ok(EvalResult::new(value, crate::core::units::Unit::dimensionless()));
+                    return Ok(EvalResult::new(
+                        value,
+                        crate::core::units::Unit::dimensionless(),
+                    ));
                 }
 
                 // If right is dimensionless, result has left's unit
@@ -565,16 +570,23 @@ impl<'a> SheetEvaluator<'a> {
 
                 // If units are the same, they cancel out
                 if left_result.unit.is_equal(&right_result.unit) {
-                    return Ok(EvalResult::new(value, crate::core::units::Unit::dimensionless()));
+                    return Ok(EvalResult::new(
+                        value,
+                        crate::core::units::Unit::dimensionless(),
+                    ));
                 }
 
                 // Create compound unit using original symbols (don't cancel yet - that happens in multiply)
-                let compound_symbol = format!("{}/{}", left_result.unit.canonical(), right_result.unit.canonical());
+                let compound_symbol = format!(
+                    "{}/{}",
+                    left_result.unit.canonical(),
+                    right_result.unit.canonical()
+                );
 
                 // For simple dimensions, create compound unit
                 let compound_unit = if let (Some(left_dim), Some(right_dim)) = (
                     left_result.unit.dimension().as_simple(),
-                    right_result.unit.dimension().as_simple()
+                    right_result.unit.dimension().as_simple(),
                 ) {
                     crate::core::units::Unit::compound(
                         compound_symbol.clone(),
@@ -585,7 +597,7 @@ impl<'a> SheetEvaluator<'a> {
                     // Fallback: create custom dimension
                     crate::core::units::Unit::simple(
                         compound_symbol.clone(),
-                        crate::core::units::BaseDimension::Custom(compound_symbol)
+                        crate::core::units::BaseDimension::Custom(compound_symbol),
                     )
                 };
 
@@ -597,19 +609,17 @@ impl<'a> SheetEvaluator<'a> {
                 Ok(EvalResult::new(-result.value, result.unit))
             }
 
-            Expr::Range { .. } => {
-                Err(EvalError::InvalidOperation("Ranges can only be used in functions".to_string()))
-            }
+            Expr::Range { .. } => Err(EvalError::InvalidOperation(
+                "Ranges can only be used in functions".to_string(),
+            )),
 
-            Expr::Function { name, args } => {
-                match name.to_uppercase().as_str() {
-                    "SUM" => self.eval_sum(args),
-                    "AVERAGE" => self.eval_average(args),
-                    "CONVERT" => self.eval_convert(args),
-                    "PERCENT" => self.eval_percent(args),
-                    _ => Err(EvalError::FunctionNotImplemented(name.clone())),
-                }
-            }
+            Expr::Function { name, args } => match name.to_uppercase().as_str() {
+                "SUM" => self.eval_sum(args),
+                "AVERAGE" => self.eval_average(args),
+                "CONVERT" => self.eval_convert(args),
+                "PERCENT" => self.eval_percent(args),
+                _ => Err(EvalError::FunctionNotImplemented(name.clone())),
+            },
         }
     }
 
@@ -649,15 +659,14 @@ impl<'a> SheetEvaluator<'a> {
         }
 
         // Units are compatible but different - convert right to left's unit
-        let right_value_converted = self.library.convert(
-            right.value,
-            right.unit.canonical(),
-            left.unit.canonical(),
-        ).ok_or_else(|| EvalError::IncompatibleUnits {
-            operation: op_name.to_string(),
-            left: left.unit.to_string(),
-            right: right.unit.to_string(),
-        })?;
+        let right_value_converted = self
+            .library
+            .convert(right.value, right.unit.canonical(), left.unit.canonical())
+            .ok_or_else(|| EvalError::IncompatibleUnits {
+                operation: op_name.to_string(),
+                left: left.unit.to_string(),
+                right: right.unit.to_string(),
+            })?;
 
         Ok(EvalResult::new(
             op(left.value, right_value_converted),
@@ -668,14 +677,20 @@ impl<'a> SheetEvaluator<'a> {
     /// Evaluate SUM function
     fn eval_sum(&self, args: &[Expr]) -> Result<EvalResult, EvalError> {
         if args.is_empty() {
-            return Ok(EvalResult::new(0.0, crate::core::units::Unit::dimensionless()));
+            return Ok(EvalResult::new(
+                0.0,
+                crate::core::units::Unit::dimensionless(),
+            ));
         }
 
         // Collect all values from arguments (including ranges)
         let values = self.collect_values(args)?;
 
         if values.is_empty() {
-            return Ok(EvalResult::new(0.0, crate::core::units::Unit::dimensionless()));
+            return Ok(EvalResult::new(
+                0.0,
+                crate::core::units::Unit::dimensionless(),
+            ));
         }
 
         // All values should have compatible units
@@ -696,7 +711,8 @@ impl<'a> SheetEvaluator<'a> {
             let converted_value = if val.unit.is_equal(&result_unit) {
                 val.value
             } else {
-                self.library.convert(val.value, val.unit.canonical(), result_unit.canonical())
+                self.library
+                    .convert(val.value, val.unit.canonical(), result_unit.canonical())
                     .ok_or_else(|| EvalError::IncompatibleUnits {
                         operation: "SUM".to_string(),
                         left: result_unit.to_string(),
@@ -713,14 +729,18 @@ impl<'a> SheetEvaluator<'a> {
     /// Evaluate AVERAGE function
     fn eval_average(&self, args: &[Expr]) -> Result<EvalResult, EvalError> {
         if args.is_empty() {
-            return Err(EvalError::InvalidOperation("AVERAGE requires at least one argument".to_string()));
+            return Err(EvalError::InvalidOperation(
+                "AVERAGE requires at least one argument".to_string(),
+            ));
         }
 
         // Collect all values from arguments (including ranges)
         let values = self.collect_values(args)?;
 
         if values.is_empty() {
-            return Err(EvalError::InvalidOperation("AVERAGE requires at least one value".to_string()));
+            return Err(EvalError::InvalidOperation(
+                "AVERAGE requires at least one value".to_string(),
+            ));
         }
 
         // Calculate sum
@@ -737,7 +757,7 @@ impl<'a> SheetEvaluator<'a> {
     fn eval_convert(&self, args: &[Expr]) -> Result<EvalResult, EvalError> {
         if args.len() != 2 {
             return Err(EvalError::InvalidOperation(
-                "CONVERT requires exactly 2 arguments: CONVERT(value, target_unit)".to_string()
+                "CONVERT requires exactly 2 arguments: CONVERT(value, target_unit)".to_string(),
             ));
         }
 
@@ -750,15 +770,15 @@ impl<'a> SheetEvaluator<'a> {
             Expr::NumberWithUnit { unit, .. } => {
                 // Parse the unit string
                 use crate::core::units::parse_unit;
-                parse_unit(unit, self.library)
-                    .map_err(|_| EvalError::UnknownUnit(unit.clone()))?
+                parse_unit(unit, self.library).map_err(|_| EvalError::UnknownUnit(unit.clone()))?
             }
             Expr::CellRef { col, row } => {
                 // Get unit from referenced cell
                 let addr = CellAddr::new(col.clone(), *row);
-                let cell = self.sheet.get(&addr).ok_or_else(|| {
-                    EvalError::CellNotFound(addr.to_string())
-                })?;
+                let cell = self
+                    .sheet
+                    .get(&addr)
+                    .ok_or_else(|| EvalError::CellNotFound(addr.to_string()))?;
 
                 // Check if cell contains text - if so, parse it as a unit string
                 match cell.value() {
@@ -795,15 +815,18 @@ impl<'a> SheetEvaluator<'a> {
         }
 
         // Perform conversion
-        let converted_value = self.library.convert(
-            value_result.value,
-            value_result.unit.canonical(),
-            target_unit.canonical(),
-        ).ok_or_else(|| EvalError::IncompatibleUnits {
-            operation: "CONVERT".to_string(),
-            left: value_result.unit.to_string(),
-            right: target_unit.to_string(),
-        })?;
+        let converted_value = self
+            .library
+            .convert(
+                value_result.value,
+                value_result.unit.canonical(),
+                target_unit.canonical(),
+            )
+            .ok_or_else(|| EvalError::IncompatibleUnits {
+                operation: "CONVERT".to_string(),
+                left: value_result.unit.to_string(),
+                right: target_unit.to_string(),
+            })?;
 
         Ok(EvalResult::new(converted_value, target_unit))
     }
@@ -814,7 +837,7 @@ impl<'a> SheetEvaluator<'a> {
     fn eval_percent(&self, args: &[Expr]) -> Result<EvalResult, EvalError> {
         if args.len() != 1 {
             return Err(EvalError::InvalidOperation(
-                "PERCENT requires exactly 1 argument: PERCENT(value)".to_string()
+                "PERCENT requires exactly 1 argument: PERCENT(value)".to_string(),
             ));
         }
 
@@ -824,7 +847,7 @@ impl<'a> SheetEvaluator<'a> {
         // Create a percentage unit
         let percent_unit = crate::core::units::Unit::simple(
             "%",
-            crate::core::units::BaseDimension::Custom("%".to_string())
+            crate::core::units::BaseDimension::Custom("%".to_string()),
         );
 
         // Return the same value with "%" unit
@@ -841,17 +864,27 @@ impl<'a> SheetEvaluator<'a> {
                     // Extract range bounds
                     let (start_col, start_row) = match start.as_ref() {
                         Expr::CellRef { col, row } => (col.clone(), *row),
-                        _ => return Err(EvalError::InvalidOperation("Range must use cell references".to_string())),
+                        _ => {
+                            return Err(EvalError::InvalidOperation(
+                                "Range must use cell references".to_string(),
+                            ))
+                        }
                     };
 
                     let (end_col, end_row) = match end.as_ref() {
                         Expr::CellRef { col, row } => (col.clone(), *row),
-                        _ => return Err(EvalError::InvalidOperation("Range must use cell references".to_string())),
+                        _ => {
+                            return Err(EvalError::InvalidOperation(
+                                "Range must use cell references".to_string(),
+                            ))
+                        }
                     };
 
                     // For simplicity, only support single-column ranges for now
                     if start_col != end_col {
-                        return Err(EvalError::InvalidOperation("Only single-column ranges supported in MLP".to_string()));
+                        return Err(EvalError::InvalidOperation(
+                            "Only single-column ranges supported in MLP".to_string(),
+                        ));
                     }
 
                     // Iterate through rows
@@ -957,11 +990,21 @@ mod tests {
 
         // Set A1 = 100m
         let a1 = CellAddr::new("A", 1);
-        sheet.set(a1, Cell::new(100.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+        sheet
+            .set(
+                a1,
+                Cell::new(100.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
 
         // Set A2 = 50m
         let a2 = CellAddr::new("A", 2);
-        sheet.set(a2, Cell::new(50.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+        sheet
+            .set(
+                a2,
+                Cell::new(50.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
 
         // Evaluate A1 + A2
         let (value, unit) = sheet.evaluate_formula("=A1 + A2").unwrap();
@@ -971,10 +1014,7 @@ mod tests {
 
     #[test]
     fn test_extract_cell_refs() {
-        let expr = Expr::add(
-            Expr::cell_ref("A", 1),
-            Expr::cell_ref("B", 2),
-        );
+        let expr = Expr::add(Expr::cell_ref("A", 1), Expr::cell_ref("B", 2));
 
         let refs = extract_cell_refs(&expr);
         assert_eq!(refs.len(), 2);
@@ -987,9 +1027,24 @@ mod tests {
         let mut sheet = Sheet::new();
 
         // Set up cells A1-A3
-        sheet.set(CellAddr::new("A", 1), Cell::new(10.0, Unit::simple("m", BaseDimension::Length))).unwrap();
-        sheet.set(CellAddr::new("A", 2), Cell::new(20.0, Unit::simple("m", BaseDimension::Length))).unwrap();
-        sheet.set(CellAddr::new("A", 3), Cell::new(30.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(10.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 2),
+                Cell::new(20.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 3),
+                Cell::new(30.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
 
         // Evaluate SUM(A1:A3)
         let (value, unit) = sheet.evaluate_formula("=SUM(A1:A3)").unwrap();
@@ -1002,8 +1057,18 @@ mod tests {
         let mut sheet = Sheet::new();
 
         // Set up cells
-        sheet.set(CellAddr::new("A", 1), Cell::new(10.0, Unit::simple("m", BaseDimension::Length))).unwrap();
-        sheet.set(CellAddr::new("A", 2), Cell::new(20.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(10.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 2),
+                Cell::new(20.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
 
         // Evaluate SUM(A1, A2)
         let (value, unit) = sheet.evaluate_formula("=SUM(A1, A2)").unwrap();
@@ -1016,10 +1081,30 @@ mod tests {
         let mut sheet = Sheet::new();
 
         // Set up cells A1-A4
-        sheet.set(CellAddr::new("A", 1), Cell::new(10.0, Unit::simple("m", BaseDimension::Length))).unwrap();
-        sheet.set(CellAddr::new("A", 2), Cell::new(20.0, Unit::simple("m", BaseDimension::Length))).unwrap();
-        sheet.set(CellAddr::new("A", 3), Cell::new(30.0, Unit::simple("m", BaseDimension::Length))).unwrap();
-        sheet.set(CellAddr::new("A", 4), Cell::new(40.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(10.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 2),
+                Cell::new(20.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 3),
+                Cell::new(30.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 4),
+                Cell::new(40.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
 
         // Evaluate AVERAGE(A1:A4)
         let (value, unit) = sheet.evaluate_formula("=AVERAGE(A1:A4)").unwrap();
@@ -1032,8 +1117,18 @@ mod tests {
         let mut sheet = Sheet::new();
 
         // Set up cells with different but compatible units
-        sheet.set(CellAddr::new("A", 1), Cell::new(100.0, Unit::simple("m", BaseDimension::Length))).unwrap();
-        sheet.set(CellAddr::new("A", 2), Cell::new(50.0, Unit::simple("cm", BaseDimension::Length))).unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(100.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 2),
+                Cell::new(50.0, Unit::simple("cm", BaseDimension::Length)),
+            )
+            .unwrap();
 
         // Evaluate SUM(A1, A2) - should convert cm to m
         let (value, unit) = sheet.evaluate_formula("=SUM(A1, A2)").unwrap();
@@ -1046,7 +1141,12 @@ mod tests {
         let mut sheet = Sheet::new();
 
         // Set up a cell with meters
-        sheet.set(CellAddr::new("A", 1), Cell::new(1000.0, Unit::simple("m", BaseDimension::Length))).unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(1000.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
 
         // Convert meters to kilometers: CONVERT(A1, 1km)
         let (value, unit) = sheet.evaluate_formula("=CONVERT(A1, 1km)").unwrap();
@@ -1064,8 +1164,18 @@ mod tests {
         let mut sheet = Sheet::new();
 
         // Set up cells
-        sheet.set(CellAddr::new("A", 1), Cell::new(100.0, Unit::simple("m", BaseDimension::Length))).unwrap();
-        sheet.set(CellAddr::new("B", 1), Cell::new(1.0, Unit::simple("km", BaseDimension::Length))).unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(100.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
+        sheet
+            .set(
+                CellAddr::new("B", 1),
+                Cell::new(1.0, Unit::simple("km", BaseDimension::Length)),
+            )
+            .unwrap();
 
         // Convert A1 to the unit of B1
         let (value, unit) = sheet.evaluate_formula("=CONVERT(A1, B1)").unwrap();

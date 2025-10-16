@@ -20,7 +20,9 @@ fn main() {
         vec![(BaseDimension::Time, 1)],
     );
 
-    sheet.set(CellAddr::new("C", 5), Cell::new(0.0416, usd_per_hr)).unwrap();
+    sheet
+        .set(CellAddr::new("C", 5), Cell::new(0.0416, usd_per_hr))
+        .unwrap();
 
     // Simulate parse_unit("hr/month") with the NEW fix
     // month should be Custom, not Time
@@ -30,9 +32,13 @@ fn main() {
         vec![(BaseDimension::Custom("month".to_string()), 1)],
     );
 
-    sheet.set(CellAddr::new("D", 5), Cell::new(730.0, hr_per_month)).unwrap();
+    sheet
+        .set(CellAddr::new("D", 5), Cell::new(730.0, hr_per_month))
+        .unwrap();
 
-    sheet.set(CellAddr::new("B", 5), Cell::new(3.0, Unit::dimensionless())).unwrap();
+    sheet
+        .set(CellAddr::new("B", 5), Cell::new(3.0, Unit::dimensionless()))
+        .unwrap();
 
     println!("Cells:");
     println!("  B5: 3 (dimensionless)");

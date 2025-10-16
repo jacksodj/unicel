@@ -7,13 +7,13 @@
 // - File serialization/deserialization
 // - Unit conversions
 
+use std::fs;
+use std::path::PathBuf;
 use unicel_lib::core::cell::Cell;
 use unicel_lib::core::table::CellAddr;
 use unicel_lib::core::units::{BaseDimension, Unit};
 use unicel_lib::core::workbook::{DisplayPreference, Workbook};
 use unicel_lib::formats::json::WorkbookFile;
-use std::fs;
-use std::path::PathBuf;
 
 /// Helper to create a temporary test file path
 fn temp_test_path(name: &str) -> PathBuf {
@@ -36,33 +36,35 @@ fn test_full_workbook_lifecycle() {
 
     // Add some cells with values
     let sheet = workbook.active_sheet_mut();
-    sheet.set(
-        CellAddr::new("A", 1),
-        Cell::new(100.0, Unit::simple("m", BaseDimension::Length))
-    ).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(100.0, Unit::simple("m", BaseDimension::Length)),
+        )
+        .unwrap();
 
-    sheet.set(
-        CellAddr::new("A", 2),
-        Cell::new(50.0, Unit::simple("m", BaseDimension::Length))
-    ).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 2),
+            Cell::new(50.0, Unit::simple("m", BaseDimension::Length)),
+        )
+        .unwrap();
 
     // Add a formula that references other cells
-    sheet.set(
-        CellAddr::new("A", 3),
-        Cell::with_formula("=A1 + A2")
-    ).unwrap();
+    sheet
+        .set(CellAddr::new("A", 3), Cell::with_formula("=A1 + A2"))
+        .unwrap();
 
     // Add a text cell
-    sheet.set(
-        CellAddr::new("B", 1),
-        Cell::with_text("Total Length")
-    ).unwrap();
+    sheet
+        .set(CellAddr::new("B", 1), Cell::with_text("Total Length"))
+        .unwrap();
 
     // Evaluate formulas (recalculate from changed cells)
-    workbook.active_sheet_mut().recalculate(&[
-        CellAddr::new("A", 1),
-        CellAddr::new("A", 2),
-    ]).unwrap();
+    workbook
+        .active_sheet_mut()
+        .recalculate(&[CellAddr::new("A", 1), CellAddr::new("A", 2)])
+        .unwrap();
 
     // Verify formula result
     let result_cell = workbook.active_sheet().get(&CellAddr::new("A", 3)).unwrap();
@@ -108,24 +110,40 @@ fn test_multi_sheet_workflow() {
     let sheet2_idx = workbook.add_sheet_with_name("Sheet2");
 
     // Add data to first sheet
-    workbook.get_sheet_mut(0).unwrap().set(
-        CellAddr::new("A", 1),
-        Cell::new(100.0, Unit::dimensionless())
-    ).unwrap();
+    workbook
+        .get_sheet_mut(0)
+        .unwrap()
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(100.0, Unit::dimensionless()),
+        )
+        .unwrap();
 
     // Add data to second sheet
-    workbook.get_sheet_mut(sheet2_idx).unwrap().set(
-        CellAddr::new("A", 1),
-        Cell::new(200.0, Unit::dimensionless())
-    ).unwrap();
+    workbook
+        .get_sheet_mut(sheet2_idx)
+        .unwrap()
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(200.0, Unit::dimensionless()),
+        )
+        .unwrap();
 
     // Verify isolation
-    let sheet1_val = workbook.get_sheet(0).unwrap()
-        .get(&CellAddr::new("A", 1)).unwrap()
-        .as_number().unwrap();
-    let sheet2_val = workbook.get_sheet(sheet2_idx).unwrap()
-        .get(&CellAddr::new("A", 1)).unwrap()
-        .as_number().unwrap();
+    let sheet1_val = workbook
+        .get_sheet(0)
+        .unwrap()
+        .get(&CellAddr::new("A", 1))
+        .unwrap()
+        .as_number()
+        .unwrap();
+    let sheet2_val = workbook
+        .get_sheet(sheet2_idx)
+        .unwrap()
+        .get(&CellAddr::new("A", 1))
+        .unwrap()
+        .as_number()
+        .unwrap();
 
     assert_eq!(sheet1_val, 100.0);
     assert_eq!(sheet2_val, 200.0);
@@ -153,42 +171,55 @@ fn test_formula_dependency_chain() {
     let sheet = workbook.active_sheet_mut();
 
     // Base values
-    sheet.set(
-        CellAddr::new("A", 1),
-        Cell::new(10.0, Unit::dimensionless())
-    ).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(10.0, Unit::dimensionless()),
+        )
+        .unwrap();
 
-    sheet.set(
-        CellAddr::new("A", 2),
-        Cell::new(20.0, Unit::dimensionless())
-    ).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 2),
+            Cell::new(20.0, Unit::dimensionless()),
+        )
+        .unwrap();
 
     // Formula depends on A1 and A2
-    sheet.set(
-        CellAddr::new("A", 3),
-        Cell::with_formula("=A1 + A2")
-    ).unwrap();
+    sheet
+        .set(CellAddr::new("A", 3), Cell::with_formula("=A1 + A2"))
+        .unwrap();
 
     // Evaluate
-    workbook.active_sheet_mut().recalculate(&[
-        CellAddr::new("A", 1),
-        CellAddr::new("A", 2),
-    ]).unwrap();
+    workbook
+        .active_sheet_mut()
+        .recalculate(&[CellAddr::new("A", 1), CellAddr::new("A", 2)])
+        .unwrap();
 
     // Verify results
     let a3 = workbook.active_sheet().get(&CellAddr::new("A", 3)).unwrap();
     assert_eq!(a3.as_number(), Some(30.0), "A3 should be 30");
 
     // Update A1 and verify formula updates
-    workbook.active_sheet_mut().set(
-        CellAddr::new("A", 1),
-        Cell::new(15.0, Unit::dimensionless())
-    ).unwrap();
+    workbook
+        .active_sheet_mut()
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(15.0, Unit::dimensionless()),
+        )
+        .unwrap();
 
-    workbook.active_sheet_mut().recalculate(&[CellAddr::new("A", 1)]).unwrap();
+    workbook
+        .active_sheet_mut()
+        .recalculate(&[CellAddr::new("A", 1)])
+        .unwrap();
 
     let a3 = workbook.active_sheet().get(&CellAddr::new("A", 3)).unwrap();
-    assert_eq!(a3.as_number(), Some(35.0), "A3 should be 35 after A1 update");
+    assert_eq!(
+        a3.as_number(),
+        Some(35.0),
+        "A3 should be 35 after A1 update"
+    );
 }
 
 #[test]
@@ -199,26 +230,29 @@ fn test_unit_conversion_workflow() {
     let sheet = workbook.active_sheet_mut();
 
     // Add values with different units
-    sheet.set(
-        CellAddr::new("A", 1),
-        Cell::new(100.0, Unit::simple("m", BaseDimension::Length))
-    ).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(100.0, Unit::simple("m", BaseDimension::Length)),
+        )
+        .unwrap();
 
-    sheet.set(
-        CellAddr::new("A", 2),
-        Cell::new(50.0, Unit::simple("cm", BaseDimension::Length))
-    ).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 2),
+            Cell::new(50.0, Unit::simple("cm", BaseDimension::Length)),
+        )
+        .unwrap();
 
     // Add formula combining different units (should warn but compute)
-    sheet.set(
-        CellAddr::new("A", 3),
-        Cell::with_formula("=A1 + A2")
-    ).unwrap();
+    sheet
+        .set(CellAddr::new("A", 3), Cell::with_formula("=A1 + A2"))
+        .unwrap();
 
-    workbook.active_sheet_mut().recalculate(&[
-        CellAddr::new("A", 1),
-        CellAddr::new("A", 2),
-    ]).unwrap();
+    workbook
+        .active_sheet_mut()
+        .recalculate(&[CellAddr::new("A", 1), CellAddr::new("A", 2)])
+        .unwrap();
 
     // Verify formula computed despite unit difference
     let result = workbook.active_sheet().get(&CellAddr::new("A", 3)).unwrap();
@@ -226,10 +260,16 @@ fn test_unit_conversion_workflow() {
 
     // Test display preference toggle
     workbook.set_display_preference(DisplayPreference::Metric);
-    assert_eq!(workbook.settings().display_preference, DisplayPreference::Metric);
+    assert_eq!(
+        workbook.settings().display_preference,
+        DisplayPreference::Metric
+    );
 
     workbook.set_display_preference(DisplayPreference::Imperial);
-    assert_eq!(workbook.settings().display_preference, DisplayPreference::Imperial);
+    assert_eq!(
+        workbook.settings().display_preference,
+        DisplayPreference::Imperial
+    );
 
     // Verify persistence of display preference
     let path = temp_test_path("units");
@@ -239,7 +279,10 @@ fn test_unit_conversion_workflow() {
     let loaded_file = WorkbookFile::load_from_file(&path).unwrap();
     let loaded_workbook = loaded_file.to_workbook().unwrap();
 
-    assert_eq!(loaded_workbook.settings().display_preference, DisplayPreference::Imperial);
+    assert_eq!(
+        loaded_workbook.settings().display_preference,
+        DisplayPreference::Imperial
+    );
 
     cleanup_test_file(&path);
 }
@@ -253,15 +296,24 @@ fn test_error_propagation() {
     // Create division by zero
     {
         let sheet = workbook.active_sheet_mut();
-        sheet.set(CellAddr::new("A", 1), Cell::new(10.0, Unit::dimensionless())).unwrap();
-        sheet.set(CellAddr::new("A", 2), Cell::new(0.0, Unit::dimensionless())).unwrap();
-        sheet.set(CellAddr::new("A", 3), Cell::with_formula("=A1 / A2")).unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(10.0, Unit::dimensionless()),
+            )
+            .unwrap();
+        sheet
+            .set(CellAddr::new("A", 2), Cell::new(0.0, Unit::dimensionless()))
+            .unwrap();
+        sheet
+            .set(CellAddr::new("A", 3), Cell::with_formula("=A1 / A2"))
+            .unwrap();
     }
 
-    workbook.active_sheet_mut().recalculate(&[
-        CellAddr::new("A", 1),
-        CellAddr::new("A", 2),
-    ]).unwrap();
+    workbook
+        .active_sheet_mut()
+        .recalculate(&[CellAddr::new("A", 1), CellAddr::new("A", 2)])
+        .unwrap();
 
     // Verify error in result
     let result = workbook.active_sheet().get(&CellAddr::new("A", 3)).unwrap();
@@ -270,10 +322,15 @@ fn test_error_propagation() {
     // Add formula that depends on error cell
     {
         let sheet = workbook.active_sheet_mut();
-        sheet.set(CellAddr::new("A", 4), Cell::with_formula("=A3 + 5")).unwrap();
+        sheet
+            .set(CellAddr::new("A", 4), Cell::with_formula("=A3 + 5"))
+            .unwrap();
     }
 
-    workbook.active_sheet_mut().recalculate(&[CellAddr::new("A", 3)]).unwrap();
+    workbook
+        .active_sheet_mut()
+        .recalculate(&[CellAddr::new("A", 3)])
+        .unwrap();
 
     // Verify error propagates
     let result2 = workbook.active_sheet().get(&CellAddr::new("A", 4)).unwrap();
@@ -288,18 +345,47 @@ fn test_mixed_cell_types() {
     let sheet = workbook.active_sheet_mut();
 
     // Add various cell types
-    sheet.set(CellAddr::new("A", 1), Cell::new(42.0, Unit::dimensionless())).unwrap();
-    sheet.set(CellAddr::new("A", 2), Cell::with_text("Hello")).unwrap();
-    sheet.set(CellAddr::new("A", 3), Cell::with_formula("=A1 * 2")).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(42.0, Unit::dimensionless()),
+        )
+        .unwrap();
+    sheet
+        .set(CellAddr::new("A", 2), Cell::with_text("Hello"))
+        .unwrap();
+    sheet
+        .set(CellAddr::new("A", 3), Cell::with_formula("=A1 * 2"))
+        .unwrap();
     sheet.set(CellAddr::new("A", 4), Cell::empty()).unwrap();
 
-    workbook.active_sheet_mut().recalculate(&[CellAddr::new("A", 1)]).unwrap();
+    workbook
+        .active_sheet_mut()
+        .recalculate(&[CellAddr::new("A", 1)])
+        .unwrap();
 
     // Verify types
-    assert!(workbook.active_sheet().get(&CellAddr::new("A", 1)).unwrap().as_number().is_some());
-    assert!(workbook.active_sheet().get(&CellAddr::new("A", 2)).unwrap().is_text());
-    assert!(workbook.active_sheet().get(&CellAddr::new("A", 3)).unwrap().is_formula());
-    assert!(workbook.active_sheet().get(&CellAddr::new("A", 4)).unwrap().is_empty());
+    assert!(workbook
+        .active_sheet()
+        .get(&CellAddr::new("A", 1))
+        .unwrap()
+        .as_number()
+        .is_some());
+    assert!(workbook
+        .active_sheet()
+        .get(&CellAddr::new("A", 2))
+        .unwrap()
+        .is_text());
+    assert!(workbook
+        .active_sheet()
+        .get(&CellAddr::new("A", 3))
+        .unwrap()
+        .is_formula());
+    assert!(workbook
+        .active_sheet()
+        .get(&CellAddr::new("A", 4))
+        .unwrap()
+        .is_empty());
 
     // Save and load
     let path = temp_test_path("mixed_types");
@@ -311,9 +397,16 @@ fn test_mixed_cell_types() {
 
     // Verify types persisted
     let loaded_sheet = loaded_workbook.active_sheet();
-    assert!(loaded_sheet.get(&CellAddr::new("A", 1)).unwrap().as_number().is_some());
+    assert!(loaded_sheet
+        .get(&CellAddr::new("A", 1))
+        .unwrap()
+        .as_number()
+        .is_some());
     assert!(loaded_sheet.get(&CellAddr::new("A", 2)).unwrap().is_text());
-    assert!(loaded_sheet.get(&CellAddr::new("A", 3)).unwrap().is_formula());
+    assert!(loaded_sheet
+        .get(&CellAddr::new("A", 3))
+        .unwrap()
+        .is_formula());
     assert!(loaded_sheet.get(&CellAddr::new("A", 4)).unwrap().is_empty());
 
     cleanup_test_file(&path);
@@ -327,26 +420,29 @@ fn test_compound_unit_operations() {
     let sheet = workbook.active_sheet_mut();
 
     // Distance and time
-    sheet.set(
-        CellAddr::new("A", 1),
-        Cell::new(100.0, Unit::simple("m", BaseDimension::Length))
-    ).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(100.0, Unit::simple("m", BaseDimension::Length)),
+        )
+        .unwrap();
 
-    sheet.set(
-        CellAddr::new("A", 2),
-        Cell::new(10.0, Unit::simple("s", BaseDimension::Time))
-    ).unwrap();
+    sheet
+        .set(
+            CellAddr::new("A", 2),
+            Cell::new(10.0, Unit::simple("s", BaseDimension::Time)),
+        )
+        .unwrap();
 
     // Velocity = distance / time
-    sheet.set(
-        CellAddr::new("A", 3),
-        Cell::with_formula("=A1 / A2")
-    ).unwrap();
+    sheet
+        .set(CellAddr::new("A", 3), Cell::with_formula("=A1 / A2"))
+        .unwrap();
 
-    workbook.active_sheet_mut().recalculate(&[
-        CellAddr::new("A", 1),
-        CellAddr::new("A", 2),
-    ]).unwrap();
+    workbook
+        .active_sheet_mut()
+        .recalculate(&[CellAddr::new("A", 1), CellAddr::new("A", 2)])
+        .unwrap();
 
     let velocity = workbook.active_sheet().get(&CellAddr::new("A", 3)).unwrap();
     assert_eq!(velocity.as_number(), Some(10.0));
@@ -365,11 +461,14 @@ fn test_dirty_flag_tracking() {
     assert!(!workbook.is_dirty());
 
     // Modify workbook
-    workbook.active_sheet_mut().set(
-        CellAddr::new("A", 1),
-        Cell::new(42.0, Unit::dimensionless())
-    ).unwrap();
-    workbook.mark_dirty();  // Manually mark as dirty (application layer responsibility)
+    workbook
+        .active_sheet_mut()
+        .set(
+            CellAddr::new("A", 1),
+            Cell::new(42.0, Unit::dimensionless()),
+        )
+        .unwrap();
+    workbook.mark_dirty(); // Manually mark as dirty (application layer responsibility)
 
     assert!(workbook.is_dirty());
 
@@ -395,23 +494,27 @@ fn test_large_workbook() {
 
     // Add 100 cells with values
     for i in 1..=100 {
-        sheet.set(
-            CellAddr::new("A", i),
-            Cell::new(i as f64, Unit::dimensionless())
-        ).unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", i),
+                Cell::new(i as f64, Unit::dimensionless()),
+            )
+            .unwrap();
     }
 
     // Add formula at A101 that sums A1:A100
-    sheet.set(
-        CellAddr::new("A", 101),
-        Cell::with_formula("=SUM(A1:A100)")
-    ).unwrap();
+    sheet
+        .set(CellAddr::new("A", 101), Cell::with_formula("=SUM(A1:A100)"))
+        .unwrap();
 
     // Recalculate all cells (pass all addresses)
     let changed: Vec<CellAddr> = (1..=100).map(|i| CellAddr::new("A", i)).collect();
     workbook.active_sheet_mut().recalculate(&changed).unwrap();
 
-    let sum = workbook.active_sheet().get(&CellAddr::new("A", 101)).unwrap();
+    let sum = workbook
+        .active_sheet()
+        .get(&CellAddr::new("A", 101))
+        .unwrap();
     assert_eq!(sum.as_number(), Some(5050.0)); // Sum of 1..100
 
     // Save and load to verify

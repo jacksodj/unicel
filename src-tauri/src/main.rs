@@ -1,9 +1,9 @@
 // Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tauri::{Manager, State};
-use unicel_lib::commands::{AppState, CellData, WorkbookInfo, NamedRangeInfo};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use unicel_lib::commands::{AppState, CellData, NamedRangeInfo, WorkbookInfo};
 use unicel_lib::core::settings::UnitPreferences;
 
 // Tauri command definitions (must be in binary crate for macro to work)
@@ -24,11 +24,7 @@ fn get_sheet_cells(state: State<AppState>) -> Result<Vec<(String, CellData)>, St
 }
 
 #[tauri::command]
-fn set_cell(
-    state: State<AppState>,
-    address: String,
-    value: String,
-) -> Result<CellData, String> {
+fn set_cell(state: State<AppState>, address: String, value: String) -> Result<CellData, String> {
     unicel_lib::commands::set_cell_impl(&state, address, value)
 }
 
@@ -101,7 +97,10 @@ fn get_example_workbook_path(app: tauri::AppHandle, filename: String) -> Result<
 
     // Try to resolve as a bundled resource first (works in production)
     let resource_path = format!("examples/{}", filename);
-    if let Ok(path) = app.path().resolve(&resource_path, tauri::path::BaseDirectory::Resource) {
+    if let Ok(path) = app
+        .path()
+        .resolve(&resource_path, tauri::path::BaseDirectory::Resource)
+    {
         if path.exists() {
             return Ok(path.to_string_lossy().to_string());
         }
@@ -122,10 +121,22 @@ fn get_example_workbook_path(app: tauri::AppHandle, filename: String) -> Result<
 #[tauri::command]
 fn list_example_workbooks() -> Vec<(String, String)> {
     vec![
-        ("unit_conversion_tutorial.usheet".to_string(), "Unit Conversion Tutorial".to_string()),
-        ("aws_cost_estimator.usheet".to_string(), "AWS Cost Estimator".to_string()),
-        ("construction_estimator.usheet".to_string(), "Construction Estimator".to_string()),
-        ("investment_portfolio.usheet".to_string(), "Investment Portfolio Tracker".to_string()),
+        (
+            "unit_conversion_tutorial.usheet".to_string(),
+            "Unit Conversion Tutorial".to_string(),
+        ),
+        (
+            "aws_cost_estimator.usheet".to_string(),
+            "AWS Cost Estimator".to_string(),
+        ),
+        (
+            "construction_estimator.usheet".to_string(),
+            "Construction Estimator".to_string(),
+        ),
+        (
+            "investment_portfolio.usheet".to_string(),
+            "Investment Portfolio Tracker".to_string(),
+        ),
     ]
 }
 

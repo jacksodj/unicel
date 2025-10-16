@@ -1,5 +1,8 @@
 // MCP Server Integration Tests
 
+use serde_json::json;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use unicel_lib::core::{
     cell::Cell,
     table::CellAddr,
@@ -7,12 +10,9 @@ use unicel_lib::core::{
     workbook::Workbook,
 };
 use unicel_lib::mcp::{
-    get_tool_definitions, McpServer, ToolHandler,
-    CallToolParams, InitializeParams, ClientCapabilities, ClientInfo,
+    get_tool_definitions, CallToolParams, ClientCapabilities, ClientInfo, InitializeParams,
+    McpServer, ToolHandler,
 };
-use serde_json::json;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 
 #[test]
 fn test_tool_definitions() {
@@ -33,9 +33,15 @@ fn test_tool_definitions() {
     // Verify each tool has required fields
     for tool in &tools {
         assert!(!tool.name.is_empty(), "Tool name should not be empty");
-        assert!(!tool.description.is_empty(), "Tool description should not be empty");
+        assert!(
+            !tool.description.is_empty(),
+            "Tool description should not be empty"
+        );
         // input_schema should be a valid JSON object
-        assert!(tool.input_schema.is_object(), "Tool input_schema should be an object");
+        assert!(
+            tool.input_schema.is_object(),
+            "Tool input_schema should be an object"
+        );
     }
 }
 
@@ -181,7 +187,10 @@ fn test_convert_value_tool() {
 
         // 10 meters ≈ 32.8084 feet
         let converted = response["converted"]["value"].as_f64().unwrap();
-        assert!((converted - 32.8084).abs() < 0.001, "Conversion should be approximately 32.8084 feet");
+        assert!(
+            (converted - 32.8084).abs() < 0.001,
+            "Conversion should be approximately 32.8084 feet"
+        );
     }
 }
 
@@ -234,10 +243,14 @@ fn test_list_compatible_units() {
 
         let compatible = response["compatible_units"].as_array().unwrap();
         // Should include m, cm, mm, km, in, ft, yd, mi
-        assert!(compatible.len() >= 8, "Should have at least 8 compatible length units");
+        assert!(
+            compatible.len() >= 8,
+            "Should have at least 8 compatible length units"
+        );
 
         // Verify some expected units are present
-        let unit_strings: Vec<String> = compatible.iter()
+        let unit_strings: Vec<String> = compatible
+            .iter()
             .map(|v| v.as_str().unwrap().to_string())
             .collect();
 
@@ -310,7 +323,8 @@ fn test_list_tables() {
         assert_eq!(tables.len(), 3); // Sheet1, Sales Data, Analytics
 
         // Verify sheet names
-        let sheet_names: Vec<String> = tables.iter()
+        let sheet_names: Vec<String> = tables
+            .iter()
             .map(|t| t["name"].as_str().unwrap().to_string())
             .collect();
 
@@ -328,8 +342,18 @@ fn test_get_workbook_metadata() {
     // Add some cells
     {
         let sheet = workbook.active_sheet_mut();
-        sheet.set(CellAddr::new("A", 1), Cell::new(10.0, Unit::dimensionless())).unwrap();
-        sheet.set(CellAddr::new("A", 2), Cell::new(20.0, Unit::dimensionless())).unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(10.0, Unit::dimensionless()),
+            )
+            .unwrap();
+        sheet
+            .set(
+                CellAddr::new("A", 2),
+                Cell::new(20.0, Unit::dimensionless()),
+            )
+            .unwrap();
     }
 
     let workbook = Arc::new(Mutex::new(workbook));
@@ -358,10 +382,18 @@ fn test_get_sheet_structure() {
     // Add several cells
     {
         let sheet = workbook.active_sheet_mut();
-        sheet.set(CellAddr::new("A", 1), Cell::new(1.0, Unit::dimensionless())).unwrap();
-        sheet.set(CellAddr::new("A", 2), Cell::new(2.0, Unit::dimensionless())).unwrap();
-        sheet.set(CellAddr::new("B", 1), Cell::new(3.0, Unit::dimensionless())).unwrap();
-        sheet.set(CellAddr::new("C", 5), Cell::new(4.0, Unit::dimensionless())).unwrap();
+        sheet
+            .set(CellAddr::new("A", 1), Cell::new(1.0, Unit::dimensionless()))
+            .unwrap();
+        sheet
+            .set(CellAddr::new("A", 2), Cell::new(2.0, Unit::dimensionless()))
+            .unwrap();
+        sheet
+            .set(CellAddr::new("B", 1), Cell::new(3.0, Unit::dimensionless()))
+            .unwrap();
+        sheet
+            .set(CellAddr::new("C", 5), Cell::new(4.0, Unit::dimensionless()))
+            .unwrap();
     }
 
     let workbook = Arc::new(Mutex::new(workbook));
@@ -393,7 +425,11 @@ fn test_unknown_tool() {
 
     let result = handler.handle_tool_call("non_existent_tool", None);
 
-    assert_eq!(result.is_error, Some(true), "Should be an error for unknown tool");
+    assert_eq!(
+        result.is_error,
+        Some(true),
+        "Should be an error for unknown tool"
+    );
 
     if let unicel_lib::mcp::ToolContent::Text { text } = &result.content[0] {
         assert!(text.contains("Unknown tool"));
@@ -413,7 +449,11 @@ fn test_invalid_cell_reference() {
 
     let result = handler.handle_tool_call("read_cell", Some(args));
 
-    assert_eq!(result.is_error, Some(true), "Should be an error for invalid cell reference");
+    assert_eq!(
+        result.is_error,
+        Some(true),
+        "Should be an error for invalid cell reference"
+    );
 }
 
 #[test]
@@ -430,7 +470,11 @@ fn test_read_empty_cell() {
     let result = handler.handle_tool_call("read_cell", Some(args));
 
     // Reading an empty cell should return an error since it doesn't exist
-    assert_eq!(result.is_error, Some(true), "Should be an error for empty/non-existent cell");
+    assert_eq!(
+        result.is_error,
+        Some(true),
+        "Should be an error for empty/non-existent cell"
+    );
 }
 
 #[test]
@@ -451,11 +495,21 @@ fn test_multi_sheet_operations() {
     // Add cells to different sheets
     {
         let sheet1 = workbook.get_sheet_mut(0).unwrap();
-        sheet1.set(CellAddr::new("A", 1), Cell::new(100.0, Unit::simple("USD", BaseDimension::Currency))).unwrap();
+        sheet1
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(100.0, Unit::simple("USD", BaseDimension::Currency)),
+            )
+            .unwrap();
     }
     {
         let sheet2 = workbook.get_sheet_mut(1).unwrap();
-        sheet2.set(CellAddr::new("B", 2), Cell::new(200.0, Unit::simple("EUR", BaseDimension::Currency))).unwrap();
+        sheet2
+            .set(
+                CellAddr::new("B", 2),
+                Cell::new(200.0, Unit::simple("EUR", BaseDimension::Currency)),
+            )
+            .unwrap();
     }
 
     let workbook = Arc::new(Mutex::new(workbook));

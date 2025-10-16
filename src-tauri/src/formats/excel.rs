@@ -1,8 +1,8 @@
 // Excel import/export functionality
 
-use crate::core::workbook::Workbook;
 use crate::core::table::Sheet;
 use crate::core::units::UnitLibrary;
+use crate::core::workbook::Workbook;
 use rust_xlsxwriter::{Format, Workbook as XlsxWorkbook, Worksheet};
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -86,14 +86,22 @@ fn expand_convert_formula(
     let args: Vec<&str> = args_str.split(',').map(|s| s.trim()).collect();
 
     if args.len() != 2 {
-        tracing::warn!("CONVERT function requires exactly 2 arguments, got {}: {}", args.len(), formula);
+        tracing::warn!(
+            "CONVERT function requires exactly 2 arguments, got {}: {}",
+            args.len(),
+            formula
+        );
         return None; // CONVERT requires exactly 2 arguments
     }
 
     let source_expr = args[0];
     let target_unit_expr = args[1];
 
-    tracing::debug!("CONVERT args: source='{}', target='{}'", source_expr, target_unit_expr);
+    tracing::debug!(
+        "CONVERT args: source='{}', target='{}'",
+        source_expr,
+        target_unit_expr
+    );
 
     // Determine source unit
     // If source is a cell reference, get its unit
@@ -163,8 +171,13 @@ fn expand_convert_formula(
     tracing::debug!("Looking up conversion: {} -> {}", source_unit, target_unit);
 
     // Try to get direct conversion first
-    let conversion_factor = if let Some(factor) = library.get_conversion(&source_unit, &target_unit) {
-        tracing::debug!("Found direct conversion: multiplier={}, offset={}", factor.multiplier, factor.offset);
+    let conversion_factor = if let Some(factor) = library.get_conversion(&source_unit, &target_unit)
+    {
+        tracing::debug!(
+            "Found direct conversion: multiplier={}, offset={}",
+            factor.multiplier,
+            factor.offset
+        );
         (factor.multiplier, factor.offset)
     } else {
         // Fall back to converting 1.0 to get the factor (for multi-hop conversions)
@@ -175,7 +188,9 @@ fn expand_convert_formula(
                 tracing::debug!("Using computed conversion factor: {}", result);
                 // Check if this might have an offset (temperature units)
                 if is_temperature_unit(&source_unit) || is_temperature_unit(&target_unit) {
-                    tracing::warn!("Multi-hop temperature conversion detected - offset may be incorrect");
+                    tracing::warn!(
+                        "Multi-hop temperature conversion detected - offset may be incorrect"
+                    );
                 }
                 (result, 0.0) // Assume no offset for multi-hop
             }
@@ -189,7 +204,8 @@ fn expand_convert_formula(
     let (multiplier, offset) = conversion_factor;
 
     // Create conversion name (e.g., "m_to_ft")
-    let conversion_name = format!("{}_{}",
+    let conversion_name = format!(
+        "{}_{}",
         source_unit.replace('/', "_per_").replace(' ', "_"),
         target_unit.replace('/', "_per_").replace(' ', "_")
     );
@@ -202,9 +218,15 @@ fn expand_convert_formula(
         from_unit: source_unit.clone(),
         to_unit: target_unit.clone(),
         description: if offset != 0.0 {
-            format!("Convert {} to {}: value * {} + {}", source_unit, target_unit, multiplier, offset)
+            format!(
+                "Convert {} to {}: value * {} + {}",
+                source_unit, target_unit, multiplier, offset
+            )
         } else {
-            format!("Convert {} to {}: value * {}", source_unit, target_unit, multiplier)
+            format!(
+                "Convert {} to {}: value * {}",
+                source_unit, target_unit, multiplier
+            )
         },
     };
 
@@ -222,7 +244,10 @@ fn expand_convert_formula(
         if offset != 0.0 {
             // For temperature conversions: value * multiplier + offset
             // Create named ranges for both multiplier and offset
-            format!("{}*{}_m+{}_o", source_expr, conversion_name, conversion_name)
+            format!(
+                "{}*{}_m+{}_o",
+                source_expr, conversion_name, conversion_name
+            )
         } else {
             // For simple conversions: value * multiplier
             format!("{}*{}_m", source_expr, conversion_name)
@@ -233,7 +258,10 @@ fn expand_convert_formula(
     let before = &formula[..convert_pos];
     let after = &formula[end + 1..]; // After the closing )
 
-    Some((format!("{}{}{}", before, expanded, after), Some(conversion_entry)))
+    Some((
+        format!("{}{}{}", before, expanded, after),
+        Some(conversion_entry),
+    ))
 }
 
 /// Parse a cell reference like "A1", "B2", etc.
@@ -371,10 +399,7 @@ fn is_temperature_unit(unit: &str) -> bool {
 }
 
 /// Export a workbook to Excel format
-pub fn export_to_excel(
-    workbook: &Workbook,
-    path: impl AsRef<Path>,
-) -> Result<(), ExcelError> {
+pub fn export_to_excel(workbook: &Workbook, path: impl AsRef<Path>) -> Result<(), ExcelError> {
     let mut xlsx_workbook = XlsxWorkbook::new();
 
     // Add warning sheet first
@@ -408,7 +433,9 @@ pub fn export_to_excel(
         });
 
         // Create formats
-        let formula_format = Format::new().set_font_color(rust_xlsxwriter::Color::Blue).set_italic();
+        let formula_format = Format::new()
+            .set_font_color(rust_xlsxwriter::Color::Blue)
+            .set_italic();
         let _unit_format = Format::new().set_italic();
 
         // Export each cell - using doubled columns (value, unit, value, unit, ...)
@@ -426,12 +453,24 @@ pub fn export_to_excel(
                     // Check if formula contains CONVERT function
                     if formula.to_uppercase().contains("CONVERT") {
                         // Try to expand CONVERT functions to Excel-compatible formulas
-                        if let Some((expanded_formula, _conversion_entry)) = expand_convert_formula(formula, sheet, &mut conversions) {
+                        if let Some((expanded_formula, _conversion_entry)) =
+                            expand_convert_formula(formula, sheet, &mut conversions)
+                        {
                             // Transform cell references for doubled-column layout
                             let excel_formula = transform_formula_for_excel(&expanded_formula);
-                            tracing::debug!("Exporting CONVERT formula: {} → {} → {}", formula, expanded_formula, excel_formula);
+                            tracing::debug!(
+                                "Exporting CONVERT formula: {} → {} → {}",
+                                formula,
+                                expanded_formula,
+                                excel_formula
+                            );
                             // Export as Excel formula with expanded CONVERT
-                            worksheet.write_formula_with_format(row_num, col_num as u16, excel_formula.as_str(), &formula_format)?;
+                            worksheet.write_formula_with_format(
+                                row_num,
+                                col_num as u16,
+                                excel_formula.as_str(),
+                                &formula_format,
+                            )?;
 
                             // Unit in column N*2+1
                             let unit_str = cell.storage_unit().canonical();
@@ -447,14 +486,26 @@ pub fn export_to_excel(
                                 ));
                             }
                         } else {
-                            tracing::warn!("Failed to expand CONVERT formula, exporting as VALUE: {}", formula);
+                            tracing::warn!(
+                                "Failed to expand CONVERT formula, exporting as VALUE: {}",
+                                formula
+                            );
                             // CONVERT expansion failed, export the CALCULATED VALUE
                             if let Some(value) = cell.as_number() {
-                                worksheet.write_number_with_format(row_num, col_num as u16, value, &formula_format)?;
+                                worksheet.write_number_with_format(
+                                    row_num,
+                                    col_num as u16,
+                                    value,
+                                    &formula_format,
+                                )?;
 
                                 let unit_str = cell.storage_unit().canonical();
                                 if !unit_str.is_empty() && unit_str != "1" {
-                                    worksheet.write_string(row_num, (col_num + 1) as u16, unit_str)?;
+                                    worksheet.write_string(
+                                        row_num,
+                                        (col_num + 1) as u16,
+                                        unit_str,
+                                    )?;
                                     metadata_rows.push((
                                         sheet.name().to_string(),
                                         cell_ref.clone(),
@@ -467,8 +518,17 @@ pub fn export_to_excel(
                     } else {
                         // Regular formula (no CONVERT) - transform and export
                         let excel_formula = transform_formula_for_excel(formula);
-                        tracing::debug!("Exporting regular formula: {} → {}", formula, excel_formula);
-                        worksheet.write_formula_with_format(row_num, col_num as u16, excel_formula.as_str(), &formula_format)?;
+                        tracing::debug!(
+                            "Exporting regular formula: {} → {}",
+                            formula,
+                            excel_formula
+                        );
+                        worksheet.write_formula_with_format(
+                            row_num,
+                            col_num as u16,
+                            excel_formula.as_str(),
+                            &formula_format,
+                        )?;
 
                         // Unit in column N*2+1
                         let unit_str = cell.storage_unit().canonical();
@@ -527,14 +587,22 @@ pub fn export_to_excel(
             let mult_cell_ref = format!("=Conversions!$B${}", excel_row);
             let mult_name = format!("{}_m", name);
             xlsx_workbook.define_name(&mult_name, &mult_cell_ref)?;
-            tracing::debug!("Defined multiplier named range: {} -> {}", mult_name, mult_cell_ref);
+            tracing::debug!(
+                "Defined multiplier named range: {} -> {}",
+                mult_name,
+                mult_cell_ref
+            );
 
             // Define offset named range (column C) - only if offset is non-zero
             if entry.offset != 0.0 {
                 let offset_cell_ref = format!("=Conversions!$C${}", excel_row);
                 let offset_name = format!("{}_o", name);
                 xlsx_workbook.define_name(&offset_name, &offset_cell_ref)?;
-                tracing::debug!("Defined offset named range: {} -> {}", offset_name, offset_cell_ref);
+                tracing::debug!(
+                    "Defined offset named range: {} -> {}",
+                    offset_name,
+                    offset_cell_ref
+                );
             }
         }
     }
@@ -578,7 +646,9 @@ pub fn export_to_excel(
 }
 
 /// Create a conversions sheet with all unit conversion factors used in formulas
-fn create_conversions_sheet(conversions: &BTreeMap<String, ConversionEntry>) -> Result<Worksheet, ExcelError> {
+fn create_conversions_sheet(
+    conversions: &BTreeMap<String, ConversionEntry>,
+) -> Result<Worksheet, ExcelError> {
     let mut sheet = Worksheet::new();
     sheet.set_name("Conversions")?;
 
@@ -630,40 +700,134 @@ fn create_warning_sheet() -> Result<Worksheet, ExcelError> {
 
     let bold_format = Format::new().set_bold();
 
-    sheet.write_string_with_format(0, 0, "⚠️ IMPORTANT: Unit Information Lost in Excel Export", &header_format)?;
+    sheet.write_string_with_format(
+        0,
+        0,
+        "⚠️ IMPORTANT: Unit Information Lost in Excel Export",
+        &header_format,
+    )?;
 
-    sheet.write_string(2, 0, "This Excel file was exported from Unicel, a unit-aware spreadsheet.")?;
+    sheet.write_string(
+        2,
+        0,
+        "This Excel file was exported from Unicel, a unit-aware spreadsheet.",
+    )?;
     sheet.write_string(3, 0, "Excel does NOT support units, so:")?;
 
-    sheet.write_string_with_format(5, 0, "1. All unit information has been removed from cells", &bold_format)?;
-    sheet.write_string(6, 0, "   - Numbers are exported as plain values (e.g., 100 instead of \"100 m\")")?;
-    sheet.write_string(7, 0, "   - This allows Excel formulas to work, but units are lost")?;
+    sheet.write_string_with_format(
+        5,
+        0,
+        "1. All unit information has been removed from cells",
+        &bold_format,
+    )?;
+    sheet.write_string(
+        6,
+        0,
+        "   - Numbers are exported as plain values (e.g., 100 instead of \"100 m\")",
+    )?;
+    sheet.write_string(
+        7,
+        0,
+        "   - This allows Excel formulas to work, but units are lost",
+    )?;
 
-    sheet.write_string_with_format(9, 0, "2. Formulas show calculated results, NOT the original formulas", &bold_format)?;
-    sheet.write_string(10, 0, "   - Formula cells (in blue italic) show the final value")?;
-    sheet.write_string(11, 0, "   - Excel cannot recalculate them because it doesn't understand unit operations")?;
+    sheet.write_string_with_format(
+        9,
+        0,
+        "2. Formulas show calculated results, NOT the original formulas",
+        &bold_format,
+    )?;
+    sheet.write_string(
+        10,
+        0,
+        "   - Formula cells (in blue italic) show the final value",
+    )?;
+    sheet.write_string(
+        11,
+        0,
+        "   - Excel cannot recalculate them because it doesn't understand unit operations",
+    )?;
 
-    sheet.write_string_with_format(13, 0, "3. See the \"Conversions\" sheet for unit conversion factors", &bold_format)?;
-    sheet.write_string(14, 0, "   - Lists all conversion factors used in formulas (multiplier and offset)")?;
-    sheet.write_string(15, 0, "   - Simple conversions: value × multiplier (e.g., meters to feet)")?;
-    sheet.write_string(16, 0, "   - Temperature conversions: value × multiplier + offset (e.g., Celsius to Fahrenheit)")?;
-    sheet.write_string(17, 0, "   - Formulas reference these cells using named ranges (e.g., =A1*C_F_m+C_F_o)")?;
-    sheet.write_string(18, 0, "   - You can edit conversion factors and formulas will update")?;
+    sheet.write_string_with_format(
+        13,
+        0,
+        "3. See the \"Conversions\" sheet for unit conversion factors",
+        &bold_format,
+    )?;
+    sheet.write_string(
+        14,
+        0,
+        "   - Lists all conversion factors used in formulas (multiplier and offset)",
+    )?;
+    sheet.write_string(
+        15,
+        0,
+        "   - Simple conversions: value × multiplier (e.g., meters to feet)",
+    )?;
+    sheet.write_string(
+        16,
+        0,
+        "   - Temperature conversions: value × multiplier + offset (e.g., Celsius to Fahrenheit)",
+    )?;
+    sheet.write_string(
+        17,
+        0,
+        "   - Formulas reference these cells using named ranges (e.g., =A1*C_F_m+C_F_o)",
+    )?;
+    sheet.write_string(
+        18,
+        0,
+        "   - You can edit conversion factors and formulas will update",
+    )?;
 
     sheet.write_string_with_format(20, 0, "4. Named ranges are exported to Excel", &bold_format)?;
-    sheet.write_string(21, 0, "   - User-defined named ranges (like 'revenue', 'tax_rate') are preserved")?;
-    sheet.write_string(22, 0, "   - You can use these names in Excel formulas (e.g., =revenue * tax_rate)")?;
-    sheet.write_string(23, 0, "   - See \"Unit Metadata\" sheet for the complete list")?;
+    sheet.write_string(
+        21,
+        0,
+        "   - User-defined named ranges (like 'revenue', 'tax_rate') are preserved",
+    )?;
+    sheet.write_string(
+        22,
+        0,
+        "   - You can use these names in Excel formulas (e.g., =revenue * tax_rate)",
+    )?;
+    sheet.write_string(
+        23,
+        0,
+        "   - See \"Unit Metadata\" sheet for the complete list",
+    )?;
 
-    sheet.write_string_with_format(25, 0, "5. See the \"Unit Metadata\" sheet for original unit and name information", &bold_format)?;
-    sheet.write_string(26, 0, "   - Lists which cells had units and what those units were")?;
+    sheet.write_string_with_format(
+        25,
+        0,
+        "5. See the \"Unit Metadata\" sheet for original unit and name information",
+        &bold_format,
+    )?;
+    sheet.write_string(
+        26,
+        0,
+        "   - Lists which cells had units and what those units were",
+    )?;
     sheet.write_string(27, 0, "   - Shows original formulas for formula cells")?;
-    sheet.write_string(28, 0, "   - Documents all named ranges and their cell references")?;
+    sheet.write_string(
+        28,
+        0,
+        "   - Documents all named ranges and their cell references",
+    )?;
 
-    sheet.write_string(30, 0, "⚠️ WARNING: Changes made in Excel cannot be imported back to Unicel")?;
+    sheet.write_string(
+        30,
+        0,
+        "⚠️ WARNING: Changes made in Excel cannot be imported back to Unicel",
+    )?;
     sheet.write_string(31, 0, "This is a ONE-WAY export for sharing data only.")?;
 
-    sheet.write_string_with_format(33, 0, "To preserve full unit information, use Unicel's native .usheet format.", &bold_format)?;
+    sheet.write_string_with_format(
+        33,
+        0,
+        "To preserve full unit information, use Unicel's native .usheet format.",
+        &bold_format,
+    )?;
 
     // Set column width
     sheet.set_column_width(0, 80)?;
@@ -679,7 +843,9 @@ fn create_metadata_sheet(
     let mut sheet = Worksheet::new();
     sheet.set_name("Unit Metadata")?;
 
-    let header_format = Format::new().set_bold().set_background_color(rust_xlsxwriter::Color::RGB(0xD3D3D3));
+    let header_format = Format::new()
+        .set_bold()
+        .set_background_color(rust_xlsxwriter::Color::RGB(0xD3D3D3));
 
     let section_header_format = Format::new()
         .set_bold()
@@ -691,7 +857,12 @@ fn create_metadata_sheet(
 
     // Section 1: Unit Information
     if !rows.is_empty() {
-        sheet.write_string_with_format(current_row, 0, "Unit Information", &section_header_format)?;
+        sheet.write_string_with_format(
+            current_row,
+            0,
+            "Unit Information",
+            &section_header_format,
+        )?;
         current_row += 1;
 
         // Headers
@@ -800,7 +971,10 @@ mod tests {
 
         // Functions (should not be transformed)
         assert_eq!(transform_formula_for_excel("=SUM(B1:B10)"), "=SUM(C1:C10)");
-        assert_eq!(transform_formula_for_excel("=AVERAGE(A1:A5)"), "=AVERAGE(A1:A5)");
+        assert_eq!(
+            transform_formula_for_excel("=AVERAGE(A1:A5)"),
+            "=AVERAGE(A1:A5)"
+        );
     }
 
     #[test]

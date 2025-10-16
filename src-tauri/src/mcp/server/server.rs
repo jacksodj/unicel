@@ -120,8 +120,9 @@ impl McpServer {
 
     fn handle_initialize(&mut self, params: Option<Value>) -> Result<Value, JsonRpcError> {
         let _params: InitializeParams = match params {
-            Some(p) => serde_json::from_value(p)
-                .map_err(|e| JsonRpcError::invalid_params(&format!("Invalid initialize params: {}", e)))?,
+            Some(p) => serde_json::from_value(p).map_err(|e| {
+                JsonRpcError::invalid_params(&format!("Invalid initialize params: {}", e))
+            })?,
             None => return Err(JsonRpcError::invalid_params("Missing initialize params")),
         };
 
@@ -172,14 +173,17 @@ impl McpServer {
         }
 
         let params: CallToolParams = match params {
-            Some(p) => serde_json::from_value(p)
-                .map_err(|e| JsonRpcError::invalid_params(&format!("Invalid tool params: {}", e)))?,
+            Some(p) => serde_json::from_value(p).map_err(|e| {
+                JsonRpcError::invalid_params(&format!("Invalid tool params: {}", e))
+            })?,
             None => return Err(JsonRpcError::invalid_params("Missing tool params")),
         };
 
         info!("Calling tool: {}", params.name);
 
-        let result = self.tool_handler.handle_tool_call(&params.name, params.arguments);
+        let result = self
+            .tool_handler
+            .handle_tool_call(&params.name, params.arguments);
 
         serde_json::to_value(result).map_err(|e| JsonRpcError::internal_error(&e.to_string()))
     }
@@ -191,14 +195,14 @@ impl McpServer {
 
         let workbook = self.workbook.lock().unwrap();
 
-        let mut resources = vec![
-            ResourceDefinition {
-                uri: "unicel://workbook".to_string(),
-                name: "Workbook Metadata".to_string(),
-                description: Some("Current workbook metadata including sheets and settings".to_string()),
-                mime_type: Some("application/json".to_string()),
-            },
-        ];
+        let mut resources = vec![ResourceDefinition {
+            uri: "unicel://workbook".to_string(),
+            name: "Workbook Metadata".to_string(),
+            description: Some(
+                "Current workbook metadata including sheets and settings".to_string(),
+            ),
+            mime_type: Some("application/json".to_string()),
+        }];
 
         // Add resources for each sheet
         for i in 0..workbook.sheet_count() {
@@ -231,8 +235,9 @@ impl McpServer {
         }
 
         let params: ReadResourceParams = match params {
-            Some(p) => serde_json::from_value(p)
-                .map_err(|e| JsonRpcError::invalid_params(&format!("Invalid resource params: {}", e)))?,
+            Some(p) => serde_json::from_value(p).map_err(|e| {
+                JsonRpcError::invalid_params(&format!("Invalid resource params: {}", e))
+            })?,
             None => return Err(JsonRpcError::invalid_params("Missing resource params")),
         };
 
@@ -278,8 +283,9 @@ impl McpServer {
             let sheet_name = uri.strip_prefix("unicel://sheet/").unwrap();
             let workbook = self.workbook.lock().unwrap();
 
-            let sheet = workbook.get_sheet_by_name(sheet_name)
-                .ok_or_else(|| JsonRpcError::invalid_params(&format!("Sheet not found: {}", sheet_name)))?;
+            let sheet = workbook.get_sheet_by_name(sheet_name).ok_or_else(|| {
+                JsonRpcError::invalid_params(&format!("Sheet not found: {}", sheet_name))
+            })?;
 
             let cells: Vec<Value> = sheet
                 .cell_addresses()
@@ -315,19 +321,12 @@ impl McpServer {
             // Hardcoded list of known units (same as in tools.rs)
             let all_units = vec![
                 // Length
-                "m", "cm", "mm", "km", "in", "ft", "yd", "mi",
-                // Mass
-                "g", "kg", "mg", "oz", "lb",
-                // Time
-                "s", "min", "hr", "h", "hour", "day", "month", "year",
-                // Temperature
-                "C", "F", "K",
-                // Currency
-                "USD", "EUR", "GBP",
-                // Digital storage
-                "B", "KB", "MB", "GB", "TB", "PB",
-                "b", "Kb", "Mb", "Gb", "Tb", "Pb",
-                "Tok", "MTok",
+                "m", "cm", "mm", "km", "in", "ft", "yd", "mi", // Mass
+                "g", "kg", "mg", "oz", "lb", // Time
+                "s", "min", "hr", "h", "hour", "day", "month", "year", // Temperature
+                "C", "F", "K", // Currency
+                "USD", "EUR", "GBP", // Digital storage
+                "B", "KB", "MB", "GB", "TB", "PB", "b", "Kb", "Mb", "Gb", "Tb", "Pb", "Tok", "MTok",
             ];
 
             let data = json!({
@@ -341,11 +340,18 @@ impl McpServer {
                 text: Some(serde_json::to_string_pretty(&data).unwrap()),
             })
         } else {
-            Err(JsonRpcError::invalid_params(&format!("Unknown resource URI: {}", uri)))
+            Err(JsonRpcError::invalid_params(&format!(
+                "Unknown resource URI: {}",
+                uri
+            )))
         }
     }
 
-    fn write_response<W: Write>(&self, writer: &mut W, response: &JsonRpcResponse) -> io::Result<()> {
+    fn write_response<W: Write>(
+        &self,
+        writer: &mut W,
+        response: &JsonRpcResponse,
+    ) -> io::Result<()> {
         let json = serde_json::to_string(response)?;
         debug!("Sending response: {}", json);
         writeln!(writer, "{}", json)?;

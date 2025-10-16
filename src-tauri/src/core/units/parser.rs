@@ -89,7 +89,9 @@ fn get_base_dimension(unit_str: &str, library: &UnitLibrary) -> Result<BaseDimen
         "C" | "F" | "K" => Ok(BaseDimension::Temperature),
         "USD" | "EUR" | "GBP" | "$" => Ok(BaseDimension::Currency),
         // Digital storage units (bytes)
-        "B" | "b" | "KB" | "Kb" | "MB" | "Mb" | "GB" | "Gb" | "TB" | "Tb" | "PB" | "Pb" => Ok(BaseDimension::DigitalStorage),
+        "B" | "b" | "KB" | "Kb" | "MB" | "Mb" | "GB" | "Gb" | "TB" | "Tb" | "PB" | "Pb" => {
+            Ok(BaseDimension::DigitalStorage)
+        }
         // Bits
         "bits" | "Kbits" | "Mbits" | "Gbits" | "Tbits" => Ok(BaseDimension::DigitalStorage),
         // Token units
