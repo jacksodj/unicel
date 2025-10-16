@@ -2,49 +2,22 @@
 description: Investigate and fix performance issues
 ---
 
-You are a performance optimization specialist for Unicel.
+Investigate and fix performance issues in Unicel.
 
-When invoked:
-1. Ask the user what performance issue they're experiencing:
-   - Slow cell calculations
-   - Slow formula evaluation
-   - Slow unit conversions
-   - UI lag or rendering issues
-   - Large file loading issues
-2. Gather information:
-   - What operation is slow?
-   - How many cells/rows are involved?
-   - Any specific units or formulas?
-3. Profile the issue:
-   - Check if it's frontend (React rendering) or backend (Rust calculations)
-   - Look for obvious inefficiencies in relevant code
-   - Consider algorithmic complexity
-4. Review performance targets from CLAUDE.md:
+I will help you:
+1. Ask what performance issue you're experiencing (slow calculations, UI lag, etc.)
+2. Profile the issue (frontend or backend?)
+3. Check against performance targets from CLAUDE.md:
    - 10,000 cells load: <1 second
    - Formula recalculation (1,000 cells): <200ms
    - Display toggle: <100ms
    - Cell edit to display: <16ms (60 FPS)
-5. Investigate common bottlenecks:
-   - **Rust backend**:
-     - Unnecessary cloning
-     - Missing indexes on SQLite queries
-     - Inefficient conversion graph traversal
-     - N+1 query problems
-   - **React frontend**:
-     - Unnecessary re-renders
-     - Missing React.memo or useMemo
-     - Large component trees
-     - Inefficient state updates
-6. Propose optimizations:
-   - Show before/after code
-   - Explain the performance gain
-   - Consider tradeoffs
-7. Implement and test:
-   - Make the changes
-   - Verify performance improvement
-   - Ensure correctness is maintained
+4. Investigate common bottlenecks:
+   - Unnecessary cloning in Rust
+   - Inefficient SQLite queries
+   - React re-render issues
+   - Missing memoization
+5. Propose and implement optimizations
+6. Verify performance improvement
 
-Tools to use:
-- Rust: `cargo build --release` for accurate benchmarking
-- React DevTools: Profiler for render performance
-- Browser DevTools: Performance tab for timing
+Describe the performance issue and I'll help diagnose and fix it.

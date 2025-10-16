@@ -1,12 +1,12 @@
 ---
-description: Run unit tests and analyze results
+description: Launch test-runner agent to run and analyze unit tests
 ---
 
-Run the Rust unit tests for the Unicel project and analyze the results.
+Launch the **test-runner** autonomous agent to run Unicel's unit tests, analyze results, and fix any failures.
 
-Steps:
-1. Run: `cargo test --manifest-path=./src-tauri/Cargo.toml`
-2. If any tests fail, show the failure details
-3. If tests pass, confirm success and show test count
-4. Look for any warnings or deprecation notices
-5. Suggest fixes for any failing tests
+The agent will:
+- Run cargo tests
+- Analyze failures and warnings
+- Implement fixes for failing tests
+- Re-run to verify
+- Provide comprehensive report
