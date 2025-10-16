@@ -96,21 +96,26 @@ Provide to gatekeeper:
 
 If gatekeeper rejects, fix issues and retry.
 
-### 7. Wait for CI to Pass ⚠️ CRITICAL
+### 7. Check CI Status ⚠️ CRITICAL
 
-**After commit-gatekeeper succeeds, WAIT for CI:**
+**After commit-gatekeeper succeeds, CHECK CI status:**
 
 ```bash
-# Check that CI is running
+# Check the latest CI run
 gh run list --limit 1
 
-# Wait for CI to complete (should be the version bump commit)
-gh run watch <run-id>
+# If CI is in progress, get the run URL
+gh run list --limit 1 --json url,status,conclusion
 ```
 
 **DO NOT create tag until CI passes!**
 
-Why? The version bump commit must pass all quality checks before we create a release tag.
+**Inform the user:**
+- ✅ If CI already passed: Proceed to step 8
+- ⏳ If CI is running: Inform user that CI takes ~5-10 minutes. Ask user to let you know when to continue.
+- ❌ If CI failed: Report the failure URL and stop
+
+Why? The version bump commit must pass all quality checks before we create a release tag. CI builds take 5-10 minutes, so we don't block the entire agent waiting.
 
 ### 8. Create and Push Tag (AFTER CI passes)
 
@@ -128,23 +133,29 @@ git push origin vX.Y.Z
 
 **Important:** The tag push triggers `.github/workflows/release.yml`
 
-### 9. Monitor Release Workflow
+### 9. Check Release Workflow Status
 The git tag push triggers `.github/workflows/release.yml`:
 
-Watch progress:
+Check status:
 ```bash
-gh run list --workflow=release.yml --limit 1
-gh run watch <run-id>
+gh run list --workflow=release.yml --limit 1 --json url,status,conclusion
 ```
+
+**Inform the user:**
+- ⏳ If builds are running: Inform user that builds take ~15-20 minutes across all platforms. Provide the run URL for monitoring.
+- ✅ If builds complete: Proceed to step 10 to verify artifacts
+- ❌ If builds fail: Report which platform failed and the error URL
 
 Expected jobs:
 - ✓ create-release: Creates GitHub draft release
-- ✓ build-tauri (macos aarch64): Apple Silicon DMG
-- ✓ build-tauri (macos x86_64): Intel DMG
-- ✓ build-tauri (windows): Setup.exe and MSI
+- ✓ build-tauri (macos aarch64): Apple Silicon DMG (~5-7 min)
+- ✓ build-tauri (macos x86_64): Intel DMG (~5-7 min)
+- ✓ build-tauri (windows): Setup.exe and MSI (~8-10 min)
 - ✓ publish-release: Publishes the release
 
-### 9. Verify Release
+**Note:** Don't block waiting for builds. User can monitor via GitHub Actions UI.
+
+### 10. Verify Release (After Builds Complete)
 Check the release page:
 ```
 https://github.com/jacksodj/unicel/releases/tag/vX.Y.Z
@@ -158,7 +169,7 @@ Verify artifacts:
 - ✓ Unicel_aarch64.app.tar.gz
 - ✓ Unicel_x64.app.tar.gz
 
-### 10. Post-Release Tasks
+### 11. Post-Release Tasks
 - Test one of the DMGs to verify code signing works
 - Update release notes if needed
 - Announce release (if significant)
