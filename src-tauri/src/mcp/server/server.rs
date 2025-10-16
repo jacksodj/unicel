@@ -326,7 +326,8 @@ impl McpServer {
                 "s", "min", "hr", "h", "hour", "day", "month", "year", // Temperature
                 "C", "F", "K", // Currency
                 "USD", "EUR", "GBP", // Digital storage
-                "B", "KB", "MB", "GB", "TB", "PB", "b", "Kb", "Mb", "Gb", "Tb", "Pb", "Tok", "MTok",
+                "B", "KB", "MB", "GB", "TB", "PB", "b", "Kb", "Mb", "Gb", "Tb", "Pb", "Tok",
+                "MTok",
             ];
 
             let data = json!({
