@@ -38,6 +38,12 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
+      - name: Build frontend
+        run: npm run build
+
+      - name: Check TypeScript
+        run: npm run lint
+
       - name: Run Rust tests
         run: cargo test --manifest-path=./src-tauri/Cargo.toml
 
@@ -46,9 +52,3 @@ jobs:
 
       - name: Run Clippy
         run: cargo clippy --manifest-path=./src-tauri/Cargo.toml -- -D warnings
-
-      - name: Build frontend
-        run: npm run build
-
-      - name: Check TypeScript
-        run: npm run lint
