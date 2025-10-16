@@ -292,6 +292,28 @@
     - Delete functionality with confirmation
     - Formula evaluation fix: named references now resolve in workbook context
 
+### Recent Additions (v0.1.7 - 2025-10-16)
+- [x] **Comprehensive Formula Function Library** - Completed ✅
+  - Implemented 25 new unit-aware formula functions across 5 tiers:
+  - **Tier 1 - Aggregation** (3 functions):
+    - COUNT, MIN, MAX - with range support and unit compatibility checking
+  - **Tier 2 - Math Basics** (7 functions):
+    - ABS, ROUND, FLOOR, CEIL, TRUNC, MOD, SIGN - unit-preserving operations
+  - **Tier 3 - Advanced Math** (2 functions):
+    - SQRT - divides unit exponents by 2 (m² → m)
+    - POWER - multiplies unit exponents (m^2 = m²)
+  - **Tier 4 - Logic & Comparison** (10 functions):
+    - Comparison: GT, LT, GTE, LTE, EQ, NE - unit-aware with automatic conversion
+    - Logic: IF, AND, OR, NOT - boolean operations returning dimensionless results
+  - **Tier 5 - Statistics** (3 functions):
+    - MEDIAN, STDEV, VAR - using statrs library for numerical accuracy
+    - VAR correctly returns squared units (m → m²)
+  - Added `statrs = "0.17"` dependency for statistical functions
+  - Extended AST with Boolean, comparison, and logical operation nodes
+  - Created `transform_unit_exponents()` helper for dimension transformation
+  - 67 comprehensive tests added (273 total tests passing)
+  - All functions properly handle unit compatibility, conversion, and cancellation
+
 ### Advanced Features
 
 - **Support arbitrary units/dimensions with conversion tables (stocks)** (High priority)
