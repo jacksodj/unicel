@@ -107,6 +107,28 @@ impl<'a> Evaluator<'a> {
             )),
 
             Expr::Function { name, .. } => Err(EvalError::FunctionNotImplemented(name.clone())),
+
+            Expr::Boolean(b) => Ok(EvalResult::new(
+                if *b { 1.0 } else { 0.0 },
+                Unit::dimensionless(),
+            )),
+
+            Expr::GreaterThan(_left, _right)
+            | Expr::LessThan(_left, _right)
+            | Expr::GreaterOrEqual(_left, _right)
+            | Expr::LessOrEqual(_left, _right)
+            | Expr::Equal(_left, _right)
+            | Expr::NotEqual(_left, _right) => Err(EvalError::InvalidOperation(
+                "Comparison operators not supported in standalone evaluation".to_string(),
+            )),
+
+            Expr::And(_left, _right) | Expr::Or(_left, _right) => Err(EvalError::InvalidOperation(
+                "Logical operators not supported in standalone evaluation".to_string(),
+            )),
+
+            Expr::Not(_expr) => Err(EvalError::InvalidOperation(
+                "NOT operator not supported in standalone evaluation".to_string(),
+            )),
         }
     }
 
@@ -673,6 +695,34 @@ pub fn extract_dimensions(
     }
 
     (numerator, denominator)
+}
+
+/// Transform unit by multiplying all dimension exponents by a factor
+/// Used for SQRT (factor=0.5) and POWER (factor=exponent)
+pub fn transform_unit_exponents(unit: &Unit, factor: f64) -> Unit {
+    // Extract dimensions
+    let (numerator, denominator) = extract_dimensions(unit);
+
+    // Transform all exponents in numerator
+    let transformed_numerator: HashMap<BaseDimension, i32> = numerator
+        .into_iter()
+        .map(|(base, power)| {
+            let new_power = ((power as f64) * factor).round() as i32;
+            (base, new_power)
+        })
+        .collect();
+
+    // Transform all exponents in denominator
+    let transformed_denominator: HashMap<BaseDimension, i32> = denominator
+        .into_iter()
+        .map(|(base, power)| {
+            let new_power = ((power as f64) * factor).round() as i32;
+            (base, new_power)
+        })
+        .collect();
+
+    // Build the new unit
+    build_unit_from_dimensions(transformed_numerator, transformed_denominator)
 }
 
 // Build a unit from dimension maps

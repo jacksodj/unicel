@@ -37,6 +37,22 @@ pub enum Expr {
 
     /// Function call (e.g., SUM(A1:A10))
     Function { name: String, args: Vec<Expr> },
+
+    /// Boolean literal (TRUE or FALSE)
+    Boolean(bool),
+
+    /// Comparison operators
+    GreaterThan(Box<Expr>, Box<Expr>),
+    LessThan(Box<Expr>, Box<Expr>),
+    GreaterOrEqual(Box<Expr>, Box<Expr>),
+    LessOrEqual(Box<Expr>, Box<Expr>),
+    Equal(Box<Expr>, Box<Expr>),
+    NotEqual(Box<Expr>, Box<Expr>),
+
+    /// Logical operators
+    And(Box<Expr>, Box<Expr>),
+    Or(Box<Expr>, Box<Expr>),
+    Not(Box<Expr>),
 }
 
 impl Expr {
@@ -106,6 +122,56 @@ impl Expr {
             args,
         }
     }
+
+    /// Create a boolean literal
+    pub fn boolean(value: bool) -> Self {
+        Self::Boolean(value)
+    }
+
+    /// Create a greater than comparison
+    pub fn greater_than(left: Expr, right: Expr) -> Self {
+        Self::GreaterThan(Box::new(left), Box::new(right))
+    }
+
+    /// Create a less than comparison
+    pub fn less_than(left: Expr, right: Expr) -> Self {
+        Self::LessThan(Box::new(left), Box::new(right))
+    }
+
+    /// Create a greater or equal comparison
+    pub fn greater_or_equal(left: Expr, right: Expr) -> Self {
+        Self::GreaterOrEqual(Box::new(left), Box::new(right))
+    }
+
+    /// Create a less or equal comparison
+    pub fn less_or_equal(left: Expr, right: Expr) -> Self {
+        Self::LessOrEqual(Box::new(left), Box::new(right))
+    }
+
+    /// Create an equality comparison
+    pub fn equal(left: Expr, right: Expr) -> Self {
+        Self::Equal(Box::new(left), Box::new(right))
+    }
+
+    /// Create a not equal comparison
+    pub fn not_equal(left: Expr, right: Expr) -> Self {
+        Self::NotEqual(Box::new(left), Box::new(right))
+    }
+
+    /// Create an AND logical operation
+    pub fn and(left: Expr, right: Expr) -> Self {
+        Self::And(Box::new(left), Box::new(right))
+    }
+
+    /// Create an OR logical operation
+    pub fn or(left: Expr, right: Expr) -> Self {
+        Self::Or(Box::new(left), Box::new(right))
+    }
+
+    /// Create a NOT logical operation
+    pub fn not(expr: Expr) -> Self {
+        Self::Not(Box::new(expr))
+    }
 }
 
 impl std::fmt::Display for Expr {
@@ -131,6 +197,16 @@ impl std::fmt::Display for Expr {
                 }
                 write!(f, ")")
             }
+            Expr::Boolean(b) => write!(f, "{}", if *b { "TRUE" } else { "FALSE" }),
+            Expr::GreaterThan(l, r) => write!(f, "({} > {})", l, r),
+            Expr::LessThan(l, r) => write!(f, "({} < {})", l, r),
+            Expr::GreaterOrEqual(l, r) => write!(f, "({} >= {})", l, r),
+            Expr::LessOrEqual(l, r) => write!(f, "({} <= {})", l, r),
+            Expr::Equal(l, r) => write!(f, "({} == {})", l, r),
+            Expr::NotEqual(l, r) => write!(f, "({} != {})", l, r),
+            Expr::And(l, r) => write!(f, "({} AND {})", l, r),
+            Expr::Or(l, r) => write!(f, "({} OR {})", l, r),
+            Expr::Not(e) => write!(f, "(NOT {})", e),
         }
     }
 }

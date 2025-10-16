@@ -48,6 +48,7 @@ uuid = { version = "1.11", features = ["v4", "serde"] }
 indexmap = "2.7"
 arboard = "3.4"
 rust_xlsxwriter = "0.79"
+statrs = "0.17"
 
 [dev-dependencies]
 proptest = { workspace = true }
