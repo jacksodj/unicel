@@ -1,6 +1,8 @@
 ---
 name: formula-builder
 description: Agent that adds new formula functions to Unicel with proper unit handling and dimensional analysis
+model: sonnet
+color: blue
 tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 

@@ -1,6 +1,8 @@
 ---
 name: unit-debugger
 description: Specialized agent for debugging unit conversion issues, dimensional analysis, and compound unit handling
+model: inherit
+color: orange
 tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 

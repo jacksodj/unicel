@@ -1,6 +1,8 @@
 ---
 name: code-reviewer
 description: Reviews code changes for correctness, quality, and adherence to Unicel patterns
+model: inherit
+color: yellow
 tools: Bash, Read, Glob, Grep
 ---
 

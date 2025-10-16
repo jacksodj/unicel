@@ -1,6 +1,8 @@
 ---
 name: test-runner
 description: Autonomous agent that runs and analyzes Unicel unit tests, fixes failures, and reports results
+model: sonnet
+color: green
 tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 

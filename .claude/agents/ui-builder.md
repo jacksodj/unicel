@@ -1,6 +1,8 @@
 ---
 name: ui-builder
 description: React component specialist for building and modifying Unicel's frontend UI
+model: sonnet
+color: cyan
 tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 

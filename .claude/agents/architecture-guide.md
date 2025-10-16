@@ -1,6 +1,8 @@
 ---
 name: architecture-guide
 description: Explains Unicel's architecture, design decisions, and helps navigate the codebase
+model: haiku
+color: gray
 tools: Read, Glob, Grep
 ---
 

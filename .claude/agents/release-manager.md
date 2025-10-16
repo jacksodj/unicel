@@ -1,6 +1,8 @@
 ---
 name: release-manager
 description: Manages version bumping, changelog, git tagging, and release workflows for Unicel
+model: sonnet
+color: purple
 tools: Bash, Read, Edit, Write
 ---
 
