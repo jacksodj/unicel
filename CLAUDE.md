@@ -166,6 +166,94 @@ cargo clean
 npm run clean
 ```
 
+### Pre-Commit Checklist
+
+**CRITICAL:** Always run these checks locally before committing to prevent CI failures:
+
+```bash
+# 1. Format Rust code (REQUIRED - CI will fail if not formatted)
+cargo fmt
+
+# 2. Check formatting without modifying files
+cargo fmt --check
+
+# 3. Run all tests
+cargo test --lib
+
+# 4. Check for clippy warnings (CI uses -D warnings)
+cargo clippy -- -D warnings
+
+# 5. Build frontend
+npm run build
+```
+
+**Quick pre-commit validation:**
+```bash
+# Run all checks in sequence (stops on first failure)
+cargo fmt && cargo clippy -- -D warnings && cargo test --lib && npm run build
+```
+
+**Why this matters:**
+- The CI pipeline runs strict checks that match these commands exactly
+- Formatting issues (`cargo fmt`) are the most common cause of CI failures
+- Clippy warnings with `-D warnings` flag will fail the build
+- Running these locally saves CI time and prevents breaking the build
+
+**Agent Guidelines:**
+- **NEVER commit code directly** - Always use the commit-gatekeeper agent
+- After completing work, invoke commit-gatekeeper to validate and commit
+- Do not use git add/commit/push commands yourself
+- Wait for commit-gatekeeper approval before considering task complete
+
+## Commit Workflow for Agents
+
+**CRITICAL ARCHITECTURE:** All commits go through the commit-gatekeeper agent.
+
+### For Development Agents
+
+When you complete your work:
+
+1. **DO NOT commit directly:**
+   ```bash
+   # ❌ NEVER DO THIS
+   git add -A && git commit -m "message" && git push
+   ```
+
+2. **Instead, call commit-gatekeeper:**
+   - Use the Task tool to invoke the commit-gatekeeper agent
+   - Provide: summary of changes, files modified, commit message
+   - Wait for approval/rejection
+   - Only consider task complete after commit-gatekeeper approves
+
+3. **Example invocation:**
+   ```
+   I've completed implementing [feature]. All functionality works correctly.
+
+   Now invoking commit-gatekeeper agent to validate and commit changes.
+
+   [Use Task tool with subagent_type=commit-gatekeeper]
+   ```
+
+### Why This Matters
+
+- **Prevents CI failures**: commit-gatekeeper runs all checks that CI runs
+- **Enforces formatting**: Auto-runs `cargo fmt` before committing
+- **Catches issues early**: Clippy, tests, and build verified locally
+- **Single source of truth**: One agent handles all quality gates
+- **Consistent commits**: Proper commit message format enforced
+
+### The commit-gatekeeper Agent
+
+**Purpose**: Single gatekeeper for all code commits
+
+**Runs these checks before allowing commits:**
+1. `cargo fmt` - Auto-format code
+2. `cargo clippy -- -D warnings` - Check code quality
+3. `cargo test --lib` - Run all tests
+4. `npm run build` - Verify frontend builds
+
+**Only commits when ALL checks pass.**
+
 ## Key Design Principles
 
 ### 1. Units Are Immutable (Unless Explicitly Converted)

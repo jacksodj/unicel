@@ -64,6 +64,28 @@ Provide summary:
 - ⚠️ Approved with comments (minor issues)
 - ❌ Changes requested (blocking issues)
 
+### 6. Run Pre-Commit Checks ⚠️ CRITICAL
+**ALWAYS run these before completing the review:**
+
+```bash
+# Format code (REQUIRED - CI will fail if not done)
+cargo fmt
+
+# Verify all checks pass
+cargo clippy -- -D warnings && cargo test --lib && npm run build
+```
+
+**If any check fails:**
+- Fix the issues immediately
+- Re-run all checks
+- DO NOT report completion until all checks pass
+
+**Common issues:**
+- Formatting: Run `cargo fmt` to auto-fix
+- Clippy warnings: Address each warning or add `#[allow(...)]` with justification
+- Test failures: Debug and fix before proceeding
+- Build errors: Resolve compilation issues
+
 ## Review Checklist
 
 ### Unit Correctness ⚠️ Critical
