@@ -300,6 +300,36 @@
   - Enable formulas like: `100 AAPL × $178.25/AAPL → $17,825`
   - Use cases: portfolio tracking, crypto conversions, loyalty points
 
+### Bug Fixes & Quality Improvements (v0.1.8+)
+
+- **Named cell references in formula editing** (High priority - Bug)
+  - When in formula edit mode and selecting a cell with a named range, insert the name instead of cell address
+  - Example: Clicking cell B5 with name `tax_rate` should insert `tax_rate` not `B5`
+  - Improves formula readability and leverages the named ranges feature
+  - Location: Formula editor cell selection handler in frontend
+
+- **Compound unit conversion bug (exponents in denominators)** (High priority - Bug)
+  - Units like `ft^2` in denominators don't convert correctly when toggling metric/imperial
+  - Issue: `ft^2` should be treated as `ft * ft` and conversion applied twice
+  - Example: `1/ft^2` should convert to `1/0.0929m^2`, not `1/0.3048m`
+  - Affects: Area units (ft^2, m^2), volume units (ft^3, m^3), and any compound units
+  - Root cause: Exponent handling in unit conversion doesn't properly compound the factors
+  - Location: `src/core/units/conversion_graph.rs` or unit display conversion logic
+
+- **Rational number representation for exact arithmetic** (Medium priority - Feature)
+  - Store all numeric cell values as numerator/denominator pairs instead of f64
+  - Apply same rational representation to unit conversion factors
+  - Benefits:
+    - Eliminates floating-point rounding errors (e.g., 0.1 + 0.2 = 0.3 exactly)
+    - Enables UI option to display values as fractions or decimals
+    - Preserves exact values through calculations (e.g., 1/3 stays exact)
+  - Implementation considerations:
+    - Use GCD/LCF for fraction reduction
+    - May need arbitrary precision for large numerators/denominators
+    - Performance impact on calculations (rational arithmetic is slower than float)
+    - Add UI toggle: "Display as: Decimal | Fraction | Auto"
+  - Location: Core numeric representation in `src/core/cell/cell.rs`
+
 ---
 
 ## Quick Commands
