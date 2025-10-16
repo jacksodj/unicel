@@ -34,11 +34,15 @@ export default function Grid({
   const [isDirty, setIsDirty] = useState(false);
   const [initialEditValue, setInitialEditValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Use local state that syncs with prop to ensure immediate visual updates
+  const [localSelectedCell, setLocalSelectedCell] = useState<CellAddress | null>(selectedCell || null);
   const selectedCellRef = useRef<CellAddress | null | undefined>(selectedCell);
 
-  // Keep ref in sync with prop
+  // Keep ref and local state in sync with prop
   useEffect(() => {
     selectedCellRef.current = selectedCell;
+    setLocalSelectedCell(selectedCell || null);
   }, [selectedCell]);
 
   // Focus and select input when editing starts (but not on every value change)
@@ -107,26 +111,47 @@ export default function Grid({
           newRow = currentSelectedCell.row;
           break;
         case 'Enter':
-          // Start editing on Enter
+        case 'F2':
+          // Start editing on Enter or F2 (with existing content)
           if (onCellDoubleClick) {
             e.preventDefault();
             onCellDoubleClick(currentSelectedCell);
           }
           return;
         default:
+          // For regular printable characters, start editing with that character
+          // Ignore special keys and modifier combinations
+          if (
+            e.key.length === 1 &&
+            !e.ctrlKey &&
+            !e.metaKey &&
+            !e.altKey &&
+            onCellDoubleClick &&
+            onEditValueChange
+          ) {
+            e.preventDefault();
+            // Start editing and set the typed character as initial value
+            onCellDoubleClick(currentSelectedCell);
+            // Set the value in the next tick after edit mode is activated
+            setTimeout(() => onEditValueChange(e.key), 0);
+          }
           return;
       }
 
       // Only call onCellSelect if we have a new position
       if (newCol !== null && newRow !== null) {
-        onCellSelect({ col: newCol, row: newRow });
+        const newAddress = { col: newCol, row: newRow };
+        // Optimistically update local state immediately for instant visual feedback
+        setLocalSelectedCell(newAddress);
+        // Then call parent callback
+        onCellSelect(newAddress);
       }
     };
 
     // Attach to document so we catch all keyboard events
     document.addEventListener('keydown', handleGlobalKeyDown);
     return () => document.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [editingCell, onCellSelect, onCellDoubleClick, rowCount, colCount]);
+  }, [editingCell, onCellSelect, onCellDoubleClick, onEditValueChange, rowCount, colCount]);
   // Generate column headers (A, B, C, ...)
   const columns = Array.from({ length: colCount }, (_, i) => colNumberToLetter(i + 1));
 
@@ -190,7 +215,8 @@ export default function Grid({
   };
 
   const isCellSelected = (col: string, row: number): boolean => {
-    return selectedCell?.col === col && selectedCell?.row === row;
+    // Use local state for immediate visual feedback
+    return localSelectedCell?.col === col && localSelectedCell?.row === row;
   };
 
   const isCellEditing = (col: string, row: number): boolean => {
@@ -242,7 +268,7 @@ export default function Grid({
     if (e.key === 'Tab') {
       e.preventDefault();
 
-      if (!isDirty && onCellEdit && onCellDoubleClick) {
+      if (!isDirty && onCellSelect && onCellEdit && onCellDoubleClick) {
         // If cell is not dirty, move to next/previous cell and enter edit mode
         const currentColNum = colLetterToNumber(col);
         const newColNum = e.shiftKey
@@ -250,8 +276,8 @@ export default function Grid({
           : Math.min(colCount, currentColNum + 1);
         const newCol = colNumberToLetter(newColNum);
 
-        // Save current cell (even though it's not modified) and move
-        onCellEdit({ col, row }, editValue);
+        // Cancel editing without saving (cell was not modified)
+        onCellEdit({ col, row }, '');
         setTimeout(() => onCellDoubleClick({ col: newCol, row }), 50);
       }
       return;
@@ -289,7 +315,7 @@ export default function Grid({
       }
 
       // If cell is not dirty and not in formula mode, move to adjacent cell
-      if (!isDirty && onCellEdit && onCellDoubleClick) {
+      if (!isDirty && onCellSelect && onCellEdit) {
         e.preventDefault();
 
         const currentColNum = colLetterToNumber(col);
@@ -311,9 +337,14 @@ export default function Grid({
             break;
         }
 
-        // Save current cell (even though it's not modified) and move
-        onCellEdit({ col, row }, editValue);
-        setTimeout(() => onCellDoubleClick({ col: newCol, row: newRow }), 50);
+        // Cancel editing without saving (cell was not modified)
+        // This ensures we don't create empty cells when just navigating
+        onCellEdit({ col, row }, '');
+        // Move selection to new cell
+        const newAddress = { col: newCol, row: newRow };
+        // Optimistically update local state immediately for instant visual feedback
+        setLocalSelectedCell(newAddress);
+        setTimeout(() => onCellSelect(newAddress), 50);
         return;
       }
     }
