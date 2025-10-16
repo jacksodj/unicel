@@ -9,6 +9,8 @@ on:
 jobs:
   create-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}
       release_upload_url: ${{ steps.create-release.outputs.upload_url }}
@@ -87,6 +89,8 @@ jobs:
   publish-release:
     needs: [create-release, build-tauri]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Publish Release
         uses: actions/github-script@v7
