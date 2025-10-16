@@ -324,11 +324,18 @@
 
 ### Bug Fixes & Quality Improvements (v0.1.8+)
 
-- **Named cell references in formula editing** (High priority - Bug)
-  - When in formula edit mode and selecting a cell with a named range, insert the name instead of cell address
-  - Example: Clicking cell B5 with name `tax_rate` should insert `tax_rate` not `B5`
+- [x] **Named cell references in formula editing** (High priority - Bug) ✅ FIXED (2025-10-16)
+  - Formula editor now inserts named ranges instead of cell addresses when clicking cells
+  - Example: Clicking cell B5 with name `tax_rate` now inserts `tax_rate` not `B5`
+  - Works with both mouse clicks and keyboard navigation (arrow keys + Enter/operators)
+  - Implementation details:
+    - Added `get_named_range_for_cell()` backend method to query named ranges
+    - Enhanced Grid component to check for named ranges before inserting references
+    - Falls back to cell address if no named range exists
+  - Files modified:
+    - Backend: `src-tauri/src/core/workbook/mod.rs`, `src-tauri/src/commands/workbook.rs`, `src-tauri/src/main.rs`
+    - Frontend: `src/api/tauri.ts`, `src/components/Grid.tsx`, `src/components/Spreadsheet.tsx`
   - Improves formula readability and leverages the named ranges feature
-  - Location: Formula editor cell selection handler in frontend
 
 - [x] **Compound unit conversion bug (exponents in denominators)** (High priority - Bug) ✅ FIXED (2025-10-16)
   - Units like `ft^2` in denominators now convert correctly when toggling metric/imperial
