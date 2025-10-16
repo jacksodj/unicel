@@ -912,9 +912,7 @@ fn get_compound_display_unit(
     // But NOT if the ^ is part of a division (e.g., "mi/hr^2")
     if let Some(pos) = storage_unit.find('^') {
         // Check if the ^ is NOT part of a division (denominator)
-        let has_div = storage_unit
-            .find('/')
-            .is_some_and(|div_pos| div_pos < pos);
+        let has_div = storage_unit.find('/').is_some_and(|div_pos| div_pos < pos);
 
         // Only handle pure power notation here (not in denominators)
         if !has_div {

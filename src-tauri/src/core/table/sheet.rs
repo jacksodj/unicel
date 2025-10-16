@@ -59,7 +59,6 @@ impl CellAddr {
 
         Ok(Self { col, row: row_num })
     }
-
 }
 
 impl std::fmt::Display for CellAddr {
