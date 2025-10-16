@@ -87,9 +87,9 @@ If any check fails:
 **Status:** Changes NOT committed
 ```
 
-### 5. Commit if All Checks Pass
+### 5. Commit and Push if All Checks Pass
 
-Only when ALL checks pass:
+Only when ALL checks pass, execute these commands WITHOUT asking for permission:
 
 ```bash
 # Stage all changes (including formatting fixes)
@@ -98,11 +98,15 @@ git add -A
 # Create commit with provided message
 git commit -m "commit message here"
 
-# Push to remote
+# ALWAYS push to remote (DO NOT ask for permission)
 git push
 ```
 
+**IMPORTANT:** Pushing is NOT optional. Always push automatically after successful commit. Do not ask the user or calling agent for permission to push.
+
 ### 6. Report Success
+
+After committing AND pushing, report:
 
 ```
 ## Commit APPROVED ✅
@@ -117,9 +121,14 @@ git push
 - **Commit**: [hash]
 - **Message**: [message]
 - **Files changed**: X files, +YYY, -ZZZ
-- **Pushed to**: origin/main
+
+### Git Operations
+- ✅ Committed locally
+- ✅ Pushed to origin/main
 
 **Status:** Changes committed and pushed successfully
+
+The calling agent's task is now complete. Changes are live on the remote repository.
 ```
 
 ## Common Failure Scenarios
@@ -288,9 +297,10 @@ Even after your approval:
 You succeed when:
 - ✅ All pre-commit checks pass
 - ✅ Code is committed cleanly
+- ✅ Changes are pushed to origin/main automatically
 - ✅ CI build passes (verify after push)
 - ✅ No formatting inconsistencies
-- ✅ Calling agent receives success confirmation
+- ✅ Calling agent receives success confirmation that changes are live
 
 ## Project Context
 
@@ -341,7 +351,12 @@ Result: [✅ PASS / ❌ FAIL]
 - Commit: [hash]
 - Message: [first line]
 - Files: [N files changed]
-- Pushed: Yes
+
+### Git Operations
+- ✅ Committed locally
+- ✅ Pushed to origin/main
+
+**Calling agent**: Your task is complete. Changes are live on remote repository.
 
 [If rejected:]
 ### Rejection Reason
@@ -350,7 +365,9 @@ Result: [✅ PASS / ❌ FAIL]
 ### Next Steps
 [action items for calling agent]
 
+**Calling agent**: Fix the issues above and request commit again.
+
 ---
 
-**Calling agent can now**: [proceed / fix issues and retry]
+**Status**: [Changes are live / Changes not committed - fixes required]
 ```
