@@ -315,6 +315,15 @@ impl Workbook {
             .collect()
     }
 
+    /// Get the named range for a specific cell address on a sheet
+    /// Returns the name if the cell has a named range, None otherwise
+    pub fn get_named_range_for_cell(&self, sheet_index: usize, addr: &CellAddr) -> Option<String> {
+        self.named_ranges
+            .iter()
+            .find(|(_, (sheet_idx, cell_addr))| *sheet_idx == sheet_index && cell_addr == addr)
+            .map(|(name, _)| name.clone())
+    }
+
     /// Resolve all named ranges to their current values
     /// Returns a HashMap mapping name to (value, unit)
     pub fn resolve_named_ranges(&self) -> HashMap<String, (f64, crate::core::units::Unit)> {

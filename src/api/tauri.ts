@@ -159,6 +159,10 @@ export const tauriApi = {
     return invoke('get_named_range', { name });
   },
 
+  async getNamedRangeForCell(sheetIndex: number, cellAddress: string): Promise<string | null> {
+    return invoke('get_named_range_for_cell', { sheetIndex, cellAddress });
+  },
+
   // File dialogs
   async openFileDialog(): Promise<string | null> {
     const selected = await open({

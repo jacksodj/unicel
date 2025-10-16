@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Cell, CellAddress, getCellAddress, colNumberToLetter, colLetterToNumber } from '../types/workbook';
+import { tauriApi } from '../api/tauri';
 
 interface GridProps {
   cells: Map<string, Cell>;
@@ -12,6 +13,7 @@ interface GridProps {
   editingCell?: CellAddress | null;
   editValue?: string;
   onEditValueChange?: (value: string) => void;
+  activeSheetIndex?: number;
 }
 
 export default function Grid({
@@ -25,6 +27,7 @@ export default function Grid({
   editingCell,
   editValue = '',
   onEditValueChange,
+  activeSheetIndex = 0,
 }: GridProps) {
   const [isFormulaMode, setIsFormulaMode] = useState(false);
   const [pickerCell, setPickerCell] = useState<CellAddress | null>(null);
@@ -179,11 +182,25 @@ export default function Grid({
     return editingCell?.col === col && editingCell?.row === row;
   };
 
-  const insertCellReference = (col: string, row: number) => {
+  const insertCellReference = async (col: string, row: number) => {
     const cellRef = getCellAddress(col, row);
-    if (onEditValueChange) {
-      onEditValueChange(editValue + cellRef);
+
+    // Check if this cell has a named range
+    try {
+      const namedRange = await tauriApi.getNamedRangeForCell(activeSheetIndex, cellRef);
+      const referenceToInsert = namedRange || cellRef;
+
+      if (onEditValueChange) {
+        onEditValueChange(editValue + referenceToInsert);
+      }
+    } catch (error) {
+      // If there's an error, fall back to using the cell address
+      console.error('Error checking for named range:', error);
+      if (onEditValueChange) {
+        onEditValueChange(editValue + cellRef);
+      }
     }
+
     setPickerCell(null);
     // Return focus to input
     setTimeout(() => inputRef.current?.focus(), 0);
@@ -291,9 +308,23 @@ export default function Grid({
     if (isFormulaMode && pickerCell && (e.key === '+' || e.key === '-' || e.key === '*' || e.key === '/' || e.key === '(' || e.key === ')')) {
       e.preventDefault();
       const cellRef = getCellAddress(pickerCell.col, pickerCell.row);
-      if (onEditValueChange) {
-        onEditValueChange(editValue + cellRef + e.key);
-      }
+
+      // Check if this cell has a named range
+      tauriApi.getNamedRangeForCell(activeSheetIndex, cellRef)
+        .then((namedRange) => {
+          const referenceToInsert = namedRange || cellRef;
+          if (onEditValueChange) {
+            onEditValueChange(editValue + referenceToInsert + e.key);
+          }
+        })
+        .catch((error) => {
+          // If there's an error, fall back to using the cell address
+          console.error('Error checking for named range:', error);
+          if (onEditValueChange) {
+            onEditValueChange(editValue + cellRef + e.key);
+          }
+        });
+
       setPickerCell(null);
       setTimeout(() => inputRef.current?.focus(), 0);
       return;

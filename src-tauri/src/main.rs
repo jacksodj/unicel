@@ -190,6 +190,15 @@ fn get_named_range(state: State<AppState>, name: String) -> Result<NamedRangeInf
     unicel_lib::commands::get_named_range_impl(&state, name)
 }
 
+#[tauri::command]
+fn get_named_range_for_cell(
+    state: State<AppState>,
+    sheet_index: usize,
+    cell_address: String,
+) -> Result<Option<String>, String> {
+    unicel_lib::commands::get_named_range_for_cell_impl(&state, sheet_index, cell_address)
+}
+
 fn main() {
     // Initialize logging
     tracing_subscriber::registry()
@@ -233,6 +242,7 @@ fn main() {
             create_named_range,
             delete_named_range,
             get_named_range,
+            get_named_range_for_cell,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

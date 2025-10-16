@@ -330,13 +330,24 @@
   - Improves formula readability and leverages the named ranges feature
   - Location: Formula editor cell selection handler in frontend
 
-- **Compound unit conversion bug (exponents in denominators)** (High priority - Bug)
-  - Units like `ft^2` in denominators don't convert correctly when toggling metric/imperial
-  - Issue: `ft^2` should be treated as `ft * ft` and conversion applied twice
-  - Example: `1/ft^2` should convert to `1/0.0929m^2`, not `1/0.3048m`
-  - Affects: Area units (ft^2, m^2), volume units (ft^3, m^3), and any compound units
-  - Root cause: Exponent handling in unit conversion doesn't properly compound the factors
-  - Location: `src/core/units/conversion_graph.rs` or unit display conversion logic
+- [x] **Compound unit conversion bug (exponents in denominators)** (High priority - Bug) ✅ FIXED (2025-10-16)
+  - Units like `ft^2` in denominators now convert correctly when toggling metric/imperial
+  - Fixed: `ft^2` is now properly treated as `ft * ft` with conversion factor raised to power 2
+  - Examples working correctly:
+    - `100 ft^2` → `9.29 m^2` (area conversion with exponent)
+    - `1/ft^2` → `10.76 1/m^2` (reciprocal area with proper compounding)
+    - `$15/ft^2` → `161.46 $/m^2` (price per area)
+    - `10 ft^3` → `0.283 m^3` (volume conversion)
+    - `1 mi/hr^2` → `0.000000124 km/s^2` (acceleration with time squared)
+    - `50 ft^2/s` → `4.65 m^2/s` (area rate with numerator exponent)
+  - Root causes fixed:
+    1. `convert_compound_unit()` in workbook.rs now properly handles exponents in both numerators and denominators
+    2. `get_compound_display_unit()` now skips pure power notation check when ^ is part of a division
+    3. Exponents in denominators now correctly extract base unit and apply power to conversion factor
+  - Files modified:
+    - `src-tauri/src/commands/workbook.rs` (lines 220-350, 911-997)
+  - Tests added: 6 comprehensive tests in `src-tauri/tests/compound_unit_exponents.rs`
+  - All 217 tests passing (including 6 new tests for this fix)
 
 - **Rational number representation for exact arithmetic** (Medium priority - Feature)
   - Store all numeric cell values as numerator/denominator pairs instead of f64

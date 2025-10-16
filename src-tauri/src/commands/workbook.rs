@@ -218,22 +218,30 @@ fn convert_compound_unit(value: f64, from_unit: &str, to_unit: &str) -> Option<f
     let library = UnitLibrary::new();
 
     // Handle power notation (e.g., ft^2 -> m^2)
+    // This must be checked BEFORE division to handle cases like "1/ft^2"
     if let (Some(from_pos), Some(to_pos)) = (from_unit.find('^'), to_unit.find('^')) {
-        let from_base = &from_unit[..from_pos];
-        let from_power_str = &from_unit[from_pos + 1..];
-        let to_base = &to_unit[..to_pos];
-        let to_power_str = &to_unit[to_pos + 1..];
+        // Check if the ^ is NOT part of a division (denominator)
+        let from_has_div = from_unit.find('/').map_or(false, |div_pos| div_pos < from_pos);
+        let to_has_div = to_unit.find('/').map_or(false, |div_pos| div_pos < to_pos);
 
-        // Parse the power
-        if let (Ok(from_power), Ok(to_power)) =
-            (from_power_str.parse::<i32>(), to_power_str.parse::<i32>())
-        {
-            if from_power == to_power {
-                // Get conversion factor for base unit
-                if let Some(base_factor) = library.convert(1.0, from_base, to_base) {
-                    // Raise to the power
-                    let combined_factor = base_factor.powi(from_power);
-                    return Some(value * combined_factor);
+        // Only handle pure power notation here (not in denominators)
+        if !from_has_div && !to_has_div {
+            let from_base = &from_unit[..from_pos];
+            let from_power_str = &from_unit[from_pos + 1..];
+            let to_base = &to_unit[..to_pos];
+            let to_power_str = &to_unit[to_pos + 1..];
+
+            // Parse the power
+            if let (Ok(from_power), Ok(to_power)) =
+                (from_power_str.parse::<i32>(), to_power_str.parse::<i32>())
+            {
+                if from_power == to_power {
+                    // Get conversion factor for base unit
+                    if let Some(base_factor) = library.convert(1.0, from_base, to_base) {
+                        // Raise to the power
+                        let combined_factor = base_factor.powi(from_power);
+                        return Some(value * combined_factor);
+                    }
                 }
             }
         }
@@ -255,32 +263,86 @@ fn convert_compound_unit(value: f64, from_unit: &str, to_unit: &str) -> Option<f
         return Some(value * combined_factor);
     }
 
-    // Handle division (e.g., mi/hr, $/ft)
+    // Handle division (e.g., mi/hr, $/ft, 1/ft^2)
     if let (Some(from_pos), Some(to_pos)) = (from_unit.find('/'), to_unit.find('/')) {
         let from_left = &from_unit[..from_pos];
         let from_right = &from_unit[from_pos + 1..];
         let to_left = &to_unit[..to_pos];
         let to_right = &to_unit[to_pos + 1..];
 
-        // Normalize currency symbols
-        let from_left_norm = normalize_unit(from_left);
-        let to_left_norm = normalize_unit(to_left);
+        // Handle numerator (left side) - may have exponents like "ft^2"
+        let factor_left = if let (Some(from_exp_pos), Some(to_exp_pos)) =
+            (from_left.find('^'), to_left.find('^')) {
+            // Numerator has exponents (e.g., "ft^2/s" -> "m^2/s")
+            let from_base = &from_left[..from_exp_pos];
+            let from_power_str = &from_left[from_exp_pos + 1..];
+            let to_base = &to_left[..to_exp_pos];
+            let to_power_str = &to_left[to_exp_pos + 1..];
 
-        // Get conversion factors for each component
-        let factor_left = library
-            .convert(1.0, &from_left_norm, &to_left_norm)
-            .or_else(|| {
-                // Try converting just the left side if it's the same dimension
-                if from_left_norm == to_left_norm {
-                    Some(1.0)
+            // Parse the powers
+            if let (Ok(from_power), Ok(to_power)) =
+                (from_power_str.parse::<i32>(), to_power_str.parse::<i32>())
+            {
+                if from_power == to_power {
+                    // Normalize currency symbols for base units
+                    let from_base_norm = normalize_unit(from_base);
+                    let to_base_norm = normalize_unit(to_base);
+
+                    // Get base conversion factor and raise to power
+                    let base_factor = library.convert(1.0, &from_base_norm, &to_base_norm)?;
+                    Some(base_factor.powi(from_power))
                 } else {
                     None
                 }
-            })?;
+            } else {
+                None
+            }
+        } else {
+            // No exponents in numerator, handle normally
+            let from_left_norm = normalize_unit(from_left);
+            let to_left_norm = normalize_unit(to_left);
 
-        // Special handling for time unit conversions in rates
-        let factor_right = convert_time_unit(1.0, from_right, to_right)
-            .or_else(|| library.convert(1.0, from_right, to_right))?;
+            library
+                .convert(1.0, &from_left_norm, &to_left_norm)
+                .or_else(|| {
+                    // Try converting just the left side if it's the same dimension
+                    if from_left_norm == to_left_norm {
+                        Some(1.0)
+                    } else {
+                        None
+                    }
+                })
+        }?;
+
+        // Handle denominator (right side) - may have exponents like "ft^2"
+        let factor_right = if let (Some(from_exp_pos), Some(to_exp_pos)) =
+            (from_right.find('^'), to_right.find('^')) {
+            // Denominator has exponents (e.g., "ft^2" -> "m^2")
+            let from_base = &from_right[..from_exp_pos];
+            let from_power_str = &from_right[from_exp_pos + 1..];
+            let to_base = &to_right[..to_exp_pos];
+            let to_power_str = &to_right[to_exp_pos + 1..];
+
+            // Parse the powers
+            if let (Ok(from_power), Ok(to_power)) =
+                (from_power_str.parse::<i32>(), to_power_str.parse::<i32>())
+            {
+                if from_power == to_power {
+                    // Get base conversion factor and raise to power
+                    let base_factor = convert_time_unit(1.0, from_base, to_base)
+                        .or_else(|| library.convert(1.0, from_base, to_base))?;
+                    Some(base_factor.powi(from_power))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            // No exponents in denominator, handle normally
+            convert_time_unit(1.0, from_right, to_right)
+                .or_else(|| library.convert(1.0, from_right, to_right))
+        }?;
 
         // For division, divide the factors
         let combined_factor = factor_left / factor_right;
@@ -848,16 +910,23 @@ fn get_compound_display_unit(
     preferences: &UnitPreferences,
 ) -> Option<String> {
     // Handle power notation (e.g., "ft^2", "m^3")
+    // But NOT if the ^ is part of a division (e.g., "mi/hr^2")
     if let Some(pos) = storage_unit.find('^') {
-        let base = &storage_unit[..pos];
-        let power = &storage_unit[pos + 1..];
+        // Check if the ^ is NOT part of a division (denominator)
+        let has_div = storage_unit.find('/').map_or(false, |div_pos| div_pos < pos);
 
-        // Convert the base unit
-        let base_converted =
-            get_display_unit_for_mode(base, mode, preferences).unwrap_or_else(|| base.to_string());
+        // Only handle pure power notation here (not in denominators)
+        if !has_div {
+            let base = &storage_unit[..pos];
+            let power = &storage_unit[pos + 1..];
 
-        // Return with same power
-        return Some(format!("{}^{}", base_converted, power));
+            // Convert the base unit
+            let base_converted =
+                get_display_unit_for_mode(base, mode, preferences).unwrap_or_else(|| base.to_string());
+
+            // Return with same power
+            return Some(format!("{}^{}", base_converted, power));
+        }
     }
 
     if let Some(pos) = storage_unit.find('*') {
@@ -876,22 +945,43 @@ fn get_compound_display_unit(
         let left = &storage_unit[..pos];
         let right = &storage_unit[pos + 1..];
 
-        // Convert each component, with special handling for time in denominators (rates)
-        let left_converted =
-            get_display_unit_for_mode(left, mode, preferences).unwrap_or_else(|| left.to_string());
-
-        // For time units in denominators, use the time_rate_unit preference
-        let right_dim = get_base_dimension(right);
-        let right_converted = if right_dim == BaseDimension::Time && mode != &DisplayMode::AsEntered
-        {
-            // Use the time rate unit preference for rates (e.g., $/hr -> $/month)
-            if right != &preferences.time_rate_unit {
-                preferences.time_rate_unit.clone()
-            } else {
-                right.to_string()
-            }
+        // Convert numerator (left side) - may have exponents
+        let left_converted = if let Some(exp_pos) = left.find('^') {
+            // Has exponent: convert base and keep exponent
+            let base = &left[..exp_pos];
+            let power = &left[exp_pos + 1..];
+            let base_converted = get_display_unit_for_mode(base, mode, preferences)
+                .unwrap_or_else(|| base.to_string());
+            format!("{}^{}", base_converted, power)
         } else {
-            get_display_unit_for_mode(right, mode, preferences).unwrap_or_else(|| right.to_string())
+            // No exponent: convert normally
+            get_display_unit_for_mode(left, mode, preferences).unwrap_or_else(|| left.to_string())
+        };
+
+        // Convert denominator (right side) - may have exponents
+        let right_converted = if let Some(exp_pos) = right.find('^') {
+            // Has exponent: extract base and convert it with preferences
+            let base = &right[..exp_pos];
+            let power = &right[exp_pos + 1..];
+
+            // Convert base according to preferences
+            let base_converted = get_display_unit_for_mode(base, mode, preferences)
+                .unwrap_or_else(|| base.to_string());
+            format!("{}^{}", base_converted, power)
+        } else {
+            // No exponent: check if it's a time unit for special rate handling
+            let right_dim = get_base_dimension(right);
+            if right_dim == BaseDimension::Time && mode != &DisplayMode::AsEntered {
+                // Use the time rate unit preference for rates (e.g., $/hr -> $/month)
+                if right != &preferences.time_rate_unit {
+                    preferences.time_rate_unit.clone()
+                } else {
+                    right.to_string()
+                }
+            } else {
+                get_display_unit_for_mode(right, mode, preferences)
+                    .unwrap_or_else(|| right.to_string())
+            }
         };
 
         // Return compound unit
@@ -1276,4 +1366,19 @@ pub fn get_named_range_impl(state: &AppState, name: String) -> Result<NamedRange
         sheet_index,
         cell_address: addr.to_string(),
     })
+}
+
+/// Get the named range for a specific cell address
+/// Returns None if the cell doesn't have a named range
+pub fn get_named_range_for_cell_impl(
+    state: &AppState,
+    sheet_index: usize,
+    cell_address: String,
+) -> Result<Option<String>, String> {
+    let workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_ref().ok_or("No workbook loaded")?;
+
+    let addr = CellAddr::from_string(&cell_address).map_err(|e| e.to_string())?;
+
+    Ok(workbook.get_named_range_for_cell(sheet_index, &addr))
 }

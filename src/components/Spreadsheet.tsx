@@ -630,6 +630,7 @@ export default function Spreadsheet() {
           onCellSelect={handleCellSelect}
           onCellEdit={handleCellEdit}
           onCellDoubleClick={handleCellDoubleClick}
+          activeSheetIndex={activeSheetIndex}
         />
       </div>
 
