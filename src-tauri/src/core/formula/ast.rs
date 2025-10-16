@@ -9,16 +9,27 @@ pub enum Expr {
     Number(f64),
 
     /// A number with a unit literal (e.g., 100m, 5.5kg)
-    NumberWithUnit { value: f64, unit: String },
+    NumberWithUnit {
+        value: f64,
+        unit: String,
+    },
 
     /// A cell reference (e.g., A1, B12)
-    CellRef { col: String, row: usize },
+    CellRef {
+        col: String,
+        row: usize,
+    },
 
     /// A named cell/range reference (e.g., revenue, tax_rate)
-    NamedRef { name: String },
+    NamedRef {
+        name: String,
+    },
 
     /// A cell range (e.g., A1:B10)
-    Range { start: Box<Expr>, end: Box<Expr> },
+    Range {
+        start: Box<Expr>,
+        end: Box<Expr>,
+    },
 
     /// Addition
     Add(Box<Expr>, Box<Expr>),
@@ -36,7 +47,10 @@ pub enum Expr {
     Negate(Box<Expr>),
 
     /// Function call (e.g., SUM(A1:A10))
-    Function { name: String, args: Vec<Expr> },
+    Function {
+        name: String,
+        args: Vec<Expr>,
+    },
 
     /// Boolean literal (TRUE or FALSE)
     Boolean(bool),

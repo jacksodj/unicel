@@ -221,7 +221,9 @@ fn convert_compound_unit(value: f64, from_unit: &str, to_unit: &str) -> Option<f
     // This must be checked BEFORE division to handle cases like "1/ft^2"
     if let (Some(from_pos), Some(to_pos)) = (from_unit.find('^'), to_unit.find('^')) {
         // Check if the ^ is NOT part of a division (denominator)
-        let from_has_div = from_unit.find('/').map_or(false, |div_pos| div_pos < from_pos);
+        let from_has_div = from_unit
+            .find('/')
+            .map_or(false, |div_pos| div_pos < from_pos);
         let to_has_div = to_unit.find('/').map_or(false, |div_pos| div_pos < to_pos);
 
         // Only handle pure power notation here (not in denominators)
@@ -272,7 +274,8 @@ fn convert_compound_unit(value: f64, from_unit: &str, to_unit: &str) -> Option<f
 
         // Handle numerator (left side) - may have exponents like "ft^2"
         let factor_left = if let (Some(from_exp_pos), Some(to_exp_pos)) =
-            (from_left.find('^'), to_left.find('^')) {
+            (from_left.find('^'), to_left.find('^'))
+        {
             // Numerator has exponents (e.g., "ft^2/s" -> "m^2/s")
             let from_base = &from_left[..from_exp_pos];
             let from_power_str = &from_left[from_exp_pos + 1..];
@@ -316,7 +319,8 @@ fn convert_compound_unit(value: f64, from_unit: &str, to_unit: &str) -> Option<f
 
         // Handle denominator (right side) - may have exponents like "ft^2"
         let factor_right = if let (Some(from_exp_pos), Some(to_exp_pos)) =
-            (from_right.find('^'), to_right.find('^')) {
+            (from_right.find('^'), to_right.find('^'))
+        {
             // Denominator has exponents (e.g., "ft^2" -> "m^2")
             let from_base = &from_right[..from_exp_pos];
             let from_power_str = &from_right[from_exp_pos + 1..];
@@ -913,7 +917,9 @@ fn get_compound_display_unit(
     // But NOT if the ^ is part of a division (e.g., "mi/hr^2")
     if let Some(pos) = storage_unit.find('^') {
         // Check if the ^ is NOT part of a division (denominator)
-        let has_div = storage_unit.find('/').map_or(false, |div_pos| div_pos < pos);
+        let has_div = storage_unit
+            .find('/')
+            .map_or(false, |div_pos| div_pos < pos);
 
         // Only handle pure power notation here (not in denominators)
         if !has_div {
@@ -921,8 +927,8 @@ fn get_compound_display_unit(
             let power = &storage_unit[pos + 1..];
 
             // Convert the base unit
-            let base_converted =
-                get_display_unit_for_mode(base, mode, preferences).unwrap_or_else(|| base.to_string());
+            let base_converted = get_display_unit_for_mode(base, mode, preferences)
+                .unwrap_or_else(|| base.to_string());
 
             // Return with same power
             return Some(format!("{}^{}", base_converted, power));

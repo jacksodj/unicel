@@ -3,9 +3,9 @@
 use crate::core::cell::{Cell, CellValue};
 use crate::core::formula::{parse_formula, EvalError, EvalResult, Expr};
 use crate::core::units::UnitLibrary;
+use statrs::statistics::{Data, Distribution, OrderStatistics};
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;
-use statrs::statistics::{Data, Distribution, OrderStatistics};
 
 #[derive(Debug, Error)]
 pub enum SheetError {
@@ -998,7 +998,10 @@ impl<'a> SheetEvaluator<'a> {
     fn eval_count(&self, args: &[Expr]) -> Result<EvalResult, EvalError> {
         let values = self.collect_values(args)?;
         let count = values.len() as f64;
-        Ok(EvalResult::new(count, crate::core::units::Unit::dimensionless()))
+        Ok(EvalResult::new(
+            count,
+            crate::core::units::Unit::dimensionless(),
+        ))
     }
 
     /// Evaluate MIN function
@@ -1193,7 +1196,11 @@ impl<'a> SheetEvaluator<'a> {
             divisor.value
         } else {
             self.library
-                .convert(divisor.value, divisor.unit.canonical(), dividend.unit.canonical())
+                .convert(
+                    divisor.value,
+                    divisor.unit.canonical(),
+                    dividend.unit.canonical(),
+                )
                 .ok_or_else(|| EvalError::IncompatibleUnits {
                     operation: "MOD".to_string(),
                     left: dividend.unit.to_string(),
@@ -1222,7 +1229,10 @@ impl<'a> SheetEvaluator<'a> {
         } else {
             -1.0
         };
-        Ok(EvalResult::new(sign, crate::core::units::Unit::dimensionless()))
+        Ok(EvalResult::new(
+            sign,
+            crate::core::units::Unit::dimensionless(),
+        ))
     }
 
     /// Generic comparison evaluation with unit conversion
@@ -1442,7 +1452,8 @@ impl<'a> SheetEvaluator<'a> {
         // Check for negative values
         if result.value < 0.0 {
             return Err(EvalError::InvalidOperation(
-                "SQRT of negative number is not supported (complex numbers not supported)".to_string(),
+                "SQRT of negative number is not supported (complex numbers not supported)"
+                    .to_string(),
             ));
         }
 
@@ -1474,9 +1485,10 @@ impl<'a> SheetEvaluator<'a> {
 
         // Check that exponent is dimensionless
         if !exponent_result.unit.is_dimensionless() {
-            return Err(EvalError::InvalidOperation(
-                format!("Exponent must be dimensionless, got: {}", exponent_result.unit)
-            ));
+            return Err(EvalError::InvalidOperation(format!(
+                "Exponent must be dimensionless, got: {}",
+                exponent_result.unit
+            )));
         }
 
         let exponent = exponent_result.value;
@@ -1486,7 +1498,10 @@ impl<'a> SheetEvaluator<'a> {
 
         // Special case: any unit^0 = dimensionless
         if exponent == 0.0 {
-            return Ok(EvalResult::new(power_value, crate::core::units::Unit::dimensionless()));
+            return Ok(EvalResult::new(
+                power_value,
+                crate::core::units::Unit::dimensionless(),
+            ));
         }
 
         // Transform unit by multiplying exponents by power
@@ -1577,9 +1592,9 @@ impl<'a> SheetEvaluator<'a> {
 
         // Use statrs to compute standard deviation
         let data = Data::new(converted_values);
-        let stdev = data.std_dev().ok_or_else(|| EvalError::InvalidOperation(
-            "Failed to compute standard deviation".to_string(),
-        ))?;
+        let stdev = data.std_dev().ok_or_else(|| {
+            EvalError::InvalidOperation("Failed to compute standard deviation".to_string())
+        })?;
 
         Ok(EvalResult::new(stdev, first_unit.clone()))
     }
@@ -1622,9 +1637,9 @@ impl<'a> SheetEvaluator<'a> {
 
         // Use statrs to compute variance
         let data = Data::new(converted_values);
-        let variance = data.variance().ok_or_else(|| EvalError::InvalidOperation(
-            "Failed to compute variance".to_string(),
-        ))?;
+        let variance = data
+            .variance()
+            .ok_or_else(|| EvalError::InvalidOperation("Failed to compute variance".to_string()))?;
 
         // Variance has squared units! Use transform_unit_exponents with factor 2
         use crate::core::formula::evaluator::transform_unit_exponents;
@@ -2391,10 +2406,7 @@ mod tests {
         let area_unit = Unit::compound("m²", vec![(BaseDimension::Length, 2)], vec![]);
 
         sheet
-            .set(
-                CellAddr::new("A", 1),
-                Cell::new(100.0, area_unit),
-            )
+            .set(CellAddr::new("A", 1), Cell::new(100.0, area_unit))
             .unwrap();
 
         // SQRT(100 m²) = 10 m
@@ -2415,10 +2427,7 @@ mod tests {
         );
 
         sheet
-            .set(
-                CellAddr::new("A", 1),
-                Cell::new(100.0, compound_unit),
-            )
+            .set(CellAddr::new("A", 1), Cell::new(100.0, compound_unit))
             .unwrap();
 
         // SQRT(100 m²/s²) = 10 m/s
@@ -2506,17 +2515,14 @@ mod tests {
         let volume_unit = Unit::compound("m³", vec![(BaseDimension::Length, 3)], vec![]);
 
         sheet
-            .set(
-                CellAddr::new("A", 1),
-                Cell::new(8.0, volume_unit),
-            )
+            .set(CellAddr::new("A", 1), Cell::new(8.0, volume_unit))
             .unwrap();
 
         // POWER(8 m³, 1/3) = 2 m (cube root)
         // Note: 1/3 evaluates to approximately 0.333...
         let (value, unit) = sheet.evaluate_formula("=POWER(A1, 0.333333333)").unwrap();
         assert!((value - 2.0).abs() < 0.001); // Allow small floating point error
-        // Result should be m
+                                              // Result should be m
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2575,10 +2581,7 @@ mod tests {
         );
 
         sheet
-            .set(
-                CellAddr::new("A", 1),
-                Cell::new(2.0, compound_unit),
-            )
+            .set(CellAddr::new("A", 1), Cell::new(2.0, compound_unit))
             .unwrap();
 
         // POWER(2 kg/s, 3) = 8 kg³/s³
@@ -2617,10 +2620,7 @@ mod tests {
         let area_unit = Unit::compound("m²", vec![(BaseDimension::Length, 2)], vec![]);
 
         sheet
-            .set(
-                CellAddr::new("A", 1),
-                Cell::new(100.0, area_unit),
-            )
+            .set(CellAddr::new("A", 1), Cell::new(100.0, area_unit))
             .unwrap();
 
         // SQRT(100 m²) should equal POWER(100 m², 0.5)
@@ -3111,7 +3111,10 @@ mod tests {
         let mut sheet = Sheet::new();
 
         sheet
-            .set(CellAddr::new("A", 1), Cell::new(10.0, Unit::dimensionless()))
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(10.0, Unit::dimensionless()),
+            )
             .unwrap();
 
         // IF(GT(A1, 5), IF(GT(A1, 15), 100, 50), 0)
@@ -3127,9 +3130,7 @@ mod tests {
         let mut sheet = Sheet::new();
 
         // MEDIAN(1, 2, 3, 4, 5) = 3
-        let (value, unit) = sheet
-            .evaluate_formula("=MEDIAN(1, 2, 3, 4, 5)")
-            .unwrap();
+        let (value, unit) = sheet.evaluate_formula("=MEDIAN(1, 2, 3, 4, 5)").unwrap();
 
         assert_eq!(value, 3.0);
         assert!(unit.is_dimensionless());
@@ -3141,19 +3142,26 @@ mod tests {
 
         // Set up cells with units
         sheet
-            .set(CellAddr::new("A", 1), Cell::new(100.0, Unit::simple("m", BaseDimension::Length)))
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(100.0, Unit::simple("m", BaseDimension::Length)),
+            )
             .unwrap();
         sheet
-            .set(CellAddr::new("A", 2), Cell::new(200.0, Unit::simple("m", BaseDimension::Length)))
+            .set(
+                CellAddr::new("A", 2),
+                Cell::new(200.0, Unit::simple("m", BaseDimension::Length)),
+            )
             .unwrap();
         sheet
-            .set(CellAddr::new("A", 3), Cell::new(300.0, Unit::simple("m", BaseDimension::Length)))
+            .set(
+                CellAddr::new("A", 3),
+                Cell::new(300.0, Unit::simple("m", BaseDimension::Length)),
+            )
             .unwrap();
 
         // MEDIAN(A1:A3) = 200m
-        let (value, unit) = sheet
-            .evaluate_formula("=MEDIAN(A1:A3)")
-            .unwrap();
+        let (value, unit) = sheet.evaluate_formula("=MEDIAN(A1:A3)").unwrap();
 
         assert_eq!(value, 200.0);
         assert_eq!(unit.canonical(), "m");
@@ -3165,18 +3173,25 @@ mod tests {
 
         // 1m, 200cm, 3m → should convert 200cm to 2m → median is 2m
         sheet
-            .set(CellAddr::new("A", 1), Cell::new(1.0, Unit::simple("m", BaseDimension::Length)))
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(1.0, Unit::simple("m", BaseDimension::Length)),
+            )
             .unwrap();
         sheet
-            .set(CellAddr::new("A", 2), Cell::new(200.0, Unit::simple("cm", BaseDimension::Length)))
+            .set(
+                CellAddr::new("A", 2),
+                Cell::new(200.0, Unit::simple("cm", BaseDimension::Length)),
+            )
             .unwrap();
         sheet
-            .set(CellAddr::new("A", 3), Cell::new(3.0, Unit::simple("m", BaseDimension::Length)))
+            .set(
+                CellAddr::new("A", 3),
+                Cell::new(3.0, Unit::simple("m", BaseDimension::Length)),
+            )
             .unwrap();
 
-        let (value, unit) = sheet
-            .evaluate_formula("=MEDIAN(A1:A3)")
-            .unwrap();
+        let (value, unit) = sheet.evaluate_formula("=MEDIAN(A1:A3)").unwrap();
 
         assert_eq!(value, 2.0);
         assert_eq!(unit.canonical(), "m");
@@ -3187,9 +3202,7 @@ mod tests {
         let mut sheet = Sheet::new();
 
         // MEDIAN(1, 2, 3, 4) = 2.5
-        let (value, _) = sheet
-            .evaluate_formula("=MEDIAN(1, 2, 3, 4)")
-            .unwrap();
+        let (value, _) = sheet.evaluate_formula("=MEDIAN(1, 2, 3, 4)").unwrap();
 
         assert_eq!(value, 2.5);
     }
@@ -3214,18 +3227,25 @@ mod tests {
 
         // Set up cells with units
         sheet
-            .set(CellAddr::new("A", 1), Cell::new(100.0, Unit::simple("m", BaseDimension::Length)))
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(100.0, Unit::simple("m", BaseDimension::Length)),
+            )
             .unwrap();
         sheet
-            .set(CellAddr::new("A", 2), Cell::new(200.0, Unit::simple("m", BaseDimension::Length)))
+            .set(
+                CellAddr::new("A", 2),
+                Cell::new(200.0, Unit::simple("m", BaseDimension::Length)),
+            )
             .unwrap();
         sheet
-            .set(CellAddr::new("A", 3), Cell::new(300.0, Unit::simple("m", BaseDimension::Length)))
+            .set(
+                CellAddr::new("A", 3),
+                Cell::new(300.0, Unit::simple("m", BaseDimension::Length)),
+            )
             .unwrap();
 
-        let (value, unit) = sheet
-            .evaluate_formula("=STDEV(A1:A3)")
-            .unwrap();
+        let (value, unit) = sheet.evaluate_formula("=STDEV(A1:A3)").unwrap();
 
         // Standard deviation of [100, 200, 300] ≈ 100
         assert!((value - 100.0).abs() < 1.0);
@@ -3251,25 +3271,35 @@ mod tests {
 
         // Variance of meters should have m² units
         sheet
-            .set(CellAddr::new("A", 1), Cell::new(1.0, Unit::simple("m", BaseDimension::Length)))
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(1.0, Unit::simple("m", BaseDimension::Length)),
+            )
             .unwrap();
         sheet
-            .set(CellAddr::new("A", 2), Cell::new(2.0, Unit::simple("m", BaseDimension::Length)))
+            .set(
+                CellAddr::new("A", 2),
+                Cell::new(2.0, Unit::simple("m", BaseDimension::Length)),
+            )
             .unwrap();
         sheet
-            .set(CellAddr::new("A", 3), Cell::new(3.0, Unit::simple("m", BaseDimension::Length)))
+            .set(
+                CellAddr::new("A", 3),
+                Cell::new(3.0, Unit::simple("m", BaseDimension::Length)),
+            )
             .unwrap();
 
-        let (value, unit) = sheet
-            .evaluate_formula("=VAR(A1:A3)")
-            .unwrap();
+        let (value, unit) = sheet.evaluate_formula("=VAR(A1:A3)").unwrap();
 
         // Sample variance (n-1) of [1, 2, 3] = 1.0
         assert!((value - 1.0).abs() < 0.01);
 
         // Unit should be m² (squared)
         let canonical = unit.canonical();
-        assert!(canonical.contains("m") && (canonical.contains("²") || canonical.contains("^2") || canonical.contains("2")));
+        assert!(
+            canonical.contains("m")
+                && (canonical.contains("²") || canonical.contains("^2") || canonical.contains("2"))
+        );
     }
 
     #[test]
@@ -3278,18 +3308,25 @@ mod tests {
 
         // Set up cells with units
         sheet
-            .set(CellAddr::new("A", 1), Cell::new(10.0, Unit::simple("kg", BaseDimension::Mass)))
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(10.0, Unit::simple("kg", BaseDimension::Mass)),
+            )
             .unwrap();
         sheet
-            .set(CellAddr::new("A", 2), Cell::new(20.0, Unit::simple("kg", BaseDimension::Mass)))
+            .set(
+                CellAddr::new("A", 2),
+                Cell::new(20.0, Unit::simple("kg", BaseDimension::Mass)),
+            )
             .unwrap();
         sheet
-            .set(CellAddr::new("A", 3), Cell::new(30.0, Unit::simple("kg", BaseDimension::Mass)))
+            .set(
+                CellAddr::new("A", 3),
+                Cell::new(30.0, Unit::simple("kg", BaseDimension::Mass)),
+            )
             .unwrap();
 
-        let (value, unit) = sheet
-            .evaluate_formula("=VAR(A1:A3)")
-            .unwrap();
+        let (value, unit) = sheet.evaluate_formula("=VAR(A1:A3)").unwrap();
 
         // Sample variance (n-1) of [10, 20, 30] = 100.0
         assert!((value - 100.0).abs() < 0.1);
@@ -3332,14 +3369,19 @@ mod tests {
 
         // Mix meters and kilograms (incompatible)
         sheet
-            .set(CellAddr::new("A", 1), Cell::new(100.0, Unit::simple("m", BaseDimension::Length)))
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(100.0, Unit::simple("m", BaseDimension::Length)),
+            )
             .unwrap();
         sheet
-            .set(CellAddr::new("A", 2), Cell::new(200.0, Unit::simple("kg", BaseDimension::Mass)))
+            .set(
+                CellAddr::new("A", 2),
+                Cell::new(200.0, Unit::simple("kg", BaseDimension::Mass)),
+            )
             .unwrap();
 
         let result = sheet.evaluate_formula("=MEDIAN(A1:A2)");
         assert!(result.is_err());
     }
 }
-

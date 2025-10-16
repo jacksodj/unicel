@@ -115,11 +115,14 @@ fn test_reciprocal_area_conversion_1_per_ft2() {
     workbook::create_workbook_impl(&state, "Test".to_string()).unwrap();
 
     // Set a cell with reciprocal area value (1 per square foot)
-    let cell = Cell::new(1.0, Unit::compound(
-        "1/ft^2".to_string(),
-        vec![],
-        vec![(BaseDimension::Length, 2)],
-    ));
+    let cell = Cell::new(
+        1.0,
+        Unit::compound(
+            "1/ft^2".to_string(),
+            vec![],
+            vec![(BaseDimension::Length, 2)],
+        ),
+    );
 
     {
         let mut wb = state.workbook.lock().unwrap();
@@ -198,11 +201,14 @@ fn test_price_per_area_conversion() {
 
     workbook::create_workbook_impl(&state, "Test".to_string()).unwrap();
 
-    let cell = Cell::new(15.0, Unit::compound(
-        "$/ft^2".to_string(),
-        vec![(BaseDimension::Currency, 1)],
-        vec![(BaseDimension::Length, 2)],
-    ));
+    let cell = Cell::new(
+        15.0,
+        Unit::compound(
+            "$/ft^2".to_string(),
+            vec![(BaseDimension::Currency, 1)],
+            vec![(BaseDimension::Length, 2)],
+        ),
+    );
 
     {
         let mut wb = state.workbook.lock().unwrap();
@@ -243,11 +249,14 @@ fn test_mixed_compound_unit_mi_per_hr2() {
 
     workbook::create_workbook_impl(&state, "Test".to_string()).unwrap();
 
-    let cell = Cell::new(1.0, Unit::compound(
-        "mi/hr^2".to_string(),
-        vec![(BaseDimension::Length, 1)],
-        vec![(BaseDimension::Time, 2)],
-    ));
+    let cell = Cell::new(
+        1.0,
+        Unit::compound(
+            "mi/hr^2".to_string(),
+            vec![(BaseDimension::Length, 1)],
+            vec![(BaseDimension::Time, 2)],
+        ),
+    );
 
     {
         let mut wb = state.workbook.lock().unwrap();
@@ -295,11 +304,14 @@ fn test_area_with_numerator_exponent_ft2_per_s() {
 
     workbook::create_workbook_impl(&state, "Test".to_string()).unwrap();
 
-    let cell = Cell::new(50.0, Unit::compound(
-        "ft^2/s".to_string(),
-        vec![(BaseDimension::Length, 2)],
-        vec![(BaseDimension::Time, 1)],
-    ));
+    let cell = Cell::new(
+        50.0,
+        Unit::compound(
+            "ft^2/s".to_string(),
+            vec![(BaseDimension::Length, 2)],
+            vec![(BaseDimension::Time, 1)],
+        ),
+    );
 
     {
         let mut wb = state.workbook.lock().unwrap();
