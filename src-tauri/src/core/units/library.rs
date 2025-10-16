@@ -402,7 +402,11 @@ impl UnitLibrary {
         );
         self.add_conversion("C", "K", ConversionFactor::with_offset(1.0, 273.15));
         self.add_conversion("K", "C", ConversionFactor::with_offset(1.0, -273.15));
-        self.add_conversion("F", "K", ConversionFactor::with_offset(5.0 / 9.0, 255.372));
+        self.add_conversion(
+            "F",
+            "K",
+            ConversionFactor::with_offset(5.0 / 9.0, 273.15 - 32.0 * 5.0 / 9.0),
+        );
         self.add_conversion("K", "F", ConversionFactor::with_offset(1.8, -459.67));
     }
 
