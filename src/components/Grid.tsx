@@ -34,6 +34,12 @@ export default function Grid({
   const [isDirty, setIsDirty] = useState(false);
   const [initialEditValue, setInitialEditValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const selectedCellRef = useRef<CellAddress | null | undefined>(selectedCell);
+
+  // Keep ref in sync with prop
+  useEffect(() => {
+    selectedCellRef.current = selectedCell;
+  }, [selectedCell]);
 
   // Focus and select input when editing starts (but not on every value change)
   useEffect(() => {
@@ -71,47 +77,56 @@ export default function Grid({
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       // Only handle navigation when not editing and a cell is selected
-      if (editingCell || !selectedCell || !onCellSelect) return;
+      // Use ref to get the current value without stale closure issues
+      const currentSelectedCell = selectedCellRef.current;
+      if (editingCell || !currentSelectedCell || !onCellSelect) return;
 
-      const currentColNum = colLetterToNumber(selectedCell.col);
-      let newCol = selectedCell.col;
-      let newRow = selectedCell.row;
+      const currentColNum = colLetterToNumber(currentSelectedCell.col);
+      let newCol: string | null = null;
+      let newRow: number | null = null;
 
       switch (e.key) {
         case 'ArrowUp':
           e.preventDefault();
-          newRow = Math.max(1, selectedCell.row - 1);
+          newCol = currentSelectedCell.col;
+          newRow = Math.max(1, currentSelectedCell.row - 1);
           break;
         case 'ArrowDown':
           e.preventDefault();
-          newRow = Math.min(rowCount, selectedCell.row + 1);
+          newCol = currentSelectedCell.col;
+          newRow = Math.min(rowCount, currentSelectedCell.row + 1);
           break;
         case 'ArrowLeft':
           e.preventDefault();
           newCol = colNumberToLetter(Math.max(1, currentColNum - 1));
+          newRow = currentSelectedCell.row;
           break;
         case 'ArrowRight':
           e.preventDefault();
           newCol = colNumberToLetter(Math.min(colCount, currentColNum + 1));
+          newRow = currentSelectedCell.row;
           break;
         case 'Enter':
           // Start editing on Enter
           if (onCellDoubleClick) {
             e.preventDefault();
-            onCellDoubleClick(selectedCell);
+            onCellDoubleClick(currentSelectedCell);
           }
           return;
         default:
           return;
       }
 
-      onCellSelect({ col: newCol, row: newRow });
+      // Only call onCellSelect if we have a new position
+      if (newCol !== null && newRow !== null) {
+        onCellSelect({ col: newCol, row: newRow });
+      }
     };
 
     // Attach to document so we catch all keyboard events
     document.addEventListener('keydown', handleGlobalKeyDown);
     return () => document.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [selectedCell, editingCell, onCellSelect, onCellDoubleClick, rowCount, colCount]);
+  }, [editingCell, onCellSelect, onCellDoubleClick, rowCount, colCount]);
   // Generate column headers (A, B, C, ...)
   const columns = Array.from({ length: colCount }, (_, i) => colNumberToLetter(i + 1));
 
