@@ -1,6 +1,6 @@
 {
   "productName": "Unicel",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "identifier": "com.unicel.app",
   "build": {
     "beforeDevCommand": "npm run dev",
