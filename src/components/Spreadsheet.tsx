@@ -641,6 +641,7 @@ export default function Spreadsheet() {
         cellCount={cells.size}
         selectedCell={selectedCell}
         cellUnit={getSelectedCellUnit()}
+        onSelectCell={setSelectedCell}
       />
       </div>
     </>

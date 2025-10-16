@@ -117,6 +117,45 @@ impl Unit {
     pub fn is_equal(&self, other: &Unit) -> bool {
         self.canonical == other.canonical
     }
+
+    /// Extract base unit symbols (simplified, no exponents)
+    /// Examples:
+    /// - "m" → ["m"]
+    /// - "ft^2" → ["ft"]
+    /// - "m/s" → ["m", "s"]
+    /// - "$/hr" → ["$", "hr"]
+    /// - "ft*ft" → ["ft"]
+    /// - "1/m^3" → ["m"]
+    pub fn base_units(&self) -> Vec<String> {
+        use std::collections::HashSet;
+
+        // Handle dimensionless or empty canonical
+        if self.canonical.is_empty() {
+            return Vec::new();
+        }
+
+        // Split on operators: ^, *, /
+        let parts: Vec<&str> = self.canonical.split(['^', '*', '/']).collect();
+
+        // Use HashSet to eliminate duplicates
+        let mut unique_units = HashSet::new();
+
+        for part in parts {
+            let trimmed = part.trim();
+
+            // Skip empty strings, "1", and numbers (exponents)
+            if trimmed.is_empty() || trimmed == "1" || trimmed.parse::<i32>().is_ok() {
+                continue;
+            }
+
+            unique_units.insert(trimmed.to_string());
+        }
+
+        // Convert to sorted Vec
+        let mut result: Vec<String> = unique_units.into_iter().collect();
+        result.sort();
+        result
+    }
 }
 
 impl Dimension {
@@ -268,5 +307,60 @@ mod tests {
             denominator: vec![(BaseDimension::Time, 1)],
         };
         assert_eq!(format!("{}", velocity), "L/T");
+    }
+
+    #[test]
+    fn test_base_units_simple() {
+        let m = Unit::simple("m", BaseDimension::Length);
+        assert_eq!(m.base_units(), vec!["m"]);
+    }
+
+    #[test]
+    fn test_base_units_with_exponent() {
+        let ft2 = Unit::compound("ft^2", vec![(BaseDimension::Length, 2)], vec![]);
+        assert_eq!(ft2.base_units(), vec!["ft"]);
+    }
+
+    #[test]
+    fn test_base_units_compound() {
+        let velocity = Unit::compound(
+            "m/s",
+            vec![(BaseDimension::Length, 1)],
+            vec![(BaseDimension::Time, 1)],
+        );
+        let mut units = velocity.base_units();
+        units.sort();
+        assert_eq!(units, vec!["m", "s"]);
+    }
+
+    #[test]
+    fn test_base_units_duplicate() {
+        let area = Unit::compound("ft*ft", vec![(BaseDimension::Length, 2)], vec![]);
+        assert_eq!(area.base_units(), vec!["ft"]);
+    }
+
+    #[test]
+    fn test_base_units_dimensionless() {
+        let dimensionless = Unit::dimensionless();
+        assert_eq!(dimensionless.base_units(), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_base_units_currency_per_hour() {
+        let rate = Unit::compound(
+            "$/hr",
+            vec![(BaseDimension::Currency, 1)],
+            vec![(BaseDimension::Time, 1)],
+        );
+        let units = rate.base_units();
+        assert_eq!(units.len(), 2);
+        assert!(units.contains(&"$".to_string()));
+        assert!(units.contains(&"hr".to_string()));
+    }
+
+    #[test]
+    fn test_base_units_with_leading_one() {
+        let inv_volume = Unit::compound("1/m^3", vec![], vec![(BaseDimension::Length, 3)]);
+        assert_eq!(inv_volume.base_units(), vec!["m"]);
     }
 }

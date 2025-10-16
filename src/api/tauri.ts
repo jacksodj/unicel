@@ -106,6 +106,14 @@ export const tauriApi = {
     return invoke('get_units_in_use');
   },
 
+  async getBaseUnitsInUse(): Promise<string[]> {
+    return invoke('get_base_units_in_use');
+  },
+
+  async getCellsWithBaseUnit(baseUnit: string): Promise<string[]> {
+    return invoke('get_cells_with_base_unit', { baseUnit });
+  },
+
   async exportDebugToClipboard(): Promise<void> {
     return invoke('export_debug_to_clipboard');
   },

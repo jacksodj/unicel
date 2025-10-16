@@ -31,12 +31,12 @@ export default function UnitPreferencesDialog({
       const prefs = await tauriApi.getUnitPreferences();
       setPreferences(prefs);
 
-      // Try to load units in use, but don't fail if it errors
+      // Try to load base units in use, but don't fail if it errors
       try {
-        const units = await tauriApi.getUnitsInUse();
+        const units = await tauriApi.getBaseUnitsInUse();
         setUnitsInUse(units);
       } catch (unitsError) {
-        console.warn('Failed to load units in use:', unitsError);
+        console.warn('Failed to load base units in use:', unitsError);
         setUnitsInUse([]);
       }
     } catch (error) {
@@ -118,12 +118,15 @@ export default function UnitPreferencesDialog({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Units in Use Section */}
+          {/* Base Units in Use Section */}
           {unitsInUse.length > 0 && (
             <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                Units Currently in Use
+              <h3 className="text-sm font-semibold text-gray-700 mb-1">
+                Base Units in Use
               </h3>
+              <p className="text-xs text-gray-500 mb-3">
+                Simplified units (exponents and duplicates removed)
+              </p>
               <div className="flex flex-wrap gap-2">
                 {unitsInUse.map((unit) => (
                   <span
@@ -135,7 +138,7 @@ export default function UnitPreferencesDialog({
                 ))}
               </div>
               <p className="text-xs text-gray-600 mt-2">
-                These are the units detected in your current sheet. Configure how they display in different modes below.
+                These are the base units detected in your current sheet. Configure how they display in different modes below.
               </p>
             </div>
           )}

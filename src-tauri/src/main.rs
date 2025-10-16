@@ -82,6 +82,19 @@ fn get_units_in_use(state: State<AppState>) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
+fn get_base_units_in_use(state: State<AppState>) -> Result<Vec<String>, String> {
+    unicel_lib::commands::get_base_units_in_use_impl(&state)
+}
+
+#[tauri::command]
+fn get_cells_with_base_unit(
+    state: State<AppState>,
+    base_unit: String,
+) -> Result<Vec<String>, String> {
+    unicel_lib::commands::get_cells_with_base_unit_impl(&state, &base_unit)
+}
+
+#[tauri::command]
 fn export_debug_to_clipboard(state: State<AppState>) -> Result<(), String> {
     unicel_lib::commands::export_debug_to_clipboard_impl(&state)
 }
@@ -229,6 +242,8 @@ fn main() {
             set_currency_rate,
             get_currencies,
             get_units_in_use,
+            get_base_units_in_use,
+            get_cells_with_base_unit,
             export_debug_to_clipboard,
             export_to_excel,
             get_example_workbook_path,

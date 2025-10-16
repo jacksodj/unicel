@@ -1084,6 +1084,68 @@ pub fn get_units_in_use_impl(state: &AppState) -> Result<Vec<String>, String> {
     Ok(result)
 }
 
+/// Get all base units currently in use in the active sheet
+pub fn get_base_units_in_use_impl(state: &AppState) -> Result<Vec<String>, String> {
+    use std::collections::HashSet;
+
+    let workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_ref().ok_or("No workbook loaded")?;
+    let sheet = workbook.active_sheet();
+    let mut base_units = HashSet::new();
+
+    for addr in sheet.cell_addresses() {
+        if let Some(cell) = sheet.get(&addr) {
+            let unit = cell.storage_unit();
+            for base in unit.base_units() {
+                base_units.insert(base);
+            }
+        }
+    }
+
+    let mut result: Vec<String> = base_units.into_iter().collect();
+    result.sort();
+    Ok(result)
+}
+
+#[tauri::command]
+pub fn get_base_units_in_use(state: tauri::State<AppState>) -> Result<Vec<String>, String> {
+    get_base_units_in_use_impl(&state)
+}
+
+/// Get all cell addresses that contain a specific base unit
+pub fn get_cells_with_base_unit_impl(
+    state: &AppState,
+    base_unit: &str,
+) -> Result<Vec<String>, String> {
+    let workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_ref().ok_or("No workbook loaded")?;
+    let sheet = workbook.active_sheet();
+    let mut matching_cells = Vec::new();
+
+    for addr in sheet.cell_addresses() {
+        if let Some(cell) = sheet.get(&addr) {
+            let unit = cell.storage_unit();
+            let bases = unit.base_units();
+
+            if bases.contains(&base_unit.to_string()) {
+                matching_cells.push(addr.to_string());
+            }
+        }
+    }
+
+    // Sort for consistent ordering
+    matching_cells.sort();
+    Ok(matching_cells)
+}
+
+#[tauri::command]
+pub fn get_cells_with_base_unit(
+    state: tauri::State<AppState>,
+    base_unit: String,
+) -> Result<Vec<String>, String> {
+    get_cells_with_base_unit_impl(&state, &base_unit)
+}
+
 /// Generate debug export text and copy to clipboard
 pub fn export_debug_to_clipboard_impl(state: &AppState) -> Result<(), String> {
     let debug_text = get_debug_export_impl(state)?;
