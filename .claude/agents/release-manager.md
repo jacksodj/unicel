@@ -72,25 +72,63 @@ Organize by category:
 ### 5. Update TASKS.md (if applicable)
 Mark completed tasks, update progress counter.
 
-### 6. Create Git Commit
-```bash
-git add -A
-git commit -m "Bump version to X.Y.Z for release
+### 6. Invoke commit-gatekeeper ⚠️ CRITICAL
 
-Release notes:
-- Feature 1
-- Bug fix 2
-- etc."
+**YOU DO NOT COMMIT DIRECTLY** - Use the commit-gatekeeper agent:
+
+```
+I've prepared the version bump to vX.Y.Z:
+- Updated package.json
+- Updated src-tauri/tauri.conf.json
+- Updated TASKS.md (if applicable)
+
+Now invoking commit-gatekeeper to validate and commit these changes.
+
+[Use Task tool with subagent_type=commit-gatekeeper]
+
+Provide to gatekeeper:
+- Summary: "Version bump to vX.Y.Z"
+- Files modified: [list of files]
+- Commit message: [prepared message with changelog]
 ```
 
-### 7. Create and Push Tag
+**Wait for commit-gatekeeper approval before proceeding.**
+
+If gatekeeper rejects, fix issues and retry.
+
+### 7. Wait for CI to Pass ⚠️ CRITICAL
+
+**After commit-gatekeeper succeeds, WAIT for CI:**
+
 ```bash
-git tag vX.Y.Z
-git push origin main
+# Check that CI is running
+gh run list --limit 1
+
+# Wait for CI to complete (should be the version bump commit)
+gh run watch <run-id>
+```
+
+**DO NOT create tag until CI passes!**
+
+Why? The version bump commit must pass all quality checks before we create a release tag.
+
+### 8. Create and Push Tag (AFTER CI passes)
+
+**Only after CI succeeds:**
+
+```bash
+# Create annotated tag with release notes
+git tag -a vX.Y.Z -m "Release vX.Y.Z
+
+[Release notes here]"
+
+# Push the tag (this triggers the release workflow)
 git push origin vX.Y.Z
 ```
 
-### 8. Monitor Release Workflow
+**Important:** The tag push triggers `.github/workflows/release.yml`
+
+### 9. Monitor Release Workflow
 The git tag push triggers `.github/workflows/release.yml`:
 
 Watch progress:
