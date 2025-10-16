@@ -1,5 +1,5 @@
 // Internal MCP server exposing spreadsheet operations
 
-mod server;
+mod mcp_server;
 
-pub use server::McpServer;
+pub use mcp_server::McpServer;

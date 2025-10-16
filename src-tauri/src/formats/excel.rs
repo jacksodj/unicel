@@ -368,7 +368,7 @@ fn number_to_column_letter(mut num: u32) -> String {
 
 /// Extract unit from a value expression like "100 m" or "1 km"
 fn extract_unit_from_value(s: &str) -> Option<String> {
-    let parts: Vec<&str> = s.trim().split_whitespace().collect();
+    let parts: Vec<&str> = s.split_whitespace().collect();
     if parts.len() >= 2 {
         Some(parts[1..].join(" "))
     } else {
@@ -386,8 +386,8 @@ fn extract_unit_from_target(s: &str) -> Option<String> {
     }
 
     // Try "1unit" format (no space)
-    if trimmed.starts_with('1') {
-        return Some(trimmed[1..].trim().to_string());
+    if let Some(stripped) = trimmed.strip_prefix('1') {
+        return Some(stripped.trim().to_string());
     }
 
     None

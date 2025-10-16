@@ -223,8 +223,8 @@ fn convert_compound_unit(value: f64, from_unit: &str, to_unit: &str) -> Option<f
         // Check if the ^ is NOT part of a division (denominator)
         let from_has_div = from_unit
             .find('/')
-            .map_or(false, |div_pos| div_pos < from_pos);
-        let to_has_div = to_unit.find('/').map_or(false, |div_pos| div_pos < to_pos);
+            .is_some_and(|div_pos| div_pos < from_pos);
+        let to_has_div = to_unit.find('/').is_some_and(|div_pos| div_pos < to_pos);
 
         // Only handle pure power notation here (not in denominators)
         if !from_has_div && !to_has_div {
@@ -391,8 +391,8 @@ pub fn parse_cell_input(input: &str) -> Result<Cell, String> {
     }
 
     // Check for percentage (e.g., "15%", "15 %")
-    if input.ends_with('%') {
-        let number_str = input[..input.len() - 1].trim();
+    if let Some(number_str) = input.strip_suffix('%') {
+        let number_str = number_str.trim();
         if let Ok(value) = number_str.parse::<f64>() {
             // Store as fraction (15% -> 0.15)
             return Ok(Cell::new(
@@ -448,33 +448,28 @@ pub fn parse_cell_input(input: &str) -> Result<Cell, String> {
 /// Parse currency-first format like "$15", "USD 100", "$15/ft"
 fn parse_currency_first(input: &str) -> Option<(&str, f64)> {
     // Handle "$15" or "$15.5"
-    if input.starts_with('$') {
-        let number_str = &input[1..];
+    if let Some(number_str) = input.strip_prefix('$') {
         if let Ok(value) = number_str.parse::<f64>() {
             return Some(("$", value));
         }
     }
 
     // Handle "USD 100", "EUR 50.5"
-    if input.starts_with("USD ") {
-        let number_str = &input[4..];
+    if let Some(number_str) = input.strip_prefix("USD ") {
         if let Ok(value) = number_str.parse::<f64>() {
             return Some(("USD", value));
         }
     }
-    if input.starts_with("EUR ") {
-        let number_str = &input[4..];
+    if let Some(number_str) = input.strip_prefix("EUR ") {
         if let Ok(value) = number_str.parse::<f64>() {
             return Some(("EUR", value));
         }
     }
-    if input.starts_with("GBP ") {
-        let number_str = &input[4..];
+    if let Some(number_str) = input.strip_prefix("GBP ") {
         if let Ok(value) = number_str.parse::<f64>() {
             return Some(("GBP", value));
         }
     }
-
     None
 }
 
@@ -643,7 +638,7 @@ pub fn set_cell_impl(state: &AppState, address: String, value: String) -> Result
     // This ensures formulas that reference this cell get updated
     workbook
         .active_sheet_mut()
-        .recalculate_with_named_refs(&[addr.clone()], Some(&named_refs))
+        .recalculate_with_named_refs(std::slice::from_ref(&addr), Some(&named_refs))
         .map_err(|e| e.to_string())?;
 
     // Return the updated cell (which may have been evaluated)
@@ -919,7 +914,7 @@ fn get_compound_display_unit(
         // Check if the ^ is NOT part of a division (denominator)
         let has_div = storage_unit
             .find('/')
-            .map_or(false, |div_pos| div_pos < pos);
+            .is_some_and(|div_pos| div_pos < pos);
 
         // Only handle pure power notation here (not in denominators)
         if !has_div {
@@ -979,7 +974,7 @@ fn get_compound_display_unit(
             let right_dim = get_base_dimension(right);
             if right_dim == BaseDimension::Time && mode != &DisplayMode::AsEntered {
                 // Use the time rate unit preference for rates (e.g., $/hr -> $/month)
-                if right != &preferences.time_rate_unit {
+                if right != preferences.time_rate_unit.as_str() {
                     preferences.time_rate_unit.clone()
                 } else {
                     right.to_string()

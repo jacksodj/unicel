@@ -224,7 +224,7 @@ impl Workbook {
         let sheet = self
             .sheets
             .get_mut(index)
-            .ok_or_else(|| WorkbookError::InvalidSheetIndex(index))?;
+            .ok_or(WorkbookError::InvalidSheetIndex(index))?;
 
         sheet.set_name(new_name);
         self.mark_dirty();

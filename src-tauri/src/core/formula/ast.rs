@@ -105,22 +105,22 @@ impl Expr {
     }
 
     /// Create an addition
-    pub fn add(left: Expr, right: Expr) -> Self {
+    pub fn new_add(left: Expr, right: Expr) -> Self {
         Self::Add(Box::new(left), Box::new(right))
     }
 
     /// Create a subtraction
-    pub fn subtract(left: Expr, right: Expr) -> Self {
+    pub fn new_subtract(left: Expr, right: Expr) -> Self {
         Self::Subtract(Box::new(left), Box::new(right))
     }
 
     /// Create a multiplication
-    pub fn multiply(left: Expr, right: Expr) -> Self {
+    pub fn new_multiply(left: Expr, right: Expr) -> Self {
         Self::Multiply(Box::new(left), Box::new(right))
     }
 
     /// Create a division
-    pub fn divide(left: Expr, right: Expr) -> Self {
+    pub fn new_divide(left: Expr, right: Expr) -> Self {
         Self::Divide(Box::new(left), Box::new(right))
     }
 
@@ -183,7 +183,7 @@ impl Expr {
     }
 
     /// Create a NOT logical operation
-    pub fn not(expr: Expr) -> Self {
+    pub fn new_not(expr: Expr) -> Self {
         Self::Not(Box::new(expr))
     }
 }
@@ -231,10 +231,10 @@ mod tests {
 
     #[test]
     fn test_expr_display() {
-        let expr = Expr::add(Expr::number(1.0), Expr::number(2.0));
+        let expr = Expr::new_add(Expr::number(1.0), Expr::number(2.0));
         assert_eq!(format!("{}", expr), "(1 + 2)");
 
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(100.0, "m"),
             Expr::number_with_unit(2.0, "m"),
         );

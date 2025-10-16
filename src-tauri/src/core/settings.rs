@@ -4,18 +4,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Metric system variant
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum MetricSystem {
     /// CGS: centimeter-gram-second
     CGS,
     /// MKS: meter-kilogram-second
+    #[default]
     MKS,
-}
-
-impl Default for MetricSystem {
-    fn default() -> Self {
-        MetricSystem::MKS
-    }
 }
 
 /// Unit preferences for different categories

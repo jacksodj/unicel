@@ -863,7 +863,7 @@ mod tests {
     fn test_add_same_units() {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
-        let expr = Expr::add(
+        let expr = Expr::new_add(
             Expr::number_with_unit(100.0, "m"),
             Expr::number_with_unit(50.0, "m"),
         );
@@ -876,7 +876,7 @@ mod tests {
     fn test_add_compatible_units() {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
-        let expr = Expr::add(
+        let expr = Expr::new_add(
             Expr::number_with_unit(100.0, "m"),
             Expr::number_with_unit(50.0, "cm"),
         );
@@ -889,7 +889,7 @@ mod tests {
     fn test_add_incompatible_units() {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
-        let expr = Expr::add(
+        let expr = Expr::new_add(
             Expr::number_with_unit(100.0, "m"),
             Expr::number_with_unit(50.0, "kg"),
         );
@@ -905,7 +905,7 @@ mod tests {
     fn test_subtract_same_units() {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
-        let expr = Expr::subtract(
+        let expr = Expr::new_subtract(
             Expr::number_with_unit(100.0, "m"),
             Expr::number_with_unit(30.0, "m"),
         );
@@ -918,7 +918,7 @@ mod tests {
     fn test_multiply_creates_compound() {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(10.0, "m"),
             Expr::number_with_unit(5.0, "m"),
         );
@@ -932,7 +932,7 @@ mod tests {
     fn test_multiply_with_dimensionless() {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
-        let expr = Expr::multiply(Expr::number_with_unit(10.0, "m"), Expr::number(2.0));
+        let expr = Expr::new_multiply(Expr::number_with_unit(10.0, "m"), Expr::number(2.0));
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 20.0);
         assert_eq!(result.unit.canonical(), "m");
@@ -942,7 +942,7 @@ mod tests {
     fn test_divide_same_units() {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
-        let expr = Expr::divide(
+        let expr = Expr::new_divide(
             Expr::number_with_unit(100.0, "m"),
             Expr::number_with_unit(10.0, "m"),
         );
@@ -955,7 +955,7 @@ mod tests {
     fn test_divide_creates_compound() {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
-        let expr = Expr::divide(
+        let expr = Expr::new_divide(
             Expr::number_with_unit(100.0, "m"),
             Expr::number_with_unit(2.0, "s"),
         );
@@ -969,7 +969,7 @@ mod tests {
     fn test_divide_by_zero() {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
-        let expr = Expr::divide(Expr::number(10.0), Expr::number(0.0));
+        let expr = Expr::new_divide(Expr::number(10.0), Expr::number(0.0));
         let result = eval.eval(&expr);
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), EvalError::DivisionByZero));
@@ -990,8 +990,8 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // (100m + 50m) * 2
-        let expr = Expr::multiply(
-            Expr::add(
+        let expr = Expr::new_multiply(
+            Expr::new_add(
                 Expr::number_with_unit(100.0, "m"),
                 Expr::number_with_unit(50.0, "m"),
             ),
@@ -1007,7 +1007,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // 100mi / 2hr = 50 mi/hr
-        let expr = Expr::divide(
+        let expr = Expr::new_divide(
             Expr::number_with_unit(100.0, "mi"),
             Expr::number_with_unit(2.0, "hr"),
         );
@@ -1021,7 +1021,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // 2 ft * 15 $/ft = 30 USD (ft should cancel)
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(2.0, "ft"),
             Expr::number_with_unit(15.0, "$/ft"),
         );
@@ -1054,7 +1054,7 @@ mod tests {
 
         // Simulate: A1=$15, A2=1ft, B2=A1/A2, A3=2ft, B4=A3*B2
         // B2 should be 15 $/ft
-        let b2_expr = Expr::divide(
+        let b2_expr = Expr::new_divide(
             Expr::number_with_unit(15.0, "$"),
             Expr::number_with_unit(1.0, "ft"),
         );
@@ -1065,7 +1065,7 @@ mod tests {
         // Now use B2's result in a multiplication: 2ft * (result from B2)
         // This should cancel to give us USD
         // We need to create an expression that multiplies ft by a compound unit
-        let b4_expr = Expr::multiply(
+        let b4_expr = Expr::new_multiply(
             Expr::number_with_unit(2.0, "ft"),
             Expr::number_with_unit(15.0, "$/ft"),
         );
@@ -1096,9 +1096,9 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // m * (1/m) = dimensionless
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(10.0, "m"),
-            Expr::divide(Expr::number(5.0), Expr::number_with_unit(1.0, "m")),
+            Expr::new_divide(Expr::number(5.0), Expr::number_with_unit(1.0, "m")),
         );
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 50.0);
@@ -1111,7 +1111,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // kg * (USD/kg) = USD
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(5.0, "kg"),
             Expr::number_with_unit(20.0, "USD/kg"),
         );
@@ -1126,7 +1126,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // hr * (m/hr) = m (note: using m not mi since mi isn't in library yet)
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(2.0, "hr"),
             Expr::number_with_unit(60.0, "m/hr"),
         );
@@ -1141,7 +1141,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // ft/s² is length/time²
-        let expr = Expr::divide(
+        let expr = Expr::new_divide(
             Expr::number_with_unit(32.2, "ft"),
             Expr::number_with_unit(1.0, "s*s"),
         );
@@ -1158,9 +1158,9 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // (ft/s) * (1/s) = ft/s²
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(32.2, "ft/s"),
-            Expr::divide(Expr::number(1.0), Expr::number_with_unit(1.0, "s")),
+            Expr::new_divide(Expr::number(1.0), Expr::number_with_unit(1.0, "s")),
         );
         let result = eval.eval(&expr).unwrap();
         // Should be ft/s² - note: ft might not be preserved based on find_original_symbol
@@ -1175,7 +1175,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // ft² * ($/ft) = ft*$ (one ft cancels, one remains)
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(100.0, "ft*ft"),
             Expr::number_with_unit(5.0, "$/ft"),
         );
@@ -1194,15 +1194,15 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // Create ft² * $/ft² = $ by multiplying (ft * ft) * (($/ft) * (1/ft))
-        let area = Expr::multiply(
+        let area = Expr::new_multiply(
             Expr::number_with_unit(10.0, "ft"),
             Expr::number_with_unit(10.0, "ft"),
         );
         // Create $/ft² by multiplying ($/ft) * (1/ft)
         let price_per_ft = Expr::number_with_unit(5.0, "$/ft");
-        let per_ft = Expr::divide(Expr::number(1.0), Expr::number_with_unit(1.0, "ft"));
-        let price_per_area = Expr::multiply(price_per_ft, per_ft);
-        let expr = Expr::multiply(area, price_per_area);
+        let per_ft = Expr::new_divide(Expr::number(1.0), Expr::number_with_unit(1.0, "ft"));
+        let price_per_area = Expr::new_multiply(price_per_ft, per_ft);
+        let expr = Expr::new_multiply(area, price_per_area);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 500.0);
         // All ft should cancel leaving just currency
@@ -1218,12 +1218,12 @@ mod tests {
         let eval = Evaluator::new(&library);
         // (kg*m) / kg = should cancel to m, but division doesn't do cancellation
         // So we get kg*m/kg which we then need to multiply by something to trigger cancel
-        let numerator = Expr::multiply(
+        let numerator = Expr::new_multiply(
             Expr::number_with_unit(10.0, "kg"),
             Expr::number_with_unit(5.0, "m"),
         );
         let denominator = Expr::number_with_unit(2.0, "kg");
-        let expr = Expr::divide(numerator, denominator);
+        let expr = Expr::new_divide(numerator, denominator);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 25.0);
         // Currently division doesn't cancel, so kg will still be in there
@@ -1237,7 +1237,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // kg * m = kg*m (momentum-like)
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(5.0, "kg"),
             Expr::number_with_unit(10.0, "m"),
         );
@@ -1253,7 +1253,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // yd * ($/yd) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(3.0, "yd"),
             Expr::number_with_unit(10.0, "$/yd"),
         );
@@ -1269,7 +1269,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // mi * ($/mi) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(100.0, "mi"),
             Expr::number_with_unit(2.5, "$/mi"),
         );
@@ -1284,15 +1284,15 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // s² * (1/s) * (1/s) = dimensionless
-        let s_squared = Expr::multiply(
+        let s_squared = Expr::new_multiply(
             Expr::number_with_unit(2.0, "s"),
             Expr::number_with_unit(2.0, "s"),
         );
         // Create (1/s) * (1/s) instead of (1/s²) to avoid compound unit division
-        let per_s1 = Expr::divide(Expr::number(5.0), Expr::number_with_unit(1.0, "s"));
-        let per_s2 = Expr::divide(Expr::number(2.0), Expr::number_with_unit(1.0, "s"));
-        let per_s_squared = Expr::multiply(per_s1, per_s2);
-        let expr = Expr::multiply(s_squared, per_s_squared);
+        let per_s1 = Expr::new_divide(Expr::number(5.0), Expr::number_with_unit(1.0, "s"));
+        let per_s2 = Expr::new_divide(Expr::number(2.0), Expr::number_with_unit(1.0, "s"));
+        let per_s_squared = Expr::new_multiply(per_s1, per_s2);
+        let expr = Expr::new_multiply(s_squared, per_s_squared);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 40.0);
         assert!(result.unit.is_dimensionless());
@@ -1304,18 +1304,18 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // s³ * (1/s) * (1/s) = s
-        let s_cubed = Expr::multiply(
-            Expr::multiply(
+        let s_cubed = Expr::new_multiply(
+            Expr::new_multiply(
                 Expr::number_with_unit(1.0, "s"),
                 Expr::number_with_unit(1.0, "s"),
             ),
             Expr::number_with_unit(1.0, "s"),
         );
         // Create (1/s) * (1/s) instead of (1/s²) to avoid compound unit division
-        let per_s1 = Expr::divide(Expr::number(1.0), Expr::number_with_unit(1.0, "s"));
-        let per_s2 = Expr::divide(Expr::number(1.0), Expr::number_with_unit(1.0, "s"));
-        let per_s_squared = Expr::multiply(per_s1, per_s2);
-        let expr = Expr::multiply(s_cubed, per_s_squared);
+        let per_s1 = Expr::new_divide(Expr::number(1.0), Expr::number_with_unit(1.0, "s"));
+        let per_s2 = Expr::new_divide(Expr::number(1.0), Expr::number_with_unit(1.0, "s"));
+        let per_s_squared = Expr::new_multiply(per_s1, per_s2);
+        let expr = Expr::new_multiply(s_cubed, per_s_squared);
         let result = eval.eval(&expr).unwrap();
         // Should leave one s
         assert_eq!(result.unit.canonical(), "s");
@@ -1327,7 +1327,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // kg * s = kg*s
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(5.0, "kg"),
             Expr::number_with_unit(2.0, "s"),
         );
@@ -1343,17 +1343,17 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // (m/s) * (s/kg) * kg = m
-        let velocity = Expr::divide(
+        let velocity = Expr::new_divide(
             Expr::number_with_unit(10.0, "m"),
             Expr::number_with_unit(1.0, "s"),
         );
-        let time_per_mass = Expr::divide(
+        let time_per_mass = Expr::new_divide(
             Expr::number_with_unit(2.0, "s"),
             Expr::number_with_unit(1.0, "kg"),
         );
         let mass = Expr::number_with_unit(5.0, "kg");
-        let temp = Expr::multiply(velocity, time_per_mass);
-        let expr = Expr::multiply(temp, mass);
+        let temp = Expr::new_multiply(velocity, time_per_mass);
+        let expr = Expr::new_multiply(temp, mass);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 100.0);
         // s and kg should cancel, leaving only m
@@ -1366,7 +1366,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // lb * ($/lb) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(10.0, "lb"),
             Expr::number_with_unit(3.5, "$/lb"),
         );
@@ -1381,7 +1381,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // oz * ($/oz) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(16.0, "oz"),
             Expr::number_with_unit(0.5, "$/oz"),
         );
@@ -1396,7 +1396,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // min * ($/min) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(30.0, "min"),
             Expr::number_with_unit(2.0, "$/min"),
         );
@@ -1411,15 +1411,15 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // (kg*m) / s² = kg*m/s² (force-like)
-        let numerator = Expr::multiply(
+        let numerator = Expr::new_multiply(
             Expr::number_with_unit(10.0, "kg"),
             Expr::number_with_unit(5.0, "m"),
         );
-        let denominator = Expr::multiply(
+        let denominator = Expr::new_multiply(
             Expr::number_with_unit(1.0, "s"),
             Expr::number_with_unit(1.0, "s"),
         );
-        let expr = Expr::divide(numerator, denominator);
+        let expr = Expr::new_divide(numerator, denominator);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 50.0);
         assert!(result.unit.canonical().contains("kg"));
@@ -1433,7 +1433,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // in * ($/in) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(12.0, "in"),
             Expr::number_with_unit(5.0, "$/in"),
         );
@@ -1448,7 +1448,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // day * ($/day) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(7.0, "day"),
             Expr::number_with_unit(100.0, "$/day"),
         );
@@ -1463,7 +1463,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // g * ($/g) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(100.0, "g"),
             Expr::number_with_unit(0.1, "$/g"),
         );
@@ -1478,9 +1478,9 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // mm * (1/mm) = dimensionless
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(1000.0, "mm"),
-            Expr::divide(Expr::number(2.0), Expr::number_with_unit(1.0, "mm")),
+            Expr::new_divide(Expr::number(2.0), Expr::number_with_unit(1.0, "mm")),
         );
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 2000.0);
@@ -1493,7 +1493,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // km * ($/km) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(50.0, "km"),
             Expr::number_with_unit(1.5, "$/km"),
         );
@@ -1508,7 +1508,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // cm * ($/cm) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(100.0, "cm"),
             Expr::number_with_unit(0.5, "$/cm"),
         );
@@ -1523,7 +1523,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // mg * ($/mg) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(1000.0, "mg"),
             Expr::number_with_unit(0.01, "$/mg"),
         );
@@ -1538,18 +1538,18 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // (m * s * kg) / (s * kg) = should be m, but division doesn't cancel yet
-        let numerator = Expr::multiply(
-            Expr::multiply(
+        let numerator = Expr::new_multiply(
+            Expr::new_multiply(
                 Expr::number_with_unit(10.0, "m"),
                 Expr::number_with_unit(2.0, "s"),
             ),
             Expr::number_with_unit(5.0, "kg"),
         );
-        let denominator = Expr::multiply(
+        let denominator = Expr::new_multiply(
             Expr::number_with_unit(2.0, "s"),
             Expr::number_with_unit(5.0, "kg"),
         );
-        let expr = Expr::divide(numerator, denominator);
+        let expr = Expr::new_divide(numerator, denominator);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 10.0);
         // Division doesn't automatically cancel, so we'll have compound unit
@@ -1562,11 +1562,11 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // m / s / kg = m/(s*kg)
-        let temp = Expr::divide(
+        let temp = Expr::new_divide(
             Expr::number_with_unit(10.0, "m"),
             Expr::number_with_unit(2.0, "s"),
         );
-        let expr = Expr::divide(temp, Expr::number_with_unit(5.0, "kg"));
+        let expr = Expr::new_divide(temp, Expr::number_with_unit(5.0, "kg"));
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 1.0);
         assert!(result.unit.canonical().contains("m"));
@@ -1580,9 +1580,9 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // (1/m) * m = dimensionless
-        let per_meter = Expr::divide(Expr::number(5.0), Expr::number_with_unit(1.0, "m"));
+        let per_meter = Expr::new_divide(Expr::number(5.0), Expr::number_with_unit(1.0, "m"));
         let meters = Expr::number_with_unit(10.0, "m");
-        let expr = Expr::multiply(per_meter, meters);
+        let expr = Expr::new_multiply(per_meter, meters);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 50.0);
         assert!(result.unit.is_dimensionless());
@@ -1594,7 +1594,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // m * (EUR/m) = EUR (note: may be returned as USD due to dimension mapping)
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(5.0, "m"),
             Expr::number_with_unit(10.0, "EUR/m"),
         );
@@ -1615,7 +1615,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // kg * (GBP/kg) = GBP (note: may be returned as USD due to dimension mapping)
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(10.0, "kg"),
             Expr::number_with_unit(5.0, "GBP/kg"),
         );
@@ -1636,15 +1636,15 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // (m/s) * (m/s) = m²/s²
-        let v1 = Expr::divide(
+        let v1 = Expr::new_divide(
             Expr::number_with_unit(10.0, "m"),
             Expr::number_with_unit(1.0, "s"),
         );
-        let v2 = Expr::divide(
+        let v2 = Expr::new_divide(
             Expr::number_with_unit(5.0, "m"),
             Expr::number_with_unit(1.0, "s"),
         );
-        let expr = Expr::multiply(v1, v2);
+        let expr = Expr::new_multiply(v1, v2);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 50.0);
         assert!(result.unit.canonical().contains("m"));
@@ -1657,12 +1657,12 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // (m * m) / m = should be m, but division doesn't auto-cancel compound units yet
-        let area = Expr::multiply(
+        let area = Expr::new_multiply(
             Expr::number_with_unit(10.0, "m"),
             Expr::number_with_unit(5.0, "m"),
         );
         let length = Expr::number_with_unit(10.0, "m");
-        let expr = Expr::divide(area, length);
+        let expr = Expr::new_divide(area, length);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 5.0);
         // Division doesn't cancel m²/m to m yet, so we'll have a compound unit
@@ -1676,18 +1676,18 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // (m³) / (m²) = should be m, but division doesn't auto-cancel compound units yet
-        let volume = Expr::multiply(
-            Expr::multiply(
+        let volume = Expr::new_multiply(
+            Expr::new_multiply(
                 Expr::number_with_unit(2.0, "m"),
                 Expr::number_with_unit(3.0, "m"),
             ),
             Expr::number_with_unit(4.0, "m"),
         );
-        let area = Expr::multiply(
+        let area = Expr::new_multiply(
             Expr::number_with_unit(2.0, "m"),
             Expr::number_with_unit(3.0, "m"),
         );
-        let expr = Expr::divide(volume, area);
+        let expr = Expr::new_divide(volume, area);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 4.0);
         // Division doesn't cancel m³/m² to m yet, so we'll have a compound unit
@@ -1701,21 +1701,21 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // (kg * m²) / s³
-        let kg_m_squared = Expr::multiply(
+        let kg_m_squared = Expr::new_multiply(
             Expr::number_with_unit(1.0, "kg"),
-            Expr::multiply(
+            Expr::new_multiply(
                 Expr::number_with_unit(10.0, "m"),
                 Expr::number_with_unit(10.0, "m"),
             ),
         );
-        let s_cubed = Expr::multiply(
-            Expr::multiply(
+        let s_cubed = Expr::new_multiply(
+            Expr::new_multiply(
                 Expr::number_with_unit(1.0, "s"),
                 Expr::number_with_unit(1.0, "s"),
             ),
             Expr::number_with_unit(1.0, "s"),
         );
-        let expr = Expr::divide(kg_m_squared, s_cubed);
+        let expr = Expr::new_divide(kg_m_squared, s_cubed);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 100.0);
         assert!(result.unit.canonical().contains("kg"));
@@ -1731,7 +1731,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // GB * ($/GB) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(100.0, "GB"),
             Expr::number_with_unit(0.05, "$/GB"),
         );
@@ -1746,7 +1746,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // MB * ($/MB) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(1000.0, "MB"),
             Expr::number_with_unit(0.001, "$/MB"),
         );
@@ -1761,7 +1761,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // TB * ($/TB) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(10.0, "TB"),
             Expr::number_with_unit(5.0, "$/TB"),
         );
@@ -1776,7 +1776,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // GB / hr
-        let expr = Expr::divide(
+        let expr = Expr::new_divide(
             Expr::number_with_unit(100.0, "GB"),
             Expr::number_with_unit(2.0, "hr"),
         );
@@ -1792,7 +1792,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // MB / month
-        let expr = Expr::divide(
+        let expr = Expr::new_divide(
             Expr::number_with_unit(50000.0, "MB"),
             Expr::number_with_unit(1.0, "month"),
         );
@@ -1809,15 +1809,15 @@ mod tests {
         let eval = Evaluator::new(&library);
         // GB * hr * ($/GB/hr) = $
         // Build $/GB/hr by: $ * (1/GB) * (1/hr)
-        let gb_hours = Expr::multiply(
+        let gb_hours = Expr::new_multiply(
             Expr::number_with_unit(100.0, "GB"),
             Expr::number_with_unit(24.0, "hr"),
         );
         let dollars = Expr::number_with_unit(0.001, "$");
-        let per_gb = Expr::divide(Expr::number(1.0), Expr::number_with_unit(1.0, "GB"));
-        let per_hr = Expr::divide(Expr::number(1.0), Expr::number_with_unit(1.0, "hr"));
-        let price_rate = Expr::multiply(Expr::multiply(dollars, per_gb), per_hr);
-        let expr = Expr::multiply(gb_hours, price_rate);
+        let per_gb = Expr::new_divide(Expr::number(1.0), Expr::number_with_unit(1.0, "GB"));
+        let per_hr = Expr::new_divide(Expr::number(1.0), Expr::number_with_unit(1.0, "hr"));
+        let price_rate = Expr::new_multiply(Expr::new_multiply(dollars, per_gb), per_hr);
+        let expr = Expr::new_multiply(gb_hours, price_rate);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 2.4);
         assert!(
@@ -1834,15 +1834,15 @@ mod tests {
         let eval = Evaluator::new(&library);
         // TB * month * ($/TB/month) = $
         // Build $/TB/month by: $ * (1/TB) * (1/month)
-        let tb_months = Expr::multiply(
+        let tb_months = Expr::new_multiply(
             Expr::number_with_unit(5.0, "TB"),
             Expr::number_with_unit(3.0, "month"),
         );
         let dollars = Expr::number_with_unit(10.0, "$");
-        let per_tb = Expr::divide(Expr::number(1.0), Expr::number_with_unit(1.0, "TB"));
-        let per_month = Expr::divide(Expr::number(1.0), Expr::number_with_unit(1.0, "month"));
-        let price_rate = Expr::multiply(Expr::multiply(dollars, per_tb), per_month);
-        let expr = Expr::multiply(tb_months, price_rate);
+        let per_tb = Expr::new_divide(Expr::number(1.0), Expr::number_with_unit(1.0, "TB"));
+        let per_month = Expr::new_divide(Expr::number(1.0), Expr::number_with_unit(1.0, "month"));
+        let price_rate = Expr::new_multiply(Expr::new_multiply(dollars, per_tb), per_month);
+        let expr = Expr::new_multiply(tb_months, price_rate);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 150.0);
         assert!(
@@ -1858,7 +1858,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // Tok * ($/Tok) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(1000.0, "Tok"),
             Expr::number_with_unit(0.00002, "$/Tok"),
         );
@@ -1873,7 +1873,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // KTok * ($/KTok) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(100.0, "KTok"),
             Expr::number_with_unit(0.02, "$/KTok"),
         );
@@ -1888,7 +1888,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // MTok * ($/MTok) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(10.0, "MTok"),
             Expr::number_with_unit(20.0, "$/MTok"),
         );
@@ -1903,7 +1903,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // MTok / hr
-        let expr = Expr::divide(
+        let expr = Expr::new_divide(
             Expr::number_with_unit(5.0, "MTok"),
             Expr::number_with_unit(10.0, "hr"),
         );
@@ -1920,15 +1920,15 @@ mod tests {
         let eval = Evaluator::new(&library);
         // MTok * hr * ($/MTok/hr) = $
         // Build $/MTok/hr by: $ * (1/MTok) * (1/hr)
-        let mtok_hours = Expr::multiply(
+        let mtok_hours = Expr::new_multiply(
             Expr::number_with_unit(10.0, "MTok"),
             Expr::number_with_unit(24.0, "hr"),
         );
         let dollars = Expr::number_with_unit(0.5, "$");
-        let per_mtok = Expr::divide(Expr::number(1.0), Expr::number_with_unit(1.0, "MTok"));
-        let per_hr = Expr::divide(Expr::number(1.0), Expr::number_with_unit(1.0, "hr"));
-        let price_rate = Expr::multiply(Expr::multiply(dollars, per_mtok), per_hr);
-        let expr = Expr::multiply(mtok_hours, price_rate);
+        let per_mtok = Expr::new_divide(Expr::number(1.0), Expr::number_with_unit(1.0, "MTok"));
+        let per_hr = Expr::new_divide(Expr::number(1.0), Expr::number_with_unit(1.0, "hr"));
+        let price_rate = Expr::new_multiply(Expr::new_multiply(dollars, per_mtok), per_hr);
+        let expr = Expr::new_multiply(mtok_hours, price_rate);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 120.0);
         assert!(
@@ -1944,7 +1944,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // Mbits / hr
-        let expr = Expr::divide(
+        let expr = Expr::new_divide(
             Expr::number_with_unit(1000.0, "Mbits"),
             Expr::number_with_unit(1.0, "hr"),
         );
@@ -1960,7 +1960,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // Gbits / month
-        let expr = Expr::divide(
+        let expr = Expr::new_divide(
             Expr::number_with_unit(10000.0, "Gbits"),
             Expr::number_with_unit(1.0, "month"),
         );
@@ -1976,7 +1976,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // Gbits * ($/Gbits) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(500.0, "Gbits"),
             Expr::number_with_unit(0.1, "$/Gbits"),
         );
@@ -1991,7 +1991,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // GB * GB = GB² (symbol is preserved when multiplying same units)
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(10.0, "GB"),
             Expr::number_with_unit(5.0, "GB"),
         );
@@ -2007,11 +2007,11 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // GB² / GB = GB (note: division doesn't auto-cancel compound units)
-        let gb_squared = Expr::multiply(
+        let gb_squared = Expr::new_multiply(
             Expr::number_with_unit(10.0, "GB"),
             Expr::number_with_unit(10.0, "GB"),
         );
-        let expr = Expr::divide(gb_squared, Expr::number_with_unit(10.0, "GB"));
+        let expr = Expr::new_divide(gb_squared, Expr::number_with_unit(10.0, "GB"));
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 10.0);
         // Division doesn't auto-cancel, so result will contain GB
@@ -2024,15 +2024,15 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // MB² * (1/MB²) = dimensionless
-        let mb_squared = Expr::multiply(
+        let mb_squared = Expr::new_multiply(
             Expr::number_with_unit(10.0, "MB"),
             Expr::number_with_unit(10.0, "MB"),
         );
         // Create (1/MB) * (1/MB) to get 1/MB²
-        let per_mb1 = Expr::divide(Expr::number(1.0), Expr::number_with_unit(1.0, "MB"));
-        let per_mb2 = Expr::divide(Expr::number(1.0), Expr::number_with_unit(1.0, "MB"));
-        let per_mb_squared = Expr::multiply(per_mb1, per_mb2);
-        let expr = Expr::multiply(mb_squared, per_mb_squared);
+        let per_mb1 = Expr::new_divide(Expr::number(1.0), Expr::number_with_unit(1.0, "MB"));
+        let per_mb2 = Expr::new_divide(Expr::number(1.0), Expr::number_with_unit(1.0, "MB"));
+        let per_mb_squared = Expr::new_multiply(per_mb1, per_mb2);
+        let expr = Expr::new_multiply(mb_squared, per_mb_squared);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 100.0);
         assert!(result.unit.is_dimensionless());
@@ -2044,11 +2044,11 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // TB * TB * TB = TB³ (symbol is preserved when multiplying same units)
-        let tb_times_tb = Expr::multiply(
+        let tb_times_tb = Expr::new_multiply(
             Expr::number_with_unit(2.0, "TB"),
             Expr::number_with_unit(3.0, "TB"),
         );
-        let expr = Expr::multiply(tb_times_tb, Expr::number_with_unit(5.0, "TB"));
+        let expr = Expr::new_multiply(tb_times_tb, Expr::number_with_unit(5.0, "TB"));
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 30.0);
         // System preserves original symbol when multiplying same units
@@ -2061,7 +2061,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // b * ($/b) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(10000.0, "b"),
             Expr::number_with_unit(0.0001, "$/b"),
         );
@@ -2076,7 +2076,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // KB * ($/KB) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(5000.0, "KB"),
             Expr::number_with_unit(0.0002, "$/KB"),
         );
@@ -2091,7 +2091,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // PB * ($/PB) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(1.0, "PB"),
             Expr::number_with_unit(500.0, "$/PB"),
         );
@@ -2106,7 +2106,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // Kbits * ($/Kbits) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(10000.0, "Kbits"),
             Expr::number_with_unit(0.0001, "$/Kbits"),
         );
@@ -2121,7 +2121,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // Tbits * ($/Tbits) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(10.0, "Tbits"),
             Expr::number_with_unit(5.0, "$/Tbits"),
         );
@@ -2136,7 +2136,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // hr * (GB/hr) = B (note: all digital storage units map to DigitalStorage dimension with symbol "B")
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(24.0, "hr"),
             Expr::number_with_unit(50.0, "GB/hr"),
         );
@@ -2152,7 +2152,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // month * (TB/month) = B (note: all digital storage units map to DigitalStorage dimension with symbol "B")
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(3.0, "month"),
             Expr::number_with_unit(100.0, "TB/month"),
         );
@@ -2168,7 +2168,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // hr * (MTok/hr) = B (note: all digital storage/token units map to DigitalStorage dimension with symbol "B")
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(10.0, "hr"),
             Expr::number_with_unit(5.0, "MTok/hr"),
         );
@@ -2186,18 +2186,18 @@ mod tests {
         // GB * $ * hr * (GB/hr/$) = GB²
         // $ and hr cancel, but GB appears in both numerator and efficiency, so we get GB²
         // Build GB/hr/$ by: GB * (1/hr) * (1/$)
-        let usage = Expr::multiply(
-            Expr::multiply(
+        let usage = Expr::new_multiply(
+            Expr::new_multiply(
                 Expr::number_with_unit(100.0, "GB"),
                 Expr::number_with_unit(10.0, "$"),
             ),
             Expr::number_with_unit(24.0, "hr"),
         );
         let gb = Expr::number_with_unit(1.0, "GB");
-        let per_hr = Expr::divide(Expr::number(1.0), Expr::number_with_unit(1.0, "hr"));
-        let per_dollar = Expr::divide(Expr::number(1.0), Expr::number_with_unit(1.0, "$"));
-        let efficiency = Expr::multiply(Expr::multiply(gb, per_hr), per_dollar);
-        let expr = Expr::multiply(usage, efficiency);
+        let per_hr = Expr::new_divide(Expr::number(1.0), Expr::number_with_unit(1.0, "hr"));
+        let per_dollar = Expr::new_divide(Expr::number(1.0), Expr::number_with_unit(1.0, "$"));
+        let efficiency = Expr::new_multiply(Expr::new_multiply(gb, per_hr), per_dollar);
+        let expr = Expr::new_multiply(usage, efficiency);
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 24000.0);
         // $ and hr cancel, leaving GB²
@@ -2214,11 +2214,11 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // (GB²) / hr = GB²/hr
-        let gb_squared = Expr::multiply(
+        let gb_squared = Expr::new_multiply(
             Expr::number_with_unit(10.0, "GB"),
             Expr::number_with_unit(10.0, "GB"),
         );
-        let expr = Expr::divide(gb_squared, Expr::number_with_unit(2.0, "hr"));
+        let expr = Expr::new_divide(gb_squared, Expr::number_with_unit(2.0, "hr"));
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 50.0);
         assert!(result.unit.canonical().contains("B"));
@@ -2231,11 +2231,11 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // (MTok²) / month = MTok²/month
-        let mtok_squared = Expr::multiply(
+        let mtok_squared = Expr::new_multiply(
             Expr::number_with_unit(5.0, "MTok"),
             Expr::number_with_unit(4.0, "MTok"),
         );
-        let expr = Expr::divide(mtok_squared, Expr::number_with_unit(1.0, "month"));
+        let expr = Expr::new_divide(mtok_squared, Expr::number_with_unit(1.0, "month"));
         let result = eval.eval(&expr).unwrap();
         assert_eq!(result.value, 20.0);
         assert!(result.unit.canonical().contains("MTok") || result.unit.canonical().contains("B"));
@@ -2248,7 +2248,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // B * ($/B) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(1000000.0, "B"),
             Expr::number_with_unit(0.00001, "$/B"),
         );
@@ -2263,7 +2263,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // bits * ($/bits) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(1000000.0, "bits"),
             Expr::number_with_unit(0.00001, "$/bits"),
         );
@@ -2278,7 +2278,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // tok * ($/tok) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(5000.0, "tok"),
             Expr::number_with_unit(0.00001, "$/tok"),
         );
@@ -2293,7 +2293,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // Ktok * ($/Ktok) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(200.0, "Ktok"),
             Expr::number_with_unit(0.01, "$/Ktok"),
         );
@@ -2308,7 +2308,7 @@ mod tests {
         let library = UnitLibrary::new();
         let eval = Evaluator::new(&library);
         // Mtok * ($/Mtok) = $
-        let expr = Expr::multiply(
+        let expr = Expr::new_multiply(
             Expr::number_with_unit(50.0, "Mtok"),
             Expr::number_with_unit(10.0, "$/Mtok"),
         );

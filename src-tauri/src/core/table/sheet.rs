@@ -60,9 +60,6 @@ impl CellAddr {
         Ok(Self { col, row: row_num })
     }
 
-    pub fn to_string(&self) -> String {
-        format!("{}{}", self.col, self.row)
-    }
 }
 
 impl std::fmt::Display for CellAddr {
@@ -1755,7 +1752,7 @@ mod tests {
 
     #[test]
     fn test_extract_cell_refs() {
-        let expr = Expr::add(Expr::cell_ref("A", 1), Expr::cell_ref("B", 2));
+        let expr = Expr::new_add(Expr::cell_ref("A", 1), Expr::cell_ref("B", 2));
 
         let refs = extract_cell_refs(&expr);
         assert_eq!(refs.len(), 2);

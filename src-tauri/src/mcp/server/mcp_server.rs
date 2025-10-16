@@ -11,6 +11,7 @@ use tracing::{debug, error, info, warn};
 
 pub struct McpServer {
     workbook: Arc<Mutex<Workbook>>,
+    #[allow(dead_code)]
     unit_library: Arc<UnitLibrary>,
     tool_handler: ToolHandler,
     initialized: bool,

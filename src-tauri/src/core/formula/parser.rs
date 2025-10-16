@@ -12,7 +12,7 @@ struct FormulaParser;
 #[derive(Debug, Error)]
 pub enum ParseError {
     #[error("Parse error: {0}")]
-    PestError(#[from] pest::error::Error<Rule>),
+    PestError(Box<pest::error::Error<Rule>>),
 
     #[error("Invalid cell reference: {0}")]
     InvalidCellRef(String),
@@ -22,6 +22,12 @@ pub enum ParseError {
 
     #[error("Unexpected rule: {0:?}")]
     UnexpectedRule(Rule),
+}
+
+impl From<pest::error::Error<Rule>> for ParseError {
+    fn from(err: pest::error::Error<Rule>) -> Self {
+        ParseError::PestError(Box::new(err))
+    }
 }
 
 /// Parse a formula string into an AST
@@ -49,8 +55,8 @@ fn parse_expr(pair: pest::iterators::Pair<Rule>) -> Result<Expr, ParseError> {
                 let right = parse_expr(pairs.next().unwrap())?;
 
                 left = match op.as_str() {
-                    "+" => Expr::add(left, right),
-                    "-" => Expr::subtract(left, right),
+                    "+" => Expr::new_add(left, right),
+                    "-" => Expr::new_subtract(left, right),
                     _ => return Err(ParseError::UnexpectedRule(op.as_rule())),
                 };
             }
@@ -66,8 +72,8 @@ fn parse_expr(pair: pest::iterators::Pair<Rule>) -> Result<Expr, ParseError> {
                 let right = parse_expr(pairs.next().unwrap())?;
 
                 left = match op.as_str() {
-                    "*" => Expr::multiply(left, right),
-                    "/" => Expr::divide(left, right),
+                    "*" => Expr::new_multiply(left, right),
+                    "/" => Expr::new_divide(left, right),
                     _ => return Err(ParseError::UnexpectedRule(op.as_rule())),
                 };
             }

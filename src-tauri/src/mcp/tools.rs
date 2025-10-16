@@ -398,7 +398,7 @@ impl ToolHandler {
                 "display": cell.display_unit().to_string(),
             },
             "formula": cell.formula().map(|f| f.to_string()),
-            "warnings": cell.warning().map(|w| vec![w.clone()]).unwrap_or_default(),
+            "warnings": cell.warning().map(|w| vec![w]).unwrap_or_default(),
             "is_empty": cell.is_empty(),
             "is_number": cell.is_number(),
             "is_text": cell.is_text(),
