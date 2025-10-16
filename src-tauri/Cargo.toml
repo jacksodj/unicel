@@ -17,10 +17,11 @@ name = "unicel"
 path = "src/main.rs"
 
 # MCP server binary (build separately with: cargo build --bin unicel-mcp-server)
-# Commented out to prevent it from being included in the Tauri app bundle
-# [[bin]]
-# name = "unicel-mcp-server"
-# path = "src/bin/mcp-server.rs"
+# Moved out of src/bin/ to prevent automatic discovery by Cargo
+[[bin]]
+name = "unicel-mcp-server"
+path = "src/standalone/mcp-server.rs"
+required-features = ["build-mcp-server"]
 
 [build-dependencies]
 tauri-build = { workspace = true }
@@ -54,3 +55,4 @@ proptest = { workspace = true }
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+build-mcp-server = []  # Enable to build the standalone MCP server binary
