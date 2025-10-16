@@ -16,9 +16,11 @@ crate-type = ["lib", "cdylib", "staticlib"]
 name = "unicel"
 path = "src/main.rs"
 
-[[bin]]
-name = "unicel-mcp-server"
-path = "src/bin/mcp-server.rs"
+# MCP server binary (build separately with: cargo build --bin unicel-mcp-server)
+# Commented out to prevent it from being included in the Tauri app bundle
+# [[bin]]
+# name = "unicel-mcp-server"
+# path = "src/bin/mcp-server.rs"
 
 [build-dependencies]
 tauri-build = { workspace = true }
