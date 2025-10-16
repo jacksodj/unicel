@@ -1,0 +1,29 @@
+---
+description: Update tasks and backlog in TASKS.md
+---
+
+Update the project tasks and backlog in docs/TASKS.md.
+
+When invoked:
+1. Read the current state: docs/TASKS.md
+2. Ask the user what they want to update:
+   - Mark tasks as complete
+   - Add new tasks to backlog
+   - Update progress counters
+   - Reorganize priorities
+3. Make the requested changes
+4. Update the progress counter at the top
+5. Commit the changes with a descriptive message
+
+Task categories in TASKS.md:
+- **Phase tasks**: Core MLP features (most are complete)
+- **Future Backlog**: Post-MLP enhancements
+- **UI/UX Enhancements**: Interface improvements
+- **Advanced Features**: Long-term goals
+- **Bug Fixes & Quality**: Issues to address
+
+When adding new items:
+- Categorize appropriately
+- Set priority (High/Medium/Low)
+- Add implementation notes if complex
+- Reference relevant files/locations
