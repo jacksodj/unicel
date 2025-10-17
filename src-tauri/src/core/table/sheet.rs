@@ -1071,18 +1071,28 @@ impl<'a> SheetEvaluator<'a> {
         }
 
         // Perform conversion
-        let converted_value = self
-            .library
-            .convert(
-                value_result.numeric_value(),
-                value_result.unit.canonical(),
-                target_unit.canonical(),
-            )
-            .ok_or_else(|| EvalError::IncompatibleUnits {
-                operation: "CONVERT".to_string(),
-                left: value_result.unit.to_string(),
-                right: target_unit.to_string(),
-            })?;
+        // Try compound unit conversion first (handles units like $/quarter -> $/year)
+        let converted_value = if let Some(result) = convert_compound_unit_for_formula(
+            value_result.numeric_value(),
+            value_result.unit.canonical(),
+            target_unit.canonical(),
+            self.library,
+        ) {
+            result
+        } else {
+            // Fall back to simple unit conversion
+            self.library
+                .convert(
+                    value_result.numeric_value(),
+                    value_result.unit.canonical(),
+                    target_unit.canonical(),
+                )
+                .ok_or_else(|| EvalError::IncompatibleUnits {
+                    operation: "CONVERT".to_string(),
+                    left: value_result.unit.to_string(),
+                    right: target_unit.to_string(),
+                })?
+        };
 
         Ok(EvalResult::new(converted_value, target_unit))
     }
@@ -3602,4 +3612,81 @@ mod tests {
         let result = sheet.evaluate_formula("=MEDIAN(A1:A2)");
         assert!(result.is_err());
     }
+}
+
+/// Convert compound unit values for formula evaluation (e.g., $/quarter -> $/year)
+/// This is similar to the convert_compound_unit in commands/workbook.rs but
+/// adapted for use in formula evaluation
+fn convert_compound_unit_for_formula(
+    value: f64,
+    from_unit: &str,
+    to_unit: &str,
+    library: &UnitLibrary,
+) -> Option<f64> {
+    // Handle division (e.g., $/quarter -> $/year)
+    if let (Some(from_pos), Some(to_pos)) = (from_unit.find('/'), to_unit.find('/')) {
+        let from_left = &from_unit[..from_pos];
+        let from_right = &from_unit[from_pos + 1..];
+        let to_left = &to_unit[..to_pos];
+        let to_right = &to_unit[to_pos + 1..];
+
+        // Convert numerator (e.g., $ -> $, both are Currency)
+        let factor_left = if from_left == to_left {
+            1.0
+        } else {
+            library.convert(1.0, from_left, to_left)?
+        };
+
+        // Convert denominator (e.g., quarter -> year)
+        let factor_right = library.convert(1.0, from_right, to_right)?;
+
+        // For division, divide the factors
+        // Example: $/quarter -> $/year
+        // factor_left = 1.0 ($ -> $)
+        // factor_right = 0.25 (quarter -> year, since 1 quarter = 0.25 years)
+        // combined_factor = 1.0 / 0.25 = 4.0... wait, that's wrong
+        //
+        // Actually, let me think about this:
+        // 30000 $/quarter means $30000 per quarter
+        // To convert to $/year: how many $ per year?
+        // If you earn $30000 per quarter, you earn $30000 * 4 per year = $120000/year
+        //
+        // So the conversion is: value * (quarters per year) = value * 4
+        // But factor_right is quarter->year = 0.25 (1 quarter = 0.25 years)
+        // So we need: value / factor_right = value / 0.25 = value * 4
+        //
+        // Let me reconsider:
+        // $/quarter -> $/year means ($ / quarter) -> ($ / year)
+        // = $ * (1 / quarter) -> $ * (1 / year)
+        // = $ * (year / quarter)
+        // year/quarter = 1/0.25 = 4
+        //
+        // So: numerator_factor / denominator_factor
+        let combined_factor = factor_left / factor_right;
+        return Some(value * combined_factor);
+    }
+
+    // Handle power notation (e.g., ft^2 -> m^2)
+    if let (Some(from_pos), Some(to_pos)) = (from_unit.find('^'), to_unit.find('^')) {
+        let from_base = &from_unit[..from_pos];
+        let from_power_str = &from_unit[from_pos + 1..];
+        let to_base = &to_unit[..to_pos];
+        let to_power_str = &to_unit[to_pos + 1..];
+
+        // Parse the power
+        if let (Ok(from_power), Ok(to_power)) =
+            (from_power_str.parse::<i32>(), to_power_str.parse::<i32>())
+        {
+            if from_power == to_power {
+                // Get conversion factor for base unit
+                if let Some(base_factor) = library.convert(1.0, from_base, to_base) {
+                    // Raise to the power
+                    let combined_factor = base_factor.powi(from_power);
+                    return Some(value * combined_factor);
+                }
+            }
+        }
+    }
+
+    None
 }

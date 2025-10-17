@@ -9,10 +9,7 @@ use unicel_lib::core::{
     units::{BaseDimension, Unit, UnitLibrary},
     workbook::Workbook,
 };
-use unicel_lib::mcp::{
-    get_tool_definitions,
-    McpServer, ToolHandler,
-};
+use unicel_lib::mcp::{get_tool_definitions, McpServer, ToolHandler};
 
 #[test]
 fn test_tool_definitions() {

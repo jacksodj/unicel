@@ -316,6 +316,13 @@
 
 ### Advanced Features
 
+- **Dollar magnitude conversions (K$, M$, B$)** (Medium priority)
+  - Add support for currency magnitude units: $ → K$ → M$ → B$
+  - Enable automatic conversions between magnitude levels
+  - Examples: `1000 $` → `1 K$`, `1000000 $` → `1 M$`, `1000000000 $` → `1 B$`
+  - Use cases: financial modeling, business plans, investment calculations
+  - Implementation: Add to currency units in unit library with proper conversion factors
+
 - **Support arbitrary units/dimensions with conversion tables (stocks)** (High priority)
   - Allow custom units with no intrinsic dimension (e.g., AAPL shares, MSFT shares)
   - Define conversion tables for stock tickers (AAPL → USD conversion rate)
