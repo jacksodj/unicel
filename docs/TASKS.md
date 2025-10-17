@@ -237,9 +237,9 @@
 - **Phase 7:** ✅ Complete (16/16 tasks)
 - **Phase 8:** ✅ Complete (5/5 tasks)
 - **Phase 9:** ✅ Complete (5/6 tasks - Community sharing pending)
-- **Phase 10:** 🚧 In Progress (0/37 tasks) - iOS Viewer MVP
+- **Phase 10:** 🚧 In Progress (4/37 tasks) - iOS Viewer MVP
 
-**Overall Progress:** 122/169 tasks (72.2%) - Desktop MVP Complete, iOS MVP Starting
+**Overall Progress:** 126/169 tasks (74.6%) - Desktop MVP Complete, iOS MVP Starting
 
 ---
 
@@ -404,13 +404,13 @@
 ## Phase 10: iOS Viewer MVP (Weeks 25-29)
 
 ### Week 25: iOS Platform Setup
-- [ ] 10.1: Run `npm run tauri ios init` to create iOS project structure
-- [ ] 10.2: Configure Xcode project settings and bundle identifiers
-- [ ] 10.3: Set up Info.plist with file associations for .usheet files
-- [ ] 10.4: Configure code signing and provisioning profiles
-- [ ] 10.5: Test basic build in iOS simulator (iPhone and iPad)
-- [ ] 10.6: Add iOS-specific dependencies (@use-gesture/react, react-responsive)
-- [ ] 10.7: Verify Tauri commands work on iOS (load_workbook, get_cell_value)
+- [x] 10.1: Run `npm run tauri ios init` to create iOS project structure
+- [x] 10.2: Configure Xcode project settings and bundle identifiers
+- [x] 10.3: Set up Info.plist with file associations for .usheet files
+- [ ] 10.4: Configure code signing and provisioning profiles (REQUIRES XCODE)
+- [ ] 10.5: Test basic build in iOS simulator (iPhone and iPad) (REQUIRES XCODE)
+- [x] 10.6: Add iOS-specific dependencies (@use-gesture/react, react-responsive)
+- [ ] 10.7: Verify Tauri commands work on iOS (load_workbook, get_cell_value) (REQUIRES XCODE)
 
 ### Week 26: Mobile UI Adaptation
 - [ ] 10.8: Create platform detection hook (useMobile.ts)
