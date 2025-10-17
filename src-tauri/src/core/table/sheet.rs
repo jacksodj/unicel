@@ -229,6 +229,12 @@ pub struct Sheet {
 
     /// Unit library for conversions
     library: UnitLibrary,
+
+    /// Column widths (in pixels)
+    column_widths: HashMap<String, f64>,
+
+    /// Row heights (in pixels)
+    row_heights: HashMap<usize, f64>,
 }
 
 impl Sheet {
@@ -242,6 +248,8 @@ impl Sheet {
             cells: HashMap::new(),
             dependencies: DependencyGraph::new(),
             library: UnitLibrary::new(),
+            column_widths: HashMap::new(),
+            row_heights: HashMap::new(),
         }
     }
 
@@ -423,6 +431,38 @@ impl Sheet {
         }
 
         Ok(())
+    }
+
+    // Column and row sizing methods
+
+    /// Set the width of a column (in pixels)
+    pub fn set_column_width(&mut self, col: String, width: f64) {
+        self.column_widths.insert(col, width);
+    }
+
+    /// Get the width of a column (returns None if using default width)
+    pub fn get_column_width(&self, col: &str) -> Option<f64> {
+        self.column_widths.get(col).copied()
+    }
+
+    /// Get all custom column widths
+    pub fn get_all_column_widths(&self) -> &HashMap<String, f64> {
+        &self.column_widths
+    }
+
+    /// Set the height of a row (in pixels)
+    pub fn set_row_height(&mut self, row: usize, height: f64) {
+        self.row_heights.insert(row, height);
+    }
+
+    /// Get the height of a row (returns None if using default height)
+    pub fn get_row_height(&self, row: usize) -> Option<f64> {
+        self.row_heights.get(&row).copied()
+    }
+
+    /// Get all custom row heights
+    pub fn get_all_row_heights(&self) -> &HashMap<usize, f64> {
+        &self.row_heights
     }
 }
 
@@ -1809,15 +1849,7 @@ impl<'a> SheetEvaluator<'a> {
         let mut converted_values = Vec::new();
 
         for val in &values {
-            if !val.unit.is_compatible(first_unit) {
-                return Err(EvalError::IncompatibleUnits {
-                    operation: "VAR".to_string(),
-                    left: first_unit.to_string(),
-                    right: val.unit.to_string(),
-                });
-            }
-
-            let converted = if val.unit != *first_unit {
+            let converted = if !val.unit.is_equal(first_unit) {
                 self.library
                     .convert(
                         val.numeric_value(),
