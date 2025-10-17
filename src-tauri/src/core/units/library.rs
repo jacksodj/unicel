@@ -261,6 +261,131 @@ impl UnitLibrary {
         }
     }
 
+    /// Get conversion ratio between two units as a rational number (numerator, denominator)
+    /// Uses BFS pathfinding and accumulates rational factors for exact arithmetic
+    /// Returns None if units are incompatible or conversion path doesn't exist
+    pub fn get_conversion_ratio(&self, from: &str, to: &str) -> Option<(i64, i64)> {
+        use std::collections::{HashSet, VecDeque};
+
+        // Same unit = identity ratio
+        if from == to {
+            return Some((1, 1));
+        }
+
+        // Check if both units exist and are compatible
+        let from_unit = self.get(from)?;
+        let to_unit = self.get(to)?;
+        if !from_unit.is_compatible(to_unit) {
+            return None;
+        }
+
+        // Try direct conversion first
+        if let Some(factor) = self.get_conversion(from, to) {
+            return factor.as_rational();
+        }
+
+        // Use BFS to find shortest conversion path
+        let mut queue = VecDeque::new();
+        let mut visited = HashSet::new();
+        let mut parent: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+
+        queue.push_back(from.to_string());
+        visited.insert(from.to_string());
+
+        // BFS to find path
+        while let Some(current) = queue.pop_front() {
+            if current == to {
+                // Found path! Reconstruct it
+                let mut path: Vec<(String, String)> = Vec::new();
+                let mut node = to.to_string();
+
+                while let Some(prev) = parent.get(&node) {
+                    path.push((prev.clone(), node.clone()));
+                    node = prev.clone();
+                }
+
+                path.reverse();
+
+                // Check if all factors have rational representations
+                let mut all_rational = true;
+                let mut has_offset = false;
+                let mut rational_numerators = Vec::new();
+                let mut rational_denominators = Vec::new();
+
+                for (from_unit, to_unit) in &path {
+                    if let Some(factor) = self.get_conversion(from_unit, to_unit) {
+                        if factor.offset != 0.0 {
+                            has_offset = true;
+                        }
+
+                        if let Some((num, denom)) = factor.as_rational() {
+                            rational_numerators.push(num);
+                            rational_denominators.push(denom);
+                        } else {
+                            all_rational = false;
+                        }
+                    } else {
+                        return None;
+                    }
+                }
+
+                // Cannot express conversions with offsets as simple ratios
+                if has_offset {
+                    return None;
+                }
+
+                // If all factors are rational, compute combined ratio
+                if all_rational {
+                    let total_numerator: i64 = rational_numerators.iter().product();
+                    let total_denominator: i64 = rational_denominators.iter().product();
+                    return Some((total_numerator, total_denominator));
+                }
+
+                return None;
+            }
+
+            // Explore neighbors
+            for (conv_from, conv_to) in self.conversions.keys() {
+                if conv_from == &current && !visited.contains(conv_to) {
+                    visited.insert(conv_to.clone());
+                    parent.insert(conv_to.clone(), current.clone());
+                    queue.push_back(conv_to.clone());
+                }
+            }
+        }
+
+        None // No path found
+    }
+
+    /// Determine which of two compatible units is "finer" (smaller scale)
+    /// Returns the unit that produces a smaller value when converting 1 unit to a common base
+    /// Example: get_finer_unit("min", "sec") returns "sec" (1 min = 60 sec, so sec is finer)
+    pub fn get_finer_unit<'a>(&self, unit_a: &'a str, unit_b: &'a str) -> Option<&'a str> {
+        // If same unit, neither is finer
+        if unit_a == unit_b {
+            return Some(unit_a);
+        }
+
+        // Check if both units exist and are compatible
+        let unit_a_obj = self.get(unit_a)?;
+        let unit_b_obj = self.get(unit_b)?;
+        if !unit_a_obj.is_compatible(unit_b_obj) {
+            return None;
+        }
+
+        // Convert 1 unit of A to B
+        let a_to_b = self.convert(1.0, unit_a, unit_b)?;
+
+        // If a_to_b > 1, then B is finer (1 A = many B)
+        // If a_to_b <= 1, then A is finer (or equal scale)
+        if a_to_b > 1.0 {
+            Some(unit_b)
+        } else {
+            Some(unit_a)
+        }
+    }
+
     // === Length Units ===
     fn add_length_units(&mut self) {
         // Metric - short forms
@@ -606,39 +731,43 @@ impl UnitLibrary {
         self.add_unit("Tok", Unit::simple("Tok", BaseDimension::DigitalStorage));
         self.add_unit("MTok", Unit::simple("MTok", BaseDimension::DigitalStorage));
 
-        // Byte conversions (using powers of 1024)
-        self.add_conversion("KB", "B", ConversionFactor::new(1024.0));
-        self.add_conversion("B", "KB", ConversionFactor::new(1.0 / 1024.0));
-        self.add_conversion("MB", "KB", ConversionFactor::new(1024.0));
-        self.add_conversion("KB", "MB", ConversionFactor::new(1.0 / 1024.0));
-        self.add_conversion("MB", "B", ConversionFactor::new(1024.0 * 1024.0));
-        self.add_conversion("B", "MB", ConversionFactor::new(1.0 / (1024.0 * 1024.0)));
-        self.add_conversion("GB", "MB", ConversionFactor::new(1024.0));
-        self.add_conversion("MB", "GB", ConversionFactor::new(1.0 / 1024.0));
-        self.add_conversion("GB", "KB", ConversionFactor::new(1024.0 * 1024.0));
-        self.add_conversion("KB", "GB", ConversionFactor::new(1.0 / (1024.0 * 1024.0)));
-        self.add_conversion("GB", "B", ConversionFactor::new(1024.0 * 1024.0 * 1024.0));
+        // Byte conversions (using powers of 1024 with rational numbers for exact arithmetic)
+        self.add_conversion("KB", "B", ConversionFactor::from_rational(1024, 1));
+        self.add_conversion("B", "KB", ConversionFactor::from_rational(1, 1024));
+        self.add_conversion("MB", "KB", ConversionFactor::from_rational(1024, 1));
+        self.add_conversion("KB", "MB", ConversionFactor::from_rational(1, 1024));
+        self.add_conversion("MB", "B", ConversionFactor::from_rational(1024 * 1024, 1));
+        self.add_conversion("B", "MB", ConversionFactor::from_rational(1, 1024 * 1024));
+        self.add_conversion("GB", "MB", ConversionFactor::from_rational(1024, 1));
+        self.add_conversion("MB", "GB", ConversionFactor::from_rational(1, 1024));
+        self.add_conversion("GB", "KB", ConversionFactor::from_rational(1024 * 1024, 1));
+        self.add_conversion("KB", "GB", ConversionFactor::from_rational(1, 1024 * 1024));
+        self.add_conversion(
+            "GB",
+            "B",
+            ConversionFactor::from_rational(1024 * 1024 * 1024, 1),
+        );
         self.add_conversion(
             "B",
             "GB",
-            ConversionFactor::new(1.0 / (1024.0 * 1024.0 * 1024.0)),
+            ConversionFactor::from_rational(1, 1024 * 1024 * 1024),
         );
-        self.add_conversion("TB", "GB", ConversionFactor::new(1024.0));
-        self.add_conversion("GB", "TB", ConversionFactor::new(1.0 / 1024.0));
-        self.add_conversion("TB", "MB", ConversionFactor::new(1024.0 * 1024.0));
-        self.add_conversion("MB", "TB", ConversionFactor::new(1.0 / (1024.0 * 1024.0)));
+        self.add_conversion("TB", "GB", ConversionFactor::from_rational(1024, 1));
+        self.add_conversion("GB", "TB", ConversionFactor::from_rational(1, 1024));
+        self.add_conversion("TB", "MB", ConversionFactor::from_rational(1024 * 1024, 1));
+        self.add_conversion("MB", "TB", ConversionFactor::from_rational(1, 1024 * 1024));
         self.add_conversion(
             "TB",
             "B",
-            ConversionFactor::new(1024.0 * 1024.0 * 1024.0 * 1024.0),
+            ConversionFactor::from_rational(1024 * 1024 * 1024 * 1024, 1),
         );
         self.add_conversion(
             "B",
             "TB",
-            ConversionFactor::new(1.0 / (1024.0 * 1024.0 * 1024.0 * 1024.0)),
+            ConversionFactor::from_rational(1, 1024 * 1024 * 1024 * 1024),
         );
-        self.add_conversion("PB", "TB", ConversionFactor::new(1024.0));
-        self.add_conversion("TB", "PB", ConversionFactor::new(1.0 / 1024.0));
+        self.add_conversion("PB", "TB", ConversionFactor::from_rational(1024, 1));
+        self.add_conversion("TB", "PB", ConversionFactor::from_rational(1, 1024));
 
         // Bit conversions (using powers of 1000)
         self.add_conversion("Kb", "b", ConversionFactor::new(1000.0));

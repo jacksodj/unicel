@@ -185,6 +185,7 @@ impl<'a> Evaluator<'a> {
     }
 
     /// Add two values (requires compatible units) or concatenate strings
+    /// Uses finer unit alignment: converts both operands to the finer unit scale
     fn eval_add(&self, left: &Expr, right: &Expr) -> Result<EvalResult, EvalError> {
         let left_result = self.eval(left)?;
         let right_result = self.eval(right)?;
@@ -243,27 +244,60 @@ impl<'a> Evaluator<'a> {
             ));
         }
 
-        // Units are compatible but different - convert right to left's unit
-        let right_value_converted = self
+        // Units are compatible but different - determine finer unit and convert both
+        let left_canonical = left_result.unit.canonical();
+        let right_canonical = right_result.unit.canonical();
+
+        // Find finer unit
+        let finer_unit = self
             .library
-            .convert(
-                right_value,
-                right_result.unit.canonical(),
-                left_result.unit.canonical(),
-            )
+            .get_finer_unit(left_canonical, right_canonical)
             .ok_or_else(|| EvalError::IncompatibleUnits {
                 operation: "add".to_string(),
                 left: left_result.unit.to_string(),
                 right: right_result.unit.to_string(),
             })?;
 
+        // Convert both values to finer unit
+        let left_converted = if left_canonical == finer_unit {
+            left_value
+        } else {
+            self.library
+                .convert(left_value, left_canonical, finer_unit)
+                .ok_or_else(|| EvalError::IncompatibleUnits {
+                    operation: "add".to_string(),
+                    left: left_result.unit.to_string(),
+                    right: right_result.unit.to_string(),
+                })?
+        };
+
+        let right_converted = if right_canonical == finer_unit {
+            right_value
+        } else {
+            self.library
+                .convert(right_value, right_canonical, finer_unit)
+                .ok_or_else(|| EvalError::IncompatibleUnits {
+                    operation: "add".to_string(),
+                    left: left_result.unit.to_string(),
+                    right: right_result.unit.to_string(),
+                })?
+        };
+
+        // Get the finer unit object
+        let result_unit = self
+            .library
+            .get(finer_unit)
+            .cloned()
+            .unwrap_or_else(|| left_result.unit.clone());
+
         Ok(EvalResult::new(
-            left_value + right_value_converted,
-            left_result.unit.clone(),
+            left_converted + right_converted,
+            result_unit,
         ))
     }
 
     /// Subtract two values (requires compatible units)
+    /// Uses finer unit alignment: converts both operands to the finer unit scale
     fn eval_subtract(&self, left: &Expr, right: &Expr) -> Result<EvalResult, EvalError> {
         let left_result = self.eval(left)?;
         let right_result = self.eval(right)?;
@@ -301,29 +335,60 @@ impl<'a> Evaluator<'a> {
             ));
         }
 
-        // Units are compatible but different - convert right to left's unit
-        let right_value_converted = self
+        // Units are compatible but different - determine finer unit and convert both
+        let left_canonical = left_result.unit.canonical();
+        let right_canonical = right_result.unit.canonical();
+
+        // Find finer unit
+        let finer_unit = self
             .library
-            .convert(
-                right_value,
-                right_result.unit.canonical(),
-                left_result.unit.canonical(),
-            )
+            .get_finer_unit(left_canonical, right_canonical)
             .ok_or_else(|| EvalError::IncompatibleUnits {
                 operation: "subtract".to_string(),
                 left: left_result.unit.to_string(),
                 right: right_result.unit.to_string(),
             })?;
 
+        // Convert both values to finer unit
+        let left_converted = if left_canonical == finer_unit {
+            left_value
+        } else {
+            self.library
+                .convert(left_value, left_canonical, finer_unit)
+                .ok_or_else(|| EvalError::IncompatibleUnits {
+                    operation: "subtract".to_string(),
+                    left: left_result.unit.to_string(),
+                    right: right_result.unit.to_string(),
+                })?
+        };
+
+        let right_converted = if right_canonical == finer_unit {
+            right_value
+        } else {
+            self.library
+                .convert(right_value, right_canonical, finer_unit)
+                .ok_or_else(|| EvalError::IncompatibleUnits {
+                    operation: "subtract".to_string(),
+                    left: left_result.unit.to_string(),
+                    right: right_result.unit.to_string(),
+                })?
+        };
+
+        // Get the finer unit object
+        let result_unit = self
+            .library
+            .get(finer_unit)
+            .cloned()
+            .unwrap_or_else(|| left_result.unit.clone());
+
         Ok(EvalResult::new(
-            left_value - right_value_converted,
-            left_result.unit.clone(),
+            left_converted - right_converted,
+            result_unit,
         ))
     }
 
-    /// Multiply two values (creates compound units with cancellation)
+    /// Multiply two values (creates compound units with symbol-aware cancellation and conversion)
     fn eval_multiply(&self, left: &Expr, right: &Expr) -> Result<EvalResult, EvalError> {
-        eprintln!("=== eval_multiply CALLED ===");
         let left_result = self.eval(left)?;
         let right_result = self.eval(right)?;
 
@@ -335,41 +400,11 @@ impl<'a> Evaluator<'a> {
             EvalError::InvalidOperation("Cannot multiply with text values".to_string())
         })?;
 
-        let value = left_value * right_value;
+        let mut value = left_value * right_value;
 
         // Check if either operand is a percentage - treat as dimensionless multiplier
         let left_is_percent = is_percentage_unit(&left_result.unit);
         let right_is_percent = is_percentage_unit(&right_result.unit);
-
-        eprintln!(
-            "eval_multiply: left_value={}, left_unit={:?}, left_canonical={}, left_is_percent={}",
-            left_value,
-            left_result.unit,
-            left_result.unit.canonical(),
-            left_is_percent
-        );
-        eprintln!(
-            "eval_multiply: right_value={}, right_unit={:?}, right_canonical={}, right_is_percent={}",
-            right_value,
-            right_result.unit,
-            right_result.unit.canonical(),
-            right_is_percent
-        );
-
-        tracing::debug!(
-            "eval_multiply: left_value={}, left_unit={:?}, left_canonical={}, left_is_percent={}",
-            left_value,
-            left_result.unit,
-            left_result.unit.canonical(),
-            left_is_percent
-        );
-        tracing::debug!(
-            "eval_multiply: right_value={}, right_unit={:?}, right_canonical={}, right_is_percent={}",
-            right_value,
-            right_result.unit,
-            right_result.unit.canonical(),
-            right_is_percent
-        );
 
         // If one is percentage, result has the non-percentage unit (percentage gets removed)
         if left_is_percent && !right_is_percent {
@@ -396,13 +431,32 @@ impl<'a> Evaluator<'a> {
             return Ok(EvalResult::new(value, left_result.unit.clone()));
         }
 
-        // Multiply units with cancellation
-        let result_unit = multiply_units_with_cancellation(&left_result.unit, &right_result.unit);
+        // Extract unit symbols with powers
+        let (mut left_num, mut left_den) = extract_unit_symbols(&left_result.unit);
+        let (right_num, right_den) = extract_unit_symbols(&right_result.unit);
+
+        // Multiply: add right's numerator to left's numerator, right's denominator to left's denominator
+        for (symbol, power) in right_num {
+            *left_num.entry(symbol).or_insert(0) += power;
+        }
+        for (symbol, power) in right_den {
+            *left_den.entry(symbol).or_insert(0) += power;
+        }
+
+        // Cancel symbols and apply conversions
+        let (final_num, final_den, conversion_factor) =
+            cancel_and_convert_units(left_num, left_den, self.library);
+
+        // Apply conversion factor to value
+        value *= conversion_factor;
+
+        // Build result unit
+        let result_unit = build_unit_from_symbols(final_num, final_den, self.library);
 
         Ok(EvalResult::new(value, result_unit))
     }
 
-    /// Divide two values (creates compound units with cancellation)
+    /// Divide two values (creates compound units with symbol-aware cancellation and conversion)
     fn eval_divide(&self, left: &Expr, right: &Expr) -> Result<EvalResult, EvalError> {
         let left_result = self.eval(left)?;
         let right_result = self.eval(right)?;
@@ -419,7 +473,7 @@ impl<'a> Evaluator<'a> {
             return Err(EvalError::DivisionByZero);
         }
 
-        let value = left_value / right_value;
+        let mut value = left_value / right_value;
 
         // Check if either operand is a percentage - treat as dimensionless multiplier
         let left_is_percent = is_percentage_unit(&left_result.unit);
@@ -430,18 +484,10 @@ impl<'a> Evaluator<'a> {
             return Ok(EvalResult::new(value, left_result.unit.clone()));
         }
         // If left is percentage and right is not, result is percentage/right_unit
-        // This is unusual but should be handled - treated as dimensionless/right_unit
         if left_is_percent && !right_is_percent {
-            let compound_symbol = format!("1/{}", right_result.unit.canonical());
-            let compound_unit = Unit::compound(
-                compound_symbol.clone(),
-                vec![],
-                vec![(
-                    right_result.unit.dimension().as_simple().unwrap().clone(),
-                    1,
-                )],
-            );
-            return Ok(EvalResult::new(value, compound_unit));
+            let (right_num, right_den) = extract_unit_symbols(&right_result.unit);
+            let result_unit = build_unit_from_symbols(right_den, right_num, self.library);
+            return Ok(EvalResult::new(value, result_unit));
         }
         // If both are percentages, result is dimensionless
         if left_is_percent && right_is_percent {
@@ -455,16 +501,9 @@ impl<'a> Evaluator<'a> {
 
         // If left is dimensionless, result is 1/right_unit
         if left_result.unit.is_dimensionless() {
-            let compound_symbol = format!("1/{}", right_result.unit.canonical());
-            let compound_unit = Unit::compound(
-                compound_symbol.clone(),
-                vec![],
-                vec![(
-                    right_result.unit.dimension().as_simple().unwrap().clone(),
-                    1,
-                )],
-            );
-            return Ok(EvalResult::new(value, compound_unit));
+            let (right_num, right_den) = extract_unit_symbols(&right_result.unit);
+            let result_unit = build_unit_from_symbols(right_den, right_num, self.library);
+            return Ok(EvalResult::new(value, result_unit));
         }
 
         // If right is dimensionless, result has left's unit
@@ -472,23 +511,29 @@ impl<'a> Evaluator<'a> {
             return Ok(EvalResult::new(value, left_result.unit.clone()));
         }
 
-        // If units are the same, they cancel out
-        if left_result.unit.is_equal(&right_result.unit) {
-            return Ok(EvalResult::new(value, Unit::dimensionless()));
+        // Extract unit symbols with powers
+        let (mut left_num, mut left_den) = extract_unit_symbols(&left_result.unit);
+        let (right_num, right_den) = extract_unit_symbols(&right_result.unit);
+
+        // Divide: right's numerator goes to left's denominator, right's denominator goes to left's numerator
+        for (symbol, power) in right_num {
+            *left_den.entry(symbol).or_insert(0) += power;
+        }
+        for (symbol, power) in right_den {
+            *left_num.entry(symbol).or_insert(0) += power;
         }
 
-        // For MLP: create a simple compound unit representation
-        // Format: "left/right" (e.g., "m/s" for velocity)
-        let compound_symbol = format!(
-            "{}/{}",
-            left_result.unit.canonical(),
-            right_result.unit.canonical()
-        );
+        // Cancel symbols and apply conversions
+        let (final_num, final_den, conversion_factor) =
+            cancel_and_convert_units(left_num, left_den, self.library);
 
-        let compound_unit =
-            create_division_unit(&left_result.unit, &right_result.unit, &compound_symbol);
+        // Apply conversion factor to value
+        value *= conversion_factor;
 
-        Ok(EvalResult::new(value, compound_unit))
+        // Build result unit
+        let result_unit = build_unit_from_symbols(final_num, final_den, self.library);
+
+        Ok(EvalResult::new(value, result_unit))
     }
 
     /// Evaluate a function call
@@ -590,22 +635,6 @@ fn is_percentage_unit(unit: &Unit) -> bool {
 }
 
 // Helper function to create compound units for division
-fn create_division_unit(left: &Unit, right: &Unit, symbol: &str) -> Unit {
-    // For simple dimensions, create compound unit
-    if let (Some(left_dim), Some(right_dim)) =
-        (left.dimension().as_simple(), right.dimension().as_simple())
-    {
-        Unit::compound(
-            symbol.to_string(),
-            vec![(left_dim.clone(), 1)],
-            vec![(right_dim.clone(), 1)],
-        )
-    } else {
-        // Fallback: create custom dimension
-        Unit::simple(symbol, BaseDimension::Custom(symbol.to_string()))
-    }
-}
-
 // Helper function to multiply units with dimensional cancellation
 pub fn multiply_units_with_cancellation(left: &Unit, right: &Unit) -> Unit {
     // Extract dimensions from both units
@@ -973,6 +1002,267 @@ pub fn extract_dimensions(
     (numerator, denominator)
 }
 
+/// Extract unit symbols with their powers from a unit
+/// Returns (numerator_symbols, denominator_symbols)
+/// where each map contains symbol -> power
+///
+/// Examples:
+/// - "GB" → ({GB: 1}, {})
+/// - "GB^2" → ({GB: 2}, {})
+/// - "$/GB" → ({$: 1}, {GB: 1})
+/// - "GB/Month" → ({GB: 1}, {Month: 1})
+/// - "$/GB·Month" → ({$: 1}, {GB: 1, Month: 1})
+fn extract_unit_symbols(unit: &Unit) -> (HashMap<String, i32>, HashMap<String, i32>) {
+    let mut numerator = HashMap::new();
+    let mut denominator = HashMap::new();
+
+    let canonical = unit.canonical();
+
+    if canonical.is_empty() {
+        return (numerator, denominator);
+    }
+
+    // Split by division first
+    let parts: Vec<&str> = canonical.split('/').collect();
+
+    if parts.is_empty() {
+        return (numerator, denominator);
+    }
+
+    // Parse numerator part
+    if !parts[0].is_empty() {
+        parse_unit_part(parts[0], &mut numerator);
+    }
+
+    // Parse denominator part (if exists)
+    if parts.len() > 1 {
+        // Join remaining parts (in case there are multiple / symbols)
+        let denom_part = parts[1..].join("/");
+        if !denom_part.is_empty() {
+            parse_unit_part(&denom_part, &mut denominator);
+        }
+    }
+
+    (numerator, denominator)
+}
+
+/// Parse a unit part (numerator or denominator) and extract symbols with powers
+/// Handles multiplication (*) and exponents (^)
+fn parse_unit_part(part: &str, map: &mut HashMap<String, i32>) {
+    // Split by multiplication
+    for term in part.split('*') {
+        let term = term.trim();
+        if term.is_empty() || term == "1" {
+            continue;
+        }
+
+        // Check for exponent
+        if let Some(caret_pos) = term.find('^') {
+            let symbol = term[..caret_pos].trim();
+            let power_str = term[caret_pos + 1..].trim();
+
+            if let Ok(power) = power_str.parse::<i32>() {
+                *map.entry(symbol.to_string()).or_insert(0) += power;
+            } else {
+                // Invalid power, treat as power 1
+                *map.entry(symbol.to_string()).or_insert(0) += 1;
+            }
+        } else {
+            // No exponent, power is 1
+            *map.entry(term.to_string()).or_insert(0) += 1;
+        }
+    }
+}
+
+/// Cancel matching symbols between numerator and denominator with conversion-aware cancellation
+/// Returns (final_numerator, final_denominator, conversion_factor)
+///
+/// Algorithm:
+/// 1. Cancel exact symbol matches (e.g., GB/GB → 1)
+/// 2. Convert and cancel compatible units (e.g., TB/GB → apply ratio 1024/1)
+/// 3. Apply exponents to conversion ratios (e.g., ft^2/m^2 → (ft→m)^2)
+fn cancel_and_convert_units(
+    mut numerator: HashMap<String, i32>,
+    mut denominator: HashMap<String, i32>,
+    library: &UnitLibrary,
+) -> (HashMap<String, i32>, HashMap<String, i32>, f64) {
+    let mut conversion_factor = 1.0;
+
+    // Step 1: Cancel exact symbol matches
+    let num_keys: Vec<String> = numerator.keys().cloned().collect();
+    for symbol in num_keys {
+        if let Some(&num_power) = numerator.get(&symbol) {
+            if let Some(&den_power) = denominator.get(&symbol) {
+                let cancel_power = num_power.min(den_power);
+                if cancel_power > 0 {
+                    let new_num_power = num_power - cancel_power;
+                    let new_den_power = den_power - cancel_power;
+
+                    if new_num_power == 0 {
+                        numerator.remove(&symbol);
+                    } else {
+                        numerator.insert(symbol.clone(), new_num_power);
+                    }
+
+                    if new_den_power == 0 {
+                        denominator.remove(&symbol);
+                    } else {
+                        denominator.insert(symbol.clone(), new_den_power);
+                    }
+                }
+            }
+        }
+    }
+
+    // Step 2: Convert and cancel compatible units
+    // Find all pairs of (num_symbol, den_symbol) that are compatible
+    let num_symbols: Vec<String> = numerator.keys().cloned().collect();
+    let den_symbols: Vec<String> = denominator.keys().cloned().collect();
+
+    for num_symbol in &num_symbols {
+        for den_symbol in &den_symbols {
+            // Skip if symbols no longer exist (already processed)
+            if !numerator.contains_key(num_symbol) || !denominator.contains_key(den_symbol) {
+                continue;
+            }
+
+            // Check if units are compatible (can be converted)
+            if library.can_convert(num_symbol, den_symbol) && num_symbol != den_symbol {
+                // Get conversion ratio
+                if let Some((ratio_num, ratio_den)) =
+                    library.get_conversion_ratio(num_symbol, den_symbol)
+                {
+                    let num_power = *numerator.get(num_symbol).unwrap();
+                    let den_power = *denominator.get(den_symbol).unwrap();
+
+                    // Cancel as many as possible
+                    let cancel_power = num_power.min(den_power);
+
+                    if cancel_power > 0 {
+                        // Apply conversion ratio raised to cancel_power
+                        // ratio = (ratio_num / ratio_den)
+                        // ratio^cancel_power = (ratio_num^cancel_power) / (ratio_den^cancel_power)
+                        let ratio_factor = (ratio_num as f64).powi(cancel_power)
+                            / (ratio_den as f64).powi(cancel_power);
+                        conversion_factor *= ratio_factor;
+
+                        // Update powers
+                        let new_num_power = num_power - cancel_power;
+                        let new_den_power = den_power - cancel_power;
+
+                        if new_num_power == 0 {
+                            numerator.remove(num_symbol);
+                        } else {
+                            numerator.insert(num_symbol.clone(), new_num_power);
+                        }
+
+                        if new_den_power == 0 {
+                            denominator.remove(den_symbol);
+                        } else {
+                            denominator.insert(den_symbol.clone(), new_den_power);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove zero powers
+    numerator.retain(|_, &mut p| p != 0);
+    denominator.retain(|_, &mut p| p != 0);
+
+    (numerator, denominator, conversion_factor)
+}
+
+/// Build a Unit from symbol maps (numerator and denominator with powers)
+fn build_unit_from_symbols(
+    numerator: HashMap<String, i32>,
+    denominator: HashMap<String, i32>,
+    library: &UnitLibrary,
+) -> Unit {
+    // If no units, return dimensionless
+    if numerator.is_empty() && denominator.is_empty() {
+        return Unit::dimensionless();
+    }
+
+    // Build symbol string
+    let mut num_parts = Vec::new();
+    for (symbol, power) in &numerator {
+        if *power == 1 {
+            num_parts.push(symbol.clone());
+        } else {
+            num_parts.push(format!("{}^{}", symbol, power));
+        }
+    }
+    num_parts.sort();
+
+    let mut den_parts = Vec::new();
+    for (symbol, power) in &denominator {
+        if *power == 1 {
+            den_parts.push(symbol.clone());
+        } else {
+            den_parts.push(format!("{}^{}", symbol, power));
+        }
+    }
+    den_parts.sort();
+
+    let canonical_symbol = if den_parts.is_empty() {
+        if num_parts.is_empty() {
+            String::new()
+        } else {
+            num_parts.join("*")
+        }
+    } else {
+        let num_str = if num_parts.is_empty() {
+            "1".to_string()
+        } else {
+            num_parts.join("*")
+        };
+        format!("{}/{}", num_str, den_parts.join("*"))
+    };
+
+    // If single simple unit, return as simple
+    if denominator.is_empty() && numerator.len() == 1 {
+        let (symbol, power) = numerator.iter().next().unwrap();
+        if *power == 1 {
+            // Look up dimension from library
+            if let Some(unit) = library.get(symbol) {
+                return unit.clone();
+            }
+        }
+    }
+
+    // Build compound unit with dimensions
+    let mut num_dims = Vec::new();
+    let mut den_dims = Vec::new();
+
+    for (symbol, power) in numerator {
+        if let Some(unit) = library.get(&symbol) {
+            if let Some(base_dim) = unit.dimension().as_simple() {
+                num_dims.push((base_dim.clone(), power));
+            }
+        }
+    }
+
+    for (symbol, power) in denominator {
+        if let Some(unit) = library.get(&symbol) {
+            if let Some(base_dim) = unit.dimension().as_simple() {
+                den_dims.push((base_dim.clone(), power));
+            }
+        }
+    }
+
+    if num_dims.is_empty() && den_dims.is_empty() {
+        // Custom or unknown units - return as string unit
+        Unit::simple(
+            canonical_symbol.clone(),
+            BaseDimension::Custom(canonical_symbol),
+        )
+    } else {
+        Unit::compound(canonical_symbol, num_dims, den_dims)
+    }
+}
+
 /// Transform unit by multiplying all dimension exponents by a factor
 /// Used for SQRT (factor=0.5) and POWER (factor=exponent)
 pub fn transform_unit_exponents(unit: &Unit, factor: f64) -> Unit {
@@ -1157,8 +1447,10 @@ mod tests {
             Expr::number_with_unit(50.0, "cm"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, EvalValue::Number(100.5)); // 100m + 0.5m
-        assert_eq!(result.unit.canonical(), "m");
+        // Updated: With finer unit alignment, result is in cm (finer than m)
+        // 100 m = 10,000 cm, 10,000 cm + 50 cm = 10,050 cm
+        assert_eq!(result.value, EvalValue::Number(10050.0));
+        assert_eq!(result.unit.canonical(), "cm");
     }
 
     #[test]
