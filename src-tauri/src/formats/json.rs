@@ -456,7 +456,9 @@ fn get_base_dimension_for_json(unit_str: &str) -> BaseDimension {
     match unit_str {
         "m" | "cm" | "mm" | "km" | "in" | "ft" | "yd" | "mi" => BaseDimension::Length,
         "g" | "kg" | "mg" | "oz" | "lb" => BaseDimension::Mass,
-        "s" | "min" | "hr" | "h" | "hour" | "day" | "month" | "year" => BaseDimension::Time,
+        "s" | "min" | "hr" | "h" | "hour" | "day" | "month" | "quarter" | "year" | "yr" => {
+            BaseDimension::Time
+        }
         "C" | "F" | "K" => BaseDimension::Temperature,
         "USD" | "EUR" | "GBP" | "$" => BaseDimension::Currency,
         "B" | "KB" | "MB" | "GB" | "TB" | "PB" | "Kb" | "Mb" | "Gb" | "Tb" | "Pb" | "Tok"
