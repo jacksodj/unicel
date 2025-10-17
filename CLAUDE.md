@@ -414,3 +414,4 @@ See `docs/PROJECT_PLAN.md` for full implementation roadmap.
 - ❌ **DON'T:** Create separate task tracking files anywhere else in the repository
 
 The TodoWrite tool should only be used for temporary session-level task tracking during active development. All permanent task tracking belongs in `docs/TASKS.md`.
+- Use your agents for anything that touched code: USE YOUR AGENTS!

@@ -323,6 +323,7 @@ impl<'a> Evaluator<'a> {
 
     /// Multiply two values (creates compound units with cancellation)
     fn eval_multiply(&self, left: &Expr, right: &Expr) -> Result<EvalResult, EvalError> {
+        eprintln!("=== eval_multiply CALLED ===");
         let left_result = self.eval(left)?;
         let right_result = self.eval(right)?;
 
@@ -339,6 +340,21 @@ impl<'a> Evaluator<'a> {
         // Check if either operand is a percentage - treat as dimensionless multiplier
         let left_is_percent = is_percentage_unit(&left_result.unit);
         let right_is_percent = is_percentage_unit(&right_result.unit);
+
+        eprintln!(
+            "eval_multiply: left_value={}, left_unit={:?}, left_canonical={}, left_is_percent={}",
+            left_value,
+            left_result.unit,
+            left_result.unit.canonical(),
+            left_is_percent
+        );
+        eprintln!(
+            "eval_multiply: right_value={}, right_unit={:?}, right_canonical={}, right_is_percent={}",
+            right_value,
+            right_result.unit,
+            right_result.unit.canonical(),
+            right_is_percent
+        );
 
         tracing::debug!(
             "eval_multiply: left_value={}, left_unit={:?}, left_canonical={}, left_is_percent={}",

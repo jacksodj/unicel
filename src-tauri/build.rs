@@ -1,4 +1,8 @@
 fn main() {
+    // Tell Cargo to rerun build.rs if the git HEAD changes
+    println!("cargo:rerun-if-changed=../.git/HEAD");
+    println!("cargo:rerun-if-changed=../.git/refs/heads");
+
     // Capture git commit hash at build time
     let git_commit = std::process::Command::new("git")
         .args(["rev-parse", "--short", "HEAD"])

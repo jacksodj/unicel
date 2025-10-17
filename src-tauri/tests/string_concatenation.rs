@@ -1,4 +1,4 @@
-use unicel_lib::core::formula::evaluator::{EvalValue, Evaluator};
+use unicel_lib::core::formula::evaluator::Evaluator;
 use unicel_lib::core::formula::parser::parse_formula;
 use unicel_lib::core::units::UnitLibrary;
 

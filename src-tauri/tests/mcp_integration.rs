@@ -10,7 +10,7 @@ use unicel_lib::core::{
     workbook::Workbook,
 };
 use unicel_lib::mcp::{
-    get_tool_definitions, CallToolParams, ClientCapabilities, ClientInfo, InitializeParams,
+    get_tool_definitions,
     McpServer, ToolHandler,
 };
 

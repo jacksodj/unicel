@@ -610,6 +610,25 @@ impl<'a> SheetEvaluator<'a> {
 
                 let value = left_value * right_value;
 
+                // Check if either operand is a percentage - treat as dimensionless multiplier
+                let left_is_percent = left_result.unit.canonical() == "%";
+                let right_is_percent = right_result.unit.canonical() == "%";
+
+                // If one is percentage, result has the non-percentage unit (percentage gets removed)
+                if left_is_percent && !right_is_percent {
+                    return Ok(EvalResult::new(value, right_result.unit.clone()));
+                }
+                if right_is_percent && !left_is_percent {
+                    return Ok(EvalResult::new(value, left_result.unit.clone()));
+                }
+                // If both are percentages, result is dimensionless
+                if left_is_percent && right_is_percent {
+                    return Ok(EvalResult::new(
+                        value,
+                        crate::core::units::Unit::dimensionless(),
+                    ));
+                }
+
                 // If both dimensionless, result is dimensionless
                 if left_result.unit.is_dimensionless() && right_result.unit.is_dimensionless() {
                     return Ok(EvalResult::new(
@@ -651,6 +670,35 @@ impl<'a> SheetEvaluator<'a> {
                 }
 
                 let value = left_value / right_value;
+
+                // Check if either operand is a percentage - treat as dimensionless multiplier
+                let left_is_percent = left_result.unit.canonical() == "%";
+                let right_is_percent = right_result.unit.canonical() == "%";
+
+                // If right is percentage, result has left's unit (percentage gets removed)
+                if right_is_percent && !left_is_percent {
+                    return Ok(EvalResult::new(value, left_result.unit.clone()));
+                }
+                // If left is percentage and right is not, result is percentage/right_unit
+                // This is unusual but should be handled - treated as dimensionless/right_unit
+                if left_is_percent && !right_is_percent {
+                    let compound_symbol = format!("1/{}", right_result.unit.canonical());
+                    if let Some(right_dim) = right_result.unit.dimension().as_simple() {
+                        let compound_unit = crate::core::units::Unit::compound(
+                            compound_symbol.clone(),
+                            vec![],
+                            vec![(right_dim.clone(), 1)],
+                        );
+                        return Ok(EvalResult::new(value, compound_unit));
+                    }
+                }
+                // If both are percentages, result is dimensionless
+                if left_is_percent && right_is_percent {
+                    return Ok(EvalResult::new(
+                        value,
+                        crate::core::units::Unit::dimensionless(),
+                    ));
+                }
 
                 // If both dimensionless, result is dimensionless
                 if left_result.unit.is_dimensionless() && right_result.unit.is_dimensionless() {
@@ -2538,7 +2586,7 @@ mod tests {
 
     #[test]
     fn test_sqrt_dimensionless() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
         // SQRT(4) = 2 (dimensionless)
         let (value, unit) = sheet.evaluate_formula("=SQRT(4)").unwrap();
         assert_eq!(value, CellValue::Number(2.0));
@@ -2713,7 +2761,7 @@ mod tests {
 
     #[test]
     fn test_power_dimensionless() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
         // POWER(2, 3) = 8
         let (value, unit) = sheet.evaluate_formula("=POWER(2, 3)").unwrap();
         assert_eq!(value, CellValue::Number(8.0));
@@ -3135,7 +3183,7 @@ mod tests {
 
     #[test]
     fn test_and_function_all_true() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
 
         // AND(1, 1, 1) → 1.0
         let (value, unit) = sheet.evaluate_formula("=AND(1, 1, 1)").unwrap();
@@ -3145,7 +3193,7 @@ mod tests {
 
     #[test]
     fn test_and_function_one_false() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
 
         // AND(1, 0, 1) → 0.0
         let (value, unit) = sheet.evaluate_formula("=AND(1, 0, 1)").unwrap();
@@ -3155,7 +3203,7 @@ mod tests {
 
     #[test]
     fn test_and_function_all_false() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
 
         // AND(0, 0, 0) → 0.0
         let (value, unit) = sheet.evaluate_formula("=AND(0, 0, 0)").unwrap();
@@ -3165,7 +3213,7 @@ mod tests {
 
     #[test]
     fn test_or_function_all_true() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
 
         // OR(1, 1, 1) → 1.0
         let (value, unit) = sheet.evaluate_formula("=OR(1, 1, 1)").unwrap();
@@ -3175,7 +3223,7 @@ mod tests {
 
     #[test]
     fn test_or_function_one_true() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
 
         // OR(0, 1, 0) → 1.0
         let (value, unit) = sheet.evaluate_formula("=OR(0, 1, 0)").unwrap();
@@ -3185,7 +3233,7 @@ mod tests {
 
     #[test]
     fn test_or_function_all_false() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
 
         // OR(0, 0, 0) → 0.0
         let (value, unit) = sheet.evaluate_formula("=OR(0, 0, 0)").unwrap();
@@ -3195,7 +3243,7 @@ mod tests {
 
     #[test]
     fn test_not_function_true() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
 
         // NOT(1) → 0.0
         let (value, unit) = sheet.evaluate_formula("=NOT(1)").unwrap();
@@ -3205,7 +3253,7 @@ mod tests {
 
     #[test]
     fn test_not_function_false() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
 
         // NOT(0) → 1.0
         let (value, unit) = sheet.evaluate_formula("=NOT(0)").unwrap();
@@ -3277,7 +3325,7 @@ mod tests {
 
     #[test]
     fn test_median_function() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
 
         // MEDIAN(1, 2, 3, 4, 5) = 3
         let (value, unit) = sheet.evaluate_formula("=MEDIAN(1, 2, 3, 4, 5)").unwrap();
@@ -3349,7 +3397,7 @@ mod tests {
 
     #[test]
     fn test_median_even_count() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
 
         // MEDIAN(1, 2, 3, 4) = 2.5
         let (value, _) = sheet.evaluate_formula("=MEDIAN(1, 2, 3, 4)").unwrap();
@@ -3508,7 +3556,7 @@ mod tests {
 
     #[test]
     fn test_median_error_empty() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
 
         // MEDIAN with no arguments should fail
         let result = sheet.evaluate_formula("=MEDIAN()");
@@ -3517,7 +3565,7 @@ mod tests {
 
     #[test]
     fn test_stdev_error_insufficient_values() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
 
         // STDEV requires at least 2 values
         let result = sheet.evaluate_formula("=STDEV(5)");
@@ -3526,7 +3574,7 @@ mod tests {
 
     #[test]
     fn test_var_error_insufficient_values() {
-        let mut sheet = Sheet::new();
+        let sheet = Sheet::new();
 
         // VAR requires at least 2 values
         let result = sheet.evaluate_formula("=VAR(5)");
