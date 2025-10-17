@@ -29,6 +29,13 @@ interface GridProps {
   onDeleteRow?: (row: number) => void;
 }
 
+interface ResizeState {
+  type: 'column' | 'row';
+  target: string | number;
+  startPos: number;
+  startSize: number;
+}
+
 export default function Grid({
   cells,
   rowCount = 50,
@@ -62,6 +69,9 @@ export default function Grid({
     row: number;
     position: ContextMenuPosition;
   } | null>(null);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [rowHeights, setRowHeights] = useState<Record<number, number>>({});
+  const [resizeState, setResizeState] = useState<ResizeState | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
@@ -76,6 +86,21 @@ export default function Grid({
     selectedCellRef.current = selectedCell;
     setLocalSelectedCell(selectedCell || null);
   }, [selectedCell]);
+
+  // Load stored column widths and row heights
+  useEffect(() => {
+    const loadDimensions = async () => {
+      try {
+        const widths = await tauriApi.getAllColumnWidths();
+        const heights = await tauriApi.getAllRowHeights();
+        setColumnWidths(widths);
+        setRowHeights(heights);
+      } catch (error) {
+        console.error('Error loading dimensions:', error);
+      }
+    };
+    loadDimensions();
+  }, [activeSheetIndex]);
 
   // Focus and select input when editing starts (but not on every value change)
   useEffect(() => {
@@ -506,6 +531,81 @@ export default function Grid({
     });
   };
 
+  // Resize handlers
+  const handleColumnResizeStart = (col: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const currentWidth = columnWidths[col] || 100;
+    setResizeState({
+      type: 'column',
+      target: col,
+      startPos: e.clientX,
+      startSize: currentWidth,
+    });
+  };
+
+  const handleRowResizeStart = (row: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const currentHeight = rowHeights[row] || 25;
+    setResizeState({
+      type: 'row',
+      target: row,
+      startPos: e.clientY,
+      startSize: currentHeight,
+    });
+  };
+
+  // Handle mouse move during resize
+  useEffect(() => {
+    if (!resizeState) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (resizeState.type === 'column') {
+        const delta = e.clientX - resizeState.startPos;
+        const newWidth = Math.max(50, resizeState.startSize + delta);
+        setColumnWidths((prev) => ({
+          ...prev,
+          [resizeState.target]: newWidth,
+        }));
+      } else {
+        const delta = e.clientY - resizeState.startPos;
+        const newHeight = Math.max(20, resizeState.startSize + delta);
+        setRowHeights((prev) => ({
+          ...prev,
+          [resizeState.target]: newHeight,
+        }));
+      }
+    };
+
+    const handleMouseUp = async () => {
+      if (resizeState.type === 'column') {
+        const width = columnWidths[resizeState.target as string] || 100;
+        try {
+          await tauriApi.setColumnWidth(resizeState.target as string, width);
+        } catch (error) {
+          console.error('Error saving column width:', error);
+        }
+      } else {
+        const height = rowHeights[resizeState.target as number] || 25;
+        try {
+          await tauriApi.setRowHeight(resizeState.target as number, height);
+        } catch (error) {
+          console.error('Error saving row height:', error);
+        }
+      }
+      setResizeState(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizeState, columnWidths, rowHeights]);
+
   return (
     <div ref={gridContainerRef} className="overflow-auto h-full w-full border border-gray-300">
       <table className="border-collapse">
@@ -514,35 +614,54 @@ export default function Grid({
             {/* Corner cell */}
             <th className="border border-gray-300 bg-gray-200 w-12 h-8 text-xs font-semibold text-gray-600"></th>
             {/* Column headers */}
-            {columns.map((col) => (
-              <th
-                key={col}
-                className={`border border-gray-300 min-w-[100px] h-8 text-xs font-semibold text-gray-700 cursor-pointer transition-colors ${
-                  hoveredColumn === col ? 'bg-blue-200' : 'bg-gray-100 hover:bg-blue-100'
-                }`}
-                onMouseEnter={() => setHoveredColumn(col)}
-                onMouseLeave={() => setHoveredColumn(null)}
-                onContextMenu={(e) => handleColumnContextMenu(col, e)}
-              >
-                {col}
-              </th>
-            ))}
+            {columns.map((col) => {
+              const width = columnWidths[col] || 100;
+              return (
+                <th
+                  key={col}
+                  style={{ width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` }}
+                  className={`relative border border-gray-300 h-8 text-xs font-semibold text-gray-700 cursor-pointer transition-colors ${
+                    hoveredColumn === col ? 'bg-blue-200' : 'bg-gray-100 hover:bg-blue-100'
+                  }`}
+                  onMouseEnter={() => setHoveredColumn(col)}
+                  onMouseLeave={() => setHoveredColumn(null)}
+                  onContextMenu={(e) => handleColumnContextMenu(col, e)}
+                >
+                  {col}
+                  {/* Column resize handle */}
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-500 hover:w-1.5 transition-all"
+                    onMouseDown={(e) => handleColumnResizeStart(col, e)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row}>
-              {/* Row header */}
-              <td
-                className={`border border-gray-300 w-12 h-8 text-xs font-semibold text-gray-700 text-center sticky left-0 cursor-pointer transition-colors ${
-                  hoveredRow === row ? 'bg-blue-200' : 'bg-gray-100 hover:bg-blue-100'
-                }`}
-                onMouseEnter={() => setHoveredRow(row)}
-                onMouseLeave={() => setHoveredRow(null)}
-                onContextMenu={(e) => handleRowContextMenu(row, e)}
-              >
-                {row}
-              </td>
+          {rows.map((row) => {
+            const height = rowHeights[row] || 25;
+            return (
+              <tr key={row} style={{ height: `${height}px` }}>
+                {/* Row header */}
+                <td
+                  className={`relative border border-gray-300 w-12 text-xs font-semibold text-gray-700 text-center sticky left-0 cursor-pointer transition-colors ${
+                    hoveredRow === row ? 'bg-blue-200' : 'bg-gray-100 hover:bg-blue-100'
+                  }`}
+                  style={{ height: `${height}px` }}
+                  onMouseEnter={() => setHoveredRow(row)}
+                  onMouseLeave={() => setHoveredRow(null)}
+                  onContextMenu={(e) => handleRowContextMenu(row, e)}
+                >
+                  {row}
+                  {/* Row resize handle */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-1 cursor-row-resize hover:bg-blue-500 hover:h-1.5 transition-all"
+                    onMouseDown={(e) => handleRowResizeStart(row, e)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </td>
               {/* Cells */}
               {columns.map((col) => {
                 const address = getCellAddress(col, row);
@@ -561,12 +680,15 @@ export default function Grid({
                 // 3. Selected cell gets blue highlight when not editing (isSelected && !editingCell)
                 const shouldHighlight = isPicker || isEditing || (isSelected && !editingCell);
 
+                const width = columnWidths[col] || 100;
+
                 return (
                   <td
                     key={address}
                     data-cell={`${col}${row}`}
+                    style={{ width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px`, height: `${height}px` }}
                     className={`
-                      border border-gray-300 min-w-[100px] h-8 px-0 text-sm relative
+                      border border-gray-300 px-0 text-sm relative
                       ${!isEditing && 'cursor-pointer hover:bg-blue-50 transition-colors'}
                       ${shouldHighlight ? 'bg-blue-100 ring-2 ring-blue-500 ring-inset' : ''}
                       ${isPicker ? 'bg-green-200 ring-2 ring-green-500 ring-inset' : ''}
@@ -619,7 +741,8 @@ export default function Grid({
                 );
               })}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
 
