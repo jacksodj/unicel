@@ -90,6 +90,14 @@ pub struct SheetData {
 
     /// Cells (sparse storage)
     cells: HashMap<String, CellData>,
+
+    /// Column widths (column -> width in pixels)
+    #[serde(default)]
+    column_widths: HashMap<String, f64>,
+
+    /// Row heights (row -> height in pixels)
+    #[serde(default)]
+    row_heights: HashMap<usize, f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -219,7 +227,7 @@ impl WorkbookData {
                 workbook.add_sheet_with_name(&sheet_data.name)
             };
 
-            // Populate sheet with cells
+            // Populate sheet with cells, column widths, and row heights
             if let Some(wb_sheet) = workbook.get_sheet_mut(idx) {
                 for (addr_str, cell_data) in &sheet_data.cells {
                     if let Ok(addr) = CellAddr::from_string(addr_str) {
@@ -227,6 +235,16 @@ impl WorkbookData {
                             wb_sheet.set(addr, cell).ok();
                         }
                     }
+                }
+
+                // Restore column widths
+                for (col, width) in &sheet_data.column_widths {
+                    wb_sheet.set_column_width(col.to_string(), *width);
+                }
+
+                // Restore row heights
+                for (row, height) in &sheet_data.row_heights {
+                    wb_sheet.set_row_height(*row, *height);
                 }
             }
         }
@@ -294,6 +312,8 @@ impl SheetData {
         Self {
             name: sheet.name().to_string(),
             cells,
+            column_widths: sheet.get_all_column_widths().clone(),
+            row_heights: sheet.get_all_row_heights().clone(),
         }
     }
 }
@@ -595,5 +615,57 @@ mod tests {
         let (sheet_idx, addr) = tax_rate_range.unwrap();
         assert_eq!(sheet_idx, 0);
         assert_eq!(addr.to_string(), "B1");
+    }
+
+    #[test]
+    fn test_column_widths_and_row_heights_serialization() {
+        let mut workbook = Workbook::new("Test");
+
+        // Set custom column widths and row heights
+        let sheet = workbook.active_sheet_mut();
+        sheet.set_column_width("A".to_string(), 150.0);
+        sheet.set_column_width("B".to_string(), 200.0);
+        sheet.set_column_width("C".to_string(), 100.0);
+        sheet.set_row_height(1, 30.0);
+        sheet.set_row_height(2, 45.0);
+        sheet.set_row_height(10, 60.0);
+
+        // Add some cells to verify everything works together
+        sheet
+            .set(
+                CellAddr::new("A", 1),
+                Cell::new(100.0, Unit::simple("m", BaseDimension::Length)),
+            )
+            .unwrap();
+
+        // Serialize
+        let file = WorkbookFile::from_workbook(&workbook);
+        let json = file.to_json().unwrap();
+
+        // Verify JSON contains dimensions
+        assert!(json.contains("column_widths"));
+        assert!(json.contains("row_heights"));
+
+        // Deserialize
+        let file2 = WorkbookFile::from_json(&json).unwrap();
+        let workbook2 = file2.to_workbook().unwrap();
+
+        // Verify column widths are restored
+        let sheet2 = workbook2.active_sheet();
+        assert_eq!(sheet2.get_column_width("A"), Some(150.0));
+        assert_eq!(sheet2.get_column_width("B"), Some(200.0));
+        assert_eq!(sheet2.get_column_width("C"), Some(100.0));
+        assert_eq!(sheet2.get_column_width("D"), None); // Not set
+
+        // Verify row heights are restored
+        assert_eq!(sheet2.get_row_height(1), Some(30.0));
+        assert_eq!(sheet2.get_row_height(2), Some(45.0));
+        assert_eq!(sheet2.get_row_height(10), Some(60.0));
+        assert_eq!(sheet2.get_row_height(5), None); // Not set
+
+        // Verify cell data still works
+        let cell = sheet2.get(&CellAddr::new("A", 1)).unwrap();
+        assert_eq!(cell.as_number(), Some(100.0));
+        assert_eq!(cell.storage_unit().canonical(), "m");
     }
 }

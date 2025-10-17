@@ -1849,6 +1849,16 @@ impl<'a> SheetEvaluator<'a> {
         let mut converted_values = Vec::new();
 
         for val in &values {
+            // First check compatibility
+            if !val.unit.is_compatible(first_unit) {
+                return Err(EvalError::IncompatibleUnits {
+                    operation: "VAR".to_string(),
+                    left: first_unit.to_string(),
+                    right: val.unit.to_string(),
+                });
+            }
+
+            // Then convert if needed
             let converted = if !val.unit.is_equal(first_unit) {
                 self.library
                     .convert(
@@ -1856,10 +1866,11 @@ impl<'a> SheetEvaluator<'a> {
                         val.unit.canonical(),
                         first_unit.canonical(),
                     )
-                    .ok_or_else(|| EvalError::IncompatibleUnits {
-                        operation: "VAR".to_string(),
-                        left: first_unit.to_string(),
-                        right: val.unit.to_string(),
+                    .ok_or_else(|| {
+                        EvalError::InvalidOperation(format!(
+                            "Failed to convert {} to {}",
+                            val.unit, first_unit
+                        ))
                     })?
             } else {
                 val.numeric_value()
