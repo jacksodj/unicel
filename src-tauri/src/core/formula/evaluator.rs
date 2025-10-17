@@ -1012,7 +1012,7 @@ pub fn extract_dimensions(
 /// - "$/GB" → ({$: 1}, {GB: 1})
 /// - "GB/Month" → ({GB: 1}, {Month: 1})
 /// - "$/GB·Month" → ({$: 1}, {GB: 1, Month: 1})
-fn extract_unit_symbols(unit: &Unit) -> (HashMap<String, i32>, HashMap<String, i32>) {
+pub fn extract_unit_symbols(unit: &Unit) -> (HashMap<String, i32>, HashMap<String, i32>) {
     let mut numerator = HashMap::new();
     let mut denominator = HashMap::new();
 
@@ -1081,7 +1081,7 @@ fn parse_unit_part(part: &str, map: &mut HashMap<String, i32>) {
 /// 1. Cancel exact symbol matches (e.g., GB/GB → 1)
 /// 2. Convert and cancel compatible units (e.g., TB/GB → apply ratio 1024/1)
 /// 3. Apply exponents to conversion ratios (e.g., ft^2/m^2 → (ft→m)^2)
-fn cancel_and_convert_units(
+pub fn cancel_and_convert_units(
     mut numerator: HashMap<String, i32>,
     mut denominator: HashMap<String, i32>,
     library: &UnitLibrary,
@@ -1175,7 +1175,7 @@ fn cancel_and_convert_units(
 }
 
 /// Build a Unit from symbol maps (numerator and denominator with powers)
-fn build_unit_from_symbols(
+pub fn build_unit_from_symbols(
     numerator: HashMap<String, i32>,
     denominator: HashMap<String, i32>,
     library: &UnitLibrary,

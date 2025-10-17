@@ -1007,7 +1007,7 @@ impl<'a> SheetEvaluator<'a> {
                     EvalError::InvalidOperation("Cannot multiply with text values".to_string())
                 })?;
 
-                let value = left_value * right_value;
+                let mut value = left_value * right_value;
 
                 // Check if either operand is a percentage - treat as dimensionless multiplier
                 let left_is_percent = left_result.unit.canonical() == "%";
@@ -1044,10 +1044,30 @@ impl<'a> SheetEvaluator<'a> {
                     return Ok(EvalResult::new(value, left_result.unit.clone()));
                 }
 
-                // Multiply units with cancellation
-                use crate::core::formula::evaluator::multiply_units_with_cancellation;
-                let result_unit =
-                    multiply_units_with_cancellation(&left_result.unit, &right_result.unit);
+                // Extract unit symbols with powers
+                use crate::core::formula::evaluator::{
+                    build_unit_from_symbols, cancel_and_convert_units, extract_unit_symbols,
+                };
+                let (mut left_num, mut left_den) = extract_unit_symbols(&left_result.unit);
+                let (right_num, right_den) = extract_unit_symbols(&right_result.unit);
+
+                // Multiply: add right's numerator to left's numerator, right's denominator to left's denominator
+                for (symbol, power) in right_num {
+                    *left_num.entry(symbol).or_insert(0) += power;
+                }
+                for (symbol, power) in right_den {
+                    *left_den.entry(symbol).or_insert(0) += power;
+                }
+
+                // Cancel symbols and apply conversions
+                let (final_num, final_den, conversion_factor) =
+                    cancel_and_convert_units(left_num, left_den, self.library);
+
+                // Apply conversion factor to value
+                value *= conversion_factor;
+
+                // Build result unit
+                let result_unit = build_unit_from_symbols(final_num, final_den, self.library);
 
                 Ok(EvalResult::new(value, result_unit))
             }
@@ -1068,7 +1088,7 @@ impl<'a> SheetEvaluator<'a> {
                     return Err(EvalError::DivisionByZero);
                 }
 
-                let value = left_value / right_value;
+                let mut value = left_value / right_value;
 
                 // Check if either operand is a percentage - treat as dimensionless multiplier
                 let left_is_percent = left_result.unit.canonical() == "%";
@@ -1079,17 +1099,13 @@ impl<'a> SheetEvaluator<'a> {
                     return Ok(EvalResult::new(value, left_result.unit.clone()));
                 }
                 // If left is percentage and right is not, result is percentage/right_unit
-                // This is unusual but should be handled - treated as dimensionless/right_unit
                 if left_is_percent && !right_is_percent {
-                    let compound_symbol = format!("1/{}", right_result.unit.canonical());
-                    if let Some(right_dim) = right_result.unit.dimension().as_simple() {
-                        let compound_unit = crate::core::units::Unit::compound(
-                            compound_symbol.clone(),
-                            vec![],
-                            vec![(right_dim.clone(), 1)],
-                        );
-                        return Ok(EvalResult::new(value, compound_unit));
-                    }
+                    use crate::core::formula::evaluator::{
+                        build_unit_from_symbols, extract_unit_symbols,
+                    };
+                    let (right_num, right_den) = extract_unit_symbols(&right_result.unit);
+                    let result_unit = build_unit_from_symbols(right_den, right_num, self.library);
+                    return Ok(EvalResult::new(value, result_unit));
                 }
                 // If both are percentages, result is dimensionless
                 if left_is_percent && right_is_percent {
@@ -1107,45 +1123,47 @@ impl<'a> SheetEvaluator<'a> {
                     ));
                 }
 
+                // If left is dimensionless, result is 1/right_unit
+                if left_result.unit.is_dimensionless() {
+                    use crate::core::formula::evaluator::{
+                        build_unit_from_symbols, extract_unit_symbols,
+                    };
+                    let (right_num, right_den) = extract_unit_symbols(&right_result.unit);
+                    let result_unit = build_unit_from_symbols(right_den, right_num, self.library);
+                    return Ok(EvalResult::new(value, result_unit));
+                }
+
                 // If right is dimensionless, result has left's unit
                 if right_result.unit.is_dimensionless() {
                     return Ok(EvalResult::new(value, left_result.unit.clone()));
                 }
 
-                // If units are the same, they cancel out
-                if left_result.unit.is_equal(&right_result.unit) {
-                    return Ok(EvalResult::new(
-                        value,
-                        crate::core::units::Unit::dimensionless(),
-                    ));
+                // Extract unit symbols with powers
+                use crate::core::formula::evaluator::{
+                    build_unit_from_symbols, cancel_and_convert_units, extract_unit_symbols,
+                };
+                let (mut left_num, mut left_den) = extract_unit_symbols(&left_result.unit);
+                let (right_num, right_den) = extract_unit_symbols(&right_result.unit);
+
+                // Divide: right's numerator goes to left's denominator, right's denominator goes to left's numerator
+                for (symbol, power) in right_num {
+                    *left_den.entry(symbol).or_insert(0) += power;
+                }
+                for (symbol, power) in right_den {
+                    *left_num.entry(symbol).or_insert(0) += power;
                 }
 
-                // Create compound unit using original symbols (don't cancel yet - that happens in multiply)
-                let compound_symbol = format!(
-                    "{}/{}",
-                    left_result.unit.canonical(),
-                    right_result.unit.canonical()
-                );
+                // Cancel symbols and apply conversions
+                let (final_num, final_den, conversion_factor) =
+                    cancel_and_convert_units(left_num, left_den, self.library);
 
-                // For simple dimensions, create compound unit
-                let compound_unit = if let (Some(left_dim), Some(right_dim)) = (
-                    left_result.unit.dimension().as_simple(),
-                    right_result.unit.dimension().as_simple(),
-                ) {
-                    crate::core::units::Unit::compound(
-                        compound_symbol.clone(),
-                        vec![(left_dim.clone(), 1)],
-                        vec![(right_dim.clone(), 1)],
-                    )
-                } else {
-                    // Fallback: create custom dimension
-                    crate::core::units::Unit::simple(
-                        compound_symbol.clone(),
-                        crate::core::units::BaseDimension::Custom(compound_symbol),
-                    )
-                };
+                // Apply conversion factor to value
+                value *= conversion_factor;
 
-                Ok(EvalResult::new(value, compound_unit))
+                // Build result unit
+                let result_unit = build_unit_from_symbols(final_num, final_den, self.library);
+
+                Ok(EvalResult::new(value, result_unit))
             }
 
             Expr::Negate(expr) => {
