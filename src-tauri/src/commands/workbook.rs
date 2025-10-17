@@ -1599,29 +1599,82 @@ pub fn get_all_row_heights_impl(
     Ok(workbook.active_sheet().get_all_row_heights().clone())
 }
 
-// Column and row insert/delete placeholder implementations
-// TODO: Implement actual cell shifting logic
+// Column and row insert/delete implementations
 
-pub fn insert_column_before_impl(_state: &AppState, _col: String) -> Result<(), String> {
-    Err("Insert column not yet implemented".to_string())
+pub fn insert_column_before_impl(state: &AppState, col: String) -> Result<(), String> {
+    let mut workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
+
+    workbook
+        .active_sheet_mut()
+        .insert_column_before(&col)
+        .map_err(|e| e.to_string())?;
+
+    workbook.mark_dirty();
+    Ok(())
 }
 
-pub fn insert_column_after_impl(_state: &AppState, _col: String) -> Result<(), String> {
-    Err("Insert column not yet implemented".to_string())
+pub fn insert_column_after_impl(state: &AppState, col: String) -> Result<(), String> {
+    let mut workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
+
+    workbook
+        .active_sheet_mut()
+        .insert_column_after(&col)
+        .map_err(|e| e.to_string())?;
+
+    workbook.mark_dirty();
+    Ok(())
 }
 
-pub fn insert_row_before_impl(_state: &AppState, _row: usize) -> Result<(), String> {
-    Err("Insert row not yet implemented".to_string())
+pub fn insert_row_before_impl(state: &AppState, row: usize) -> Result<(), String> {
+    let mut workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
+
+    workbook
+        .active_sheet_mut()
+        .insert_row_before(row)
+        .map_err(|e| e.to_string())?;
+
+    workbook.mark_dirty();
+    Ok(())
 }
 
-pub fn insert_row_after_impl(_state: &AppState, _row: usize) -> Result<(), String> {
-    Err("Insert row not yet implemented".to_string())
+pub fn insert_row_after_impl(state: &AppState, row: usize) -> Result<(), String> {
+    let mut workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
+
+    workbook
+        .active_sheet_mut()
+        .insert_row_after(row)
+        .map_err(|e| e.to_string())?;
+
+    workbook.mark_dirty();
+    Ok(())
 }
 
-pub fn delete_column_impl(_state: &AppState, _col: String) -> Result<(), String> {
-    Err("Delete column not yet implemented".to_string())
+pub fn delete_column_impl(state: &AppState, col: String) -> Result<(), String> {
+    let mut workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
+
+    workbook
+        .active_sheet_mut()
+        .delete_column(&col)
+        .map_err(|e| e.to_string())?;
+
+    workbook.mark_dirty();
+    Ok(())
 }
 
-pub fn delete_row_impl(_state: &AppState, _row: usize) -> Result<(), String> {
-    Err("Delete row not yet implemented".to_string())
+pub fn delete_row_impl(state: &AppState, row: usize) -> Result<(), String> {
+    let mut workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
+
+    workbook
+        .active_sheet_mut()
+        .delete_row(row)
+        .map_err(|e| e.to_string())?;
+
+    workbook.mark_dirty();
+    Ok(())
 }

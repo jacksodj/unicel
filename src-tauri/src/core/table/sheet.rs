@@ -464,6 +464,365 @@ impl Sheet {
     pub fn get_all_row_heights(&self) -> &HashMap<usize, f64> {
         &self.row_heights
     }
+
+    /// Insert a column before the specified column
+    pub fn insert_column_before(&mut self, col: &str) -> Result<(), String> {
+        let target_col_num = col_letter_to_num(col)?;
+
+        // Step 1: Shift all cells at or after target column to the right
+        let mut cells_to_shift: Vec<(CellAddr, Cell)> = self
+            .cells
+            .iter()
+            .filter(|(addr, _)| col_letter_to_num(&addr.col).unwrap_or(0) >= target_col_num)
+            .map(|(addr, cell)| (addr.clone(), cell.clone()))
+            .collect();
+
+        // Sort by column number in descending order (shift from right to left to avoid conflicts)
+        cells_to_shift.sort_by(|a, b| {
+            let col_a = col_letter_to_num(&a.0.col).unwrap_or(0);
+            let col_b = col_letter_to_num(&b.0.col).unwrap_or(0);
+            col_b.cmp(&col_a) // Descending order
+        });
+
+        for (old_addr, cell) in cells_to_shift {
+            let old_col_num = col_letter_to_num(&old_addr.col)?;
+            let new_col = col_num_to_letter(old_col_num + 1)?;
+            let new_addr = CellAddr::new(new_col, old_addr.row);
+
+            self.cells.remove(&old_addr);
+            self.cells.insert(new_addr, cell);
+        }
+
+        // Step 2: Shift column widths (process in reverse order to avoid conflicts)
+        let mut widths_to_shift: Vec<(String, f64)> = self
+            .column_widths
+            .iter()
+            .filter(|(col_str, _)| col_letter_to_num(col_str).unwrap_or(0) >= target_col_num)
+            .map(|(col_str, width)| (col_str.clone(), *width))
+            .collect();
+
+        // Sort by column number in descending order (shift from right to left)
+        widths_to_shift.sort_by(|a, b| {
+            let col_a = col_letter_to_num(&a.0).unwrap_or(0);
+            let col_b = col_letter_to_num(&b.0).unwrap_or(0);
+            col_b.cmp(&col_a) // Descending order
+        });
+
+        for (old_col, width) in widths_to_shift {
+            let old_col_num = col_letter_to_num(&old_col)?;
+            let new_col = col_num_to_letter(old_col_num + 1)?;
+            self.column_widths.remove(&old_col);
+            self.column_widths.insert(new_col, width);
+        }
+
+        // Step 3: Update all formulas
+        self.update_formulas_for_column_shift(target_col_num, 1)?;
+
+        // Step 4: Rebuild dependency graph
+        self.rebuild_dependencies()?;
+
+        Ok(())
+    }
+
+    /// Insert a column after the specified column
+    pub fn insert_column_after(&mut self, col: &str) -> Result<(), String> {
+        let col_num = col_letter_to_num(col)?;
+        let next_col = col_num_to_letter(col_num + 1)?;
+        self.insert_column_before(&next_col)
+    }
+
+    /// Insert a row before the specified row
+    pub fn insert_row_before(&mut self, target_row: usize) -> Result<(), String> {
+        // Step 1: Shift all cells at or after target row down (process in reverse order)
+        let mut cells_to_shift: Vec<(CellAddr, Cell)> = self
+            .cells
+            .iter()
+            .filter(|(addr, _)| addr.row >= target_row)
+            .map(|(addr, cell)| (addr.clone(), cell.clone()))
+            .collect();
+
+        // Sort by row number in descending order (shift from bottom to top to avoid conflicts)
+        cells_to_shift.sort_by(|a, b| b.0.row.cmp(&a.0.row));
+
+        for (old_addr, cell) in cells_to_shift {
+            let new_addr = CellAddr::new(&old_addr.col, old_addr.row + 1);
+            self.cells.remove(&old_addr);
+            self.cells.insert(new_addr, cell);
+        }
+
+        // Step 2: Shift row heights (process in reverse order to avoid conflicts)
+        let mut heights_to_shift: Vec<(usize, f64)> = self
+            .row_heights
+            .iter()
+            .filter(|(row, _)| **row >= target_row)
+            .map(|(row, height)| (*row, *height))
+            .collect();
+
+        // Sort by row number in descending order
+        heights_to_shift.sort_by(|a, b| b.0.cmp(&a.0));
+
+        for (old_row, height) in heights_to_shift {
+            self.row_heights.remove(&old_row);
+            self.row_heights.insert(old_row + 1, height);
+        }
+
+        // Step 3: Update all formulas
+        self.update_formulas_for_row_shift(target_row, 1)?;
+
+        // Step 4: Rebuild dependency graph
+        self.rebuild_dependencies()?;
+
+        Ok(())
+    }
+
+    /// Insert a row after the specified row
+    pub fn insert_row_after(&mut self, row: usize) -> Result<(), String> {
+        self.insert_row_before(row + 1)
+    }
+
+    /// Delete a column
+    pub fn delete_column(&mut self, col: &str) -> Result<(), String> {
+        let target_col_num = col_letter_to_num(col)?;
+
+        // Step 1: Remove all cells in the target column
+        let cells_to_remove: Vec<CellAddr> = self
+            .cells
+            .keys()
+            .filter(|addr| col_letter_to_num(&addr.col).unwrap_or(0) == target_col_num)
+            .cloned()
+            .collect();
+
+        for addr in cells_to_remove {
+            self.cells.remove(&addr);
+        }
+
+        // Step 2: Shift all cells after target column to the left
+        let cells_to_shift: Vec<(CellAddr, Cell)> = self
+            .cells
+            .iter()
+            .filter(|(addr, _)| col_letter_to_num(&addr.col).unwrap_or(0) > target_col_num)
+            .map(|(addr, cell)| (addr.clone(), cell.clone()))
+            .collect();
+
+        for (old_addr, cell) in cells_to_shift {
+            let old_col_num = col_letter_to_num(&old_addr.col)?;
+            let new_col = col_num_to_letter(old_col_num - 1)?;
+            let new_addr = CellAddr::new(new_col, old_addr.row);
+
+            self.cells.remove(&old_addr);
+            self.cells.insert(new_addr, cell);
+        }
+
+        // Step 3: Shift column widths
+        self.column_widths.remove(col);
+
+        let widths_to_shift: Vec<(String, f64)> = self
+            .column_widths
+            .iter()
+            .filter(|(col_str, _)| col_letter_to_num(col_str).unwrap_or(0) > target_col_num)
+            .map(|(col_str, width)| (col_str.clone(), *width))
+            .collect();
+
+        for (old_col, width) in widths_to_shift {
+            let old_col_num = col_letter_to_num(&old_col)?;
+            let new_col = col_num_to_letter(old_col_num - 1)?;
+            self.column_widths.remove(&old_col);
+            self.column_widths.insert(new_col, width);
+        }
+
+        // Step 4: Update all formulas (shift left and mark deleted refs as #REF!)
+        self.update_formulas_for_column_delete(target_col_num)?;
+
+        // Step 5: Rebuild dependency graph
+        self.rebuild_dependencies()?;
+
+        Ok(())
+    }
+
+    /// Delete a row
+    pub fn delete_row(&mut self, target_row: usize) -> Result<(), String> {
+        // Step 1: Remove all cells in the target row
+        let cells_to_remove: Vec<CellAddr> = self
+            .cells
+            .keys()
+            .filter(|addr| addr.row == target_row)
+            .cloned()
+            .collect();
+
+        for addr in cells_to_remove {
+            self.cells.remove(&addr);
+        }
+
+        // Step 2: Shift all cells after target row up
+        let cells_to_shift: Vec<(CellAddr, Cell)> = self
+            .cells
+            .iter()
+            .filter(|(addr, _)| addr.row > target_row)
+            .map(|(addr, cell)| (addr.clone(), cell.clone()))
+            .collect();
+
+        for (old_addr, cell) in cells_to_shift {
+            let new_addr = CellAddr::new(&old_addr.col, old_addr.row - 1);
+            self.cells.remove(&old_addr);
+            self.cells.insert(new_addr, cell);
+        }
+
+        // Step 3: Shift row heights
+        self.row_heights.remove(&target_row);
+
+        let heights_to_shift: Vec<(usize, f64)> = self
+            .row_heights
+            .iter()
+            .filter(|(row, _)| **row > target_row)
+            .map(|(row, height)| (*row, *height))
+            .collect();
+
+        for (old_row, height) in heights_to_shift {
+            self.row_heights.remove(&old_row);
+            self.row_heights.insert(old_row - 1, height);
+        }
+
+        // Step 4: Update all formulas (shift up and mark deleted refs as #REF!)
+        self.update_formulas_for_row_delete(target_row)?;
+
+        // Step 5: Rebuild dependency graph
+        self.rebuild_dependencies()?;
+
+        Ok(())
+    }
+
+    /// Update formulas when columns are shifted right
+    fn update_formulas_for_column_shift(
+        &mut self,
+        from_col: usize,
+        offset: isize,
+    ) -> Result<(), String> {
+        let cells_with_formulas: Vec<(CellAddr, String)> = self
+            .cells
+            .iter()
+            .filter_map(|(addr, cell)| {
+                cell.formula()
+                    .map(|formula| (addr.clone(), formula.to_string()))
+            })
+            .collect();
+
+        for (addr, formula) in cells_with_formulas {
+            if let Ok(expr) = parse_formula(&formula) {
+                let updated_expr = shift_expr_columns(&expr, from_col, offset);
+                let updated_formula = format!("={}", updated_expr);
+
+                if let Some(cell) = self.cells.get_mut(&addr) {
+                    *cell = Cell::with_formula(updated_formula);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Update formulas when rows are shifted down
+    fn update_formulas_for_row_shift(
+        &mut self,
+        from_row: usize,
+        offset: isize,
+    ) -> Result<(), String> {
+        let cells_with_formulas: Vec<(CellAddr, String)> = self
+            .cells
+            .iter()
+            .filter_map(|(addr, cell)| {
+                cell.formula()
+                    .map(|formula| (addr.clone(), formula.to_string()))
+            })
+            .collect();
+
+        for (addr, formula) in cells_with_formulas {
+            if let Ok(expr) = parse_formula(&formula) {
+                let updated_expr = shift_expr_rows(&expr, from_row, offset);
+                let updated_formula = format!("={}", updated_expr);
+
+                if let Some(cell) = self.cells.get_mut(&addr) {
+                    *cell = Cell::with_formula(updated_formula);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Update formulas when a column is deleted
+    fn update_formulas_for_column_delete(&mut self, deleted_col: usize) -> Result<(), String> {
+        let cells_with_formulas: Vec<(CellAddr, String)> = self
+            .cells
+            .iter()
+            .filter_map(|(addr, cell)| {
+                cell.formula()
+                    .map(|formula| (addr.clone(), formula.to_string()))
+            })
+            .collect();
+
+        for (addr, formula) in cells_with_formulas {
+            if let Ok(expr) = parse_formula(&formula) {
+                let updated_expr = delete_column_in_expr(&expr, deleted_col);
+                let updated_formula = format!("={}", updated_expr);
+
+                if let Some(cell) = self.cells.get_mut(&addr) {
+                    *cell = Cell::with_formula(updated_formula);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Update formulas when a row is deleted
+    fn update_formulas_for_row_delete(&mut self, deleted_row: usize) -> Result<(), String> {
+        let cells_with_formulas: Vec<(CellAddr, String)> = self
+            .cells
+            .iter()
+            .filter_map(|(addr, cell)| {
+                cell.formula()
+                    .map(|formula| (addr.clone(), formula.to_string()))
+            })
+            .collect();
+
+        for (addr, formula) in cells_with_formulas {
+            if let Ok(expr) = parse_formula(&formula) {
+                let updated_expr = delete_row_in_expr(&expr, deleted_row);
+                let updated_formula = format!("={}", updated_expr);
+
+                if let Some(cell) = self.cells.get_mut(&addr) {
+                    *cell = Cell::with_formula(updated_formula);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Rebuild dependency graph from all formulas
+    fn rebuild_dependencies(&mut self) -> Result<(), String> {
+        self.dependencies = DependencyGraph::new();
+
+        let cells_with_formulas: Vec<(CellAddr, String)> = self
+            .cells
+            .iter()
+            .filter_map(|(addr, cell)| {
+                cell.formula()
+                    .map(|formula| (addr.clone(), formula.to_string()))
+            })
+            .collect();
+
+        for (addr, formula) in cells_with_formulas {
+            if let Ok(expr) = parse_formula(&formula) {
+                let refs = extract_cell_refs(&expr, None);
+                for dep in refs {
+                    self.dependencies.add_dependency(addr.clone(), dep);
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for Sheet {
@@ -3732,4 +4091,363 @@ fn convert_compound_unit_for_formula(
     }
 
     None
+}
+
+/// Convert column letter to number (A=1, B=2, Z=26, AA=27, etc.)
+fn col_letter_to_num(col: &str) -> Result<usize, String> {
+    if col.is_empty() {
+        return Err("Empty column letter".to_string());
+    }
+
+    let mut result = 0;
+    for ch in col.chars() {
+        if !ch.is_ascii_alphabetic() {
+            return Err(format!("Invalid column letter: {}", col));
+        }
+        result = result * 26 + (ch.to_ascii_uppercase() as usize - 'A' as usize + 1);
+    }
+
+    Ok(result)
+}
+
+/// Convert column number to letter (1=A, 2=B, 26=Z, 27=AA, etc.)
+fn col_num_to_letter(mut num: usize) -> Result<String, String> {
+    if num == 0 {
+        return Err("Column number must be >= 1".to_string());
+    }
+
+    let mut result = String::new();
+    while num > 0 {
+        let rem = (num - 1) % 26;
+        result.push((b'A' + rem as u8) as char);
+        num = (num - 1) / 26;
+    }
+
+    Ok(result.chars().rev().collect())
+}
+
+/// Shift columns in an expression
+fn shift_expr_columns(expr: &Expr, from_col: usize, offset: isize) -> Expr {
+    match expr {
+        Expr::CellRef { col, row } => {
+            if let Ok(col_num) = col_letter_to_num(col) {
+                if col_num >= from_col {
+                    let new_col_num = (col_num as isize + offset) as usize;
+                    if let Ok(new_col) = col_num_to_letter(new_col_num) {
+                        return Expr::CellRef {
+                            col: new_col,
+                            row: *row,
+                        };
+                    }
+                }
+            }
+            expr.clone()
+        }
+        Expr::Range { start, end } => Expr::Range {
+            start: Box::new(shift_expr_columns(start, from_col, offset)),
+            end: Box::new(shift_expr_columns(end, from_col, offset)),
+        },
+        Expr::Add(left, right) => Expr::Add(
+            Box::new(shift_expr_columns(left, from_col, offset)),
+            Box::new(shift_expr_columns(right, from_col, offset)),
+        ),
+        Expr::Subtract(left, right) => Expr::Subtract(
+            Box::new(shift_expr_columns(left, from_col, offset)),
+            Box::new(shift_expr_columns(right, from_col, offset)),
+        ),
+        Expr::Multiply(left, right) => Expr::Multiply(
+            Box::new(shift_expr_columns(left, from_col, offset)),
+            Box::new(shift_expr_columns(right, from_col, offset)),
+        ),
+        Expr::Divide(left, right) => Expr::Divide(
+            Box::new(shift_expr_columns(left, from_col, offset)),
+            Box::new(shift_expr_columns(right, from_col, offset)),
+        ),
+        Expr::Negate(inner) => Expr::Negate(Box::new(shift_expr_columns(inner, from_col, offset))),
+        Expr::Function { name, args } => Expr::Function {
+            name: name.clone(),
+            args: args
+                .iter()
+                .map(|arg| shift_expr_columns(arg, from_col, offset))
+                .collect(),
+        },
+        Expr::GreaterThan(left, right) => Expr::GreaterThan(
+            Box::new(shift_expr_columns(left, from_col, offset)),
+            Box::new(shift_expr_columns(right, from_col, offset)),
+        ),
+        Expr::LessThan(left, right) => Expr::LessThan(
+            Box::new(shift_expr_columns(left, from_col, offset)),
+            Box::new(shift_expr_columns(right, from_col, offset)),
+        ),
+        Expr::GreaterOrEqual(left, right) => Expr::GreaterOrEqual(
+            Box::new(shift_expr_columns(left, from_col, offset)),
+            Box::new(shift_expr_columns(right, from_col, offset)),
+        ),
+        Expr::LessOrEqual(left, right) => Expr::LessOrEqual(
+            Box::new(shift_expr_columns(left, from_col, offset)),
+            Box::new(shift_expr_columns(right, from_col, offset)),
+        ),
+        Expr::Equal(left, right) => Expr::Equal(
+            Box::new(shift_expr_columns(left, from_col, offset)),
+            Box::new(shift_expr_columns(right, from_col, offset)),
+        ),
+        Expr::NotEqual(left, right) => Expr::NotEqual(
+            Box::new(shift_expr_columns(left, from_col, offset)),
+            Box::new(shift_expr_columns(right, from_col, offset)),
+        ),
+        Expr::And(left, right) => Expr::And(
+            Box::new(shift_expr_columns(left, from_col, offset)),
+            Box::new(shift_expr_columns(right, from_col, offset)),
+        ),
+        Expr::Or(left, right) => Expr::Or(
+            Box::new(shift_expr_columns(left, from_col, offset)),
+            Box::new(shift_expr_columns(right, from_col, offset)),
+        ),
+        Expr::Not(inner) => Expr::Not(Box::new(shift_expr_columns(inner, from_col, offset))),
+        _ => expr.clone(),
+    }
+}
+
+/// Shift rows in an expression
+fn shift_expr_rows(expr: &Expr, from_row: usize, offset: isize) -> Expr {
+    match expr {
+        Expr::CellRef { col, row } => {
+            if *row >= from_row {
+                let new_row = (*row as isize + offset) as usize;
+                return Expr::CellRef {
+                    col: col.clone(),
+                    row: new_row,
+                };
+            }
+            expr.clone()
+        }
+        Expr::Range { start, end } => Expr::Range {
+            start: Box::new(shift_expr_rows(start, from_row, offset)),
+            end: Box::new(shift_expr_rows(end, from_row, offset)),
+        },
+        Expr::Add(left, right) => Expr::Add(
+            Box::new(shift_expr_rows(left, from_row, offset)),
+            Box::new(shift_expr_rows(right, from_row, offset)),
+        ),
+        Expr::Subtract(left, right) => Expr::Subtract(
+            Box::new(shift_expr_rows(left, from_row, offset)),
+            Box::new(shift_expr_rows(right, from_row, offset)),
+        ),
+        Expr::Multiply(left, right) => Expr::Multiply(
+            Box::new(shift_expr_rows(left, from_row, offset)),
+            Box::new(shift_expr_rows(right, from_row, offset)),
+        ),
+        Expr::Divide(left, right) => Expr::Divide(
+            Box::new(shift_expr_rows(left, from_row, offset)),
+            Box::new(shift_expr_rows(right, from_row, offset)),
+        ),
+        Expr::Negate(inner) => Expr::Negate(Box::new(shift_expr_rows(inner, from_row, offset))),
+        Expr::Function { name, args } => Expr::Function {
+            name: name.clone(),
+            args: args
+                .iter()
+                .map(|arg| shift_expr_rows(arg, from_row, offset))
+                .collect(),
+        },
+        Expr::GreaterThan(left, right) => Expr::GreaterThan(
+            Box::new(shift_expr_rows(left, from_row, offset)),
+            Box::new(shift_expr_rows(right, from_row, offset)),
+        ),
+        Expr::LessThan(left, right) => Expr::LessThan(
+            Box::new(shift_expr_rows(left, from_row, offset)),
+            Box::new(shift_expr_rows(right, from_row, offset)),
+        ),
+        Expr::GreaterOrEqual(left, right) => Expr::GreaterOrEqual(
+            Box::new(shift_expr_rows(left, from_row, offset)),
+            Box::new(shift_expr_rows(right, from_row, offset)),
+        ),
+        Expr::LessOrEqual(left, right) => Expr::LessOrEqual(
+            Box::new(shift_expr_rows(left, from_row, offset)),
+            Box::new(shift_expr_rows(right, from_row, offset)),
+        ),
+        Expr::Equal(left, right) => Expr::Equal(
+            Box::new(shift_expr_rows(left, from_row, offset)),
+            Box::new(shift_expr_rows(right, from_row, offset)),
+        ),
+        Expr::NotEqual(left, right) => Expr::NotEqual(
+            Box::new(shift_expr_rows(left, from_row, offset)),
+            Box::new(shift_expr_rows(right, from_row, offset)),
+        ),
+        Expr::And(left, right) => Expr::And(
+            Box::new(shift_expr_rows(left, from_row, offset)),
+            Box::new(shift_expr_rows(right, from_row, offset)),
+        ),
+        Expr::Or(left, right) => Expr::Or(
+            Box::new(shift_expr_rows(left, from_row, offset)),
+            Box::new(shift_expr_rows(right, from_row, offset)),
+        ),
+        Expr::Not(inner) => Expr::Not(Box::new(shift_expr_rows(inner, from_row, offset))),
+        _ => expr.clone(),
+    }
+}
+
+/// Delete a column from an expression (mark deleted refs as #REF!)
+fn delete_column_in_expr(expr: &Expr, deleted_col: usize) -> Expr {
+    match expr {
+        Expr::CellRef { col, row } => {
+            if let Ok(col_num) = col_letter_to_num(col) {
+                if col_num == deleted_col {
+                    // Reference to deleted column becomes #REF!
+                    return Expr::String("#REF!".to_string());
+                } else if col_num > deleted_col {
+                    // Shift left
+                    if let Ok(new_col) = col_num_to_letter(col_num - 1) {
+                        return Expr::CellRef {
+                            col: new_col,
+                            row: *row,
+                        };
+                    }
+                }
+            }
+            expr.clone()
+        }
+        Expr::Range { start, end } => Expr::Range {
+            start: Box::new(delete_column_in_expr(start, deleted_col)),
+            end: Box::new(delete_column_in_expr(end, deleted_col)),
+        },
+        Expr::Add(left, right) => Expr::Add(
+            Box::new(delete_column_in_expr(left, deleted_col)),
+            Box::new(delete_column_in_expr(right, deleted_col)),
+        ),
+        Expr::Subtract(left, right) => Expr::Subtract(
+            Box::new(delete_column_in_expr(left, deleted_col)),
+            Box::new(delete_column_in_expr(right, deleted_col)),
+        ),
+        Expr::Multiply(left, right) => Expr::Multiply(
+            Box::new(delete_column_in_expr(left, deleted_col)),
+            Box::new(delete_column_in_expr(right, deleted_col)),
+        ),
+        Expr::Divide(left, right) => Expr::Divide(
+            Box::new(delete_column_in_expr(left, deleted_col)),
+            Box::new(delete_column_in_expr(right, deleted_col)),
+        ),
+        Expr::Negate(inner) => Expr::Negate(Box::new(delete_column_in_expr(inner, deleted_col))),
+        Expr::Function { name, args } => Expr::Function {
+            name: name.clone(),
+            args: args
+                .iter()
+                .map(|arg| delete_column_in_expr(arg, deleted_col))
+                .collect(),
+        },
+        Expr::GreaterThan(left, right) => Expr::GreaterThan(
+            Box::new(delete_column_in_expr(left, deleted_col)),
+            Box::new(delete_column_in_expr(right, deleted_col)),
+        ),
+        Expr::LessThan(left, right) => Expr::LessThan(
+            Box::new(delete_column_in_expr(left, deleted_col)),
+            Box::new(delete_column_in_expr(right, deleted_col)),
+        ),
+        Expr::GreaterOrEqual(left, right) => Expr::GreaterOrEqual(
+            Box::new(delete_column_in_expr(left, deleted_col)),
+            Box::new(delete_column_in_expr(right, deleted_col)),
+        ),
+        Expr::LessOrEqual(left, right) => Expr::LessOrEqual(
+            Box::new(delete_column_in_expr(left, deleted_col)),
+            Box::new(delete_column_in_expr(right, deleted_col)),
+        ),
+        Expr::Equal(left, right) => Expr::Equal(
+            Box::new(delete_column_in_expr(left, deleted_col)),
+            Box::new(delete_column_in_expr(right, deleted_col)),
+        ),
+        Expr::NotEqual(left, right) => Expr::NotEqual(
+            Box::new(delete_column_in_expr(left, deleted_col)),
+            Box::new(delete_column_in_expr(right, deleted_col)),
+        ),
+        Expr::And(left, right) => Expr::And(
+            Box::new(delete_column_in_expr(left, deleted_col)),
+            Box::new(delete_column_in_expr(right, deleted_col)),
+        ),
+        Expr::Or(left, right) => Expr::Or(
+            Box::new(delete_column_in_expr(left, deleted_col)),
+            Box::new(delete_column_in_expr(right, deleted_col)),
+        ),
+        Expr::Not(inner) => Expr::Not(Box::new(delete_column_in_expr(inner, deleted_col))),
+        _ => expr.clone(),
+    }
+}
+
+/// Delete a row from an expression (mark deleted refs as #REF!)
+fn delete_row_in_expr(expr: &Expr, deleted_row: usize) -> Expr {
+    match expr {
+        Expr::CellRef { col, row } => {
+            if *row == deleted_row {
+                // Reference to deleted row becomes #REF!
+                return Expr::String("#REF!".to_string());
+            } else if *row > deleted_row {
+                // Shift up
+                return Expr::CellRef {
+                    col: col.clone(),
+                    row: row - 1,
+                };
+            }
+            expr.clone()
+        }
+        Expr::Range { start, end } => Expr::Range {
+            start: Box::new(delete_row_in_expr(start, deleted_row)),
+            end: Box::new(delete_row_in_expr(end, deleted_row)),
+        },
+        Expr::Add(left, right) => Expr::Add(
+            Box::new(delete_row_in_expr(left, deleted_row)),
+            Box::new(delete_row_in_expr(right, deleted_row)),
+        ),
+        Expr::Subtract(left, right) => Expr::Subtract(
+            Box::new(delete_row_in_expr(left, deleted_row)),
+            Box::new(delete_row_in_expr(right, deleted_row)),
+        ),
+        Expr::Multiply(left, right) => Expr::Multiply(
+            Box::new(delete_row_in_expr(left, deleted_row)),
+            Box::new(delete_row_in_expr(right, deleted_row)),
+        ),
+        Expr::Divide(left, right) => Expr::Divide(
+            Box::new(delete_row_in_expr(left, deleted_row)),
+            Box::new(delete_row_in_expr(right, deleted_row)),
+        ),
+        Expr::Negate(inner) => Expr::Negate(Box::new(delete_row_in_expr(inner, deleted_row))),
+        Expr::Function { name, args } => Expr::Function {
+            name: name.clone(),
+            args: args
+                .iter()
+                .map(|arg| delete_row_in_expr(arg, deleted_row))
+                .collect(),
+        },
+        Expr::GreaterThan(left, right) => Expr::GreaterThan(
+            Box::new(delete_row_in_expr(left, deleted_row)),
+            Box::new(delete_row_in_expr(right, deleted_row)),
+        ),
+        Expr::LessThan(left, right) => Expr::LessThan(
+            Box::new(delete_row_in_expr(left, deleted_row)),
+            Box::new(delete_row_in_expr(right, deleted_row)),
+        ),
+        Expr::GreaterOrEqual(left, right) => Expr::GreaterOrEqual(
+            Box::new(delete_row_in_expr(left, deleted_row)),
+            Box::new(delete_row_in_expr(right, deleted_row)),
+        ),
+        Expr::LessOrEqual(left, right) => Expr::LessOrEqual(
+            Box::new(delete_row_in_expr(left, deleted_row)),
+            Box::new(delete_row_in_expr(right, deleted_row)),
+        ),
+        Expr::Equal(left, right) => Expr::Equal(
+            Box::new(delete_row_in_expr(left, deleted_row)),
+            Box::new(delete_row_in_expr(right, deleted_row)),
+        ),
+        Expr::NotEqual(left, right) => Expr::NotEqual(
+            Box::new(delete_row_in_expr(left, deleted_row)),
+            Box::new(delete_row_in_expr(right, deleted_row)),
+        ),
+        Expr::And(left, right) => Expr::And(
+            Box::new(delete_row_in_expr(left, deleted_row)),
+            Box::new(delete_row_in_expr(right, deleted_row)),
+        ),
+        Expr::Or(left, right) => Expr::Or(
+            Box::new(delete_row_in_expr(left, deleted_row)),
+            Box::new(delete_row_in_expr(right, deleted_row)),
+        ),
+        Expr::Not(inner) => Expr::Not(Box::new(delete_row_in_expr(inner, deleted_row))),
+        _ => expr.clone(),
+    }
 }
