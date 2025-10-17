@@ -34,6 +34,7 @@ export default function Grid({
   const [isDirty, setIsDirty] = useState(false);
   const [initialEditValue, setInitialEditValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const gridContainerRef = useRef<HTMLDivElement>(null);
 
   // Use local state that syncs with prop to ensure immediate visual updates
   const [localSelectedCell, setLocalSelectedCell] = useState<CellAddress | null>(selectedCell || null);
@@ -76,6 +77,24 @@ export default function Grid({
       setPickerCell(null);
     }
   }, [editValue]);
+
+  // Auto-scroll to keep selected cell visible
+  useEffect(() => {
+    if (!selectedCell || !gridContainerRef.current) return;
+
+    // Find the selected cell element using data attribute
+    const cellElement = gridContainerRef.current.querySelector(
+      `[data-cell="${selectedCell.col}${selectedCell.row}"]`
+    );
+
+    if (cellElement) {
+      cellElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',   // Only scroll vertically if needed
+        inline: 'nearest'   // Only scroll horizontally if needed
+      });
+    }
+  }, [selectedCell]);
 
   // Handle arrow key navigation in normal mode (not editing)
   useEffect(() => {
@@ -285,18 +304,11 @@ export default function Grid({
 
     // Handle arrow keys for unmodified cells or formula mode
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      // Handle formula mode with cell picker
+      // In formula mode, arrow keys activate/move the picker and STAY in edit mode
       if (isFormulaMode) {
         e.preventDefault();
 
-        // Initialize picker on first arrow key press (start from current cell)
-        if (!pickerCell) {
-          // Start picker at current editing cell
-          setPickerCell({ col, row });
-          return; // Don't move on first press, just initialize
-        }
-
-        // Move picker
+        // Move picker (on first press, movePicker will initialize from editingCell)
         switch (e.key) {
           case 'ArrowUp':
             movePicker(0, -1);
@@ -311,11 +323,11 @@ export default function Grid({
             movePicker(1, 0);
             break;
         }
-        return;
+        return; // STAY in edit mode - do NOT exit
       }
 
-      // If cell is not dirty and not in formula mode, move to adjacent cell
-      if (!isDirty && onCellSelect && onCellEdit) {
+      // Non-formula mode: arrow keys save the edit and navigate to new cell
+      if (onCellSelect && onCellEdit) {
         e.preventDefault();
 
         const currentColNum = colLetterToNumber(col);
@@ -337,9 +349,13 @@ export default function Grid({
             break;
         }
 
-        // Cancel editing without saving (cell was not modified)
-        // This ensures we don't create empty cells when just navigating
-        onCellEdit({ col, row }, '');
+        // If cell was modified, save the edit; otherwise cancel without saving
+        if (isDirty) {
+          onCellEdit({ col, row }, editValue);
+        } else {
+          onCellEdit({ col, row }, '');
+        }
+
         // Move selection to new cell
         const newAddress = { col: newCol, row: newRow };
         // Optimistically update local state immediately for instant visual feedback
@@ -421,7 +437,7 @@ export default function Grid({
   };
 
   return (
-    <div className="overflow-auto h-full w-full border border-gray-300">
+    <div ref={gridContainerRef} className="overflow-auto h-full w-full border border-gray-300">
       <table className="border-collapse">
         <thead className="sticky top-0 bg-gray-100 z-10">
           <tr>
@@ -457,16 +473,23 @@ export default function Grid({
                 const hasFormula = Boolean(cell?.formula && cell.formula.length > 0);
                 const isNumeric = cell?.value.type === 'number';
 
+                // Highlight logic:
+                // 1. Picker cell gets green highlight when active (isPicker)
+                // 2. Editing cell gets blue highlight when being edited (isEditing)
+                // 3. Selected cell gets blue highlight when not editing (isSelected && !editingCell)
+                const shouldHighlight = isPicker || isEditing || (isSelected && !editingCell);
+
                 return (
                   <td
                     key={address}
+                    data-cell={`${col}${row}`}
                     className={`
                       border border-gray-300 min-w-[100px] h-8 px-0 text-sm relative
                       ${!isEditing && 'cursor-pointer hover:bg-blue-50 transition-colors'}
-                      ${isSelected ? 'bg-blue-100 ring-2 ring-blue-500 ring-inset' : ''}
+                      ${shouldHighlight ? 'bg-blue-100 ring-2 ring-blue-500 ring-inset' : ''}
                       ${isPicker ? 'bg-green-200 ring-2 ring-green-500 ring-inset' : ''}
                       ${hasWarning ? 'bg-orange-50 border-orange-300' : ''}
-                      ${hasFormula && !hasWarning && !isSelected ? 'bg-blue-50/60' : ''}
+                      ${hasFormula && !hasWarning && !shouldHighlight ? 'bg-blue-50/60' : ''}
                     `}
                     onClick={() => !isEditing && handleCellClick(col, row)}
                     onDoubleClick={() => !isEditing && onCellDoubleClick?.({ col, row })}

@@ -1,5 +1,7 @@
 // Excel import/export functionality
 
+use crate::core::formula::ast::Expr;
+use crate::core::formula::parser::parse_formula;
 use crate::core::table::Sheet;
 use crate::core::units::UnitLibrary;
 use crate::core::workbook::Workbook;
@@ -264,6 +266,63 @@ fn expand_convert_formula(
     ))
 }
 
+/// Normalize potential cell references to uppercase while preserving strings and other content
+/// This allows the parser to handle case-insensitive cell references (e.g., "b1" -> "B1")
+/// Preserves: string literals (in quotes), function names (before parentheses)
+fn normalize_cell_refs_to_uppercase(formula: &str) -> String {
+    let mut result = String::new();
+    let mut chars = formula.chars().peekable();
+    let mut in_string = false;
+
+    while let Some(ch) = chars.next() {
+        if ch == '"' {
+            // Toggle string mode
+            in_string = !in_string;
+            result.push(ch);
+        } else if in_string {
+            // Inside string literal - preserve everything
+            result.push(ch);
+        } else if ch.is_ascii_alphabetic() {
+            // Potential cell reference or function name
+            let mut word = String::new();
+            word.push(ch);
+
+            // Collect the rest of the word
+            while let Some(&next_ch) = chars.peek() {
+                if next_ch.is_ascii_alphabetic() {
+                    word.push(chars.next().unwrap());
+                } else {
+                    break;
+                }
+            }
+
+            // Check if this is followed by digits (making it a cell reference)
+            let mut digits = String::new();
+            while let Some(&next_ch) = chars.peek() {
+                if next_ch.is_ascii_digit() {
+                    digits.push(chars.next().unwrap());
+                } else {
+                    break;
+                }
+            }
+
+            if !digits.is_empty() {
+                // This is a cell reference - uppercase it
+                result.push_str(&word.to_uppercase());
+                result.push_str(&digits);
+            } else {
+                // Not a cell reference - preserve original case (might be function name or named ref)
+                result.push_str(&word);
+            }
+        } else {
+            // Non-alphabetic character - preserve as-is
+            result.push(ch);
+        }
+    }
+
+    result
+}
+
 /// Parse a cell reference like "A1", "B2", etc.
 /// Valid format: LETTERS followed by NUMBERS (e.g., "A1", "AB123")
 /// Invalid: "1m" (numbers before letters)
@@ -299,9 +358,56 @@ fn parse_cell_ref(s: &str) -> Option<crate::core::table::CellAddr> {
 }
 
 /// Transform cell references in a formula to account for doubled columns in Excel export
+/// Also converts string concatenation (using +) to Excel's CONCATENATE function
 /// Example: "=A1+B2" becomes "=A1+C2" because B maps to Excel column C
+/// Example: "=A1 + " world"" becomes "=CONCATENATE(A1, " world")"
 /// Handles both uppercase and lowercase cell references
 fn transform_formula_for_excel(formula: &str) -> String {
+    // Strip leading = if present
+    let (has_equals, formula_to_parse) = if let Some(stripped) = formula.strip_prefix('=') {
+        (true, stripped)
+    } else {
+        (false, formula)
+    };
+
+    // Normalize cell references to uppercase for parsing
+    // The parser requires uppercase cell references (A1, B2) to distinguish from named refs (tax_rate)
+    // But we want to handle lowercase input (b1) gracefully
+    let normalized = normalize_cell_refs_to_uppercase(formula_to_parse);
+
+    // Try to parse the formula into an AST
+    match parse_formula(&normalized) {
+        Ok(ast) => {
+            // Transform the AST to convert string concatenation to CONCATENATE
+            let transformed_ast = transform_ast_for_excel(ast);
+
+            // Convert back to string
+            let excel_formula = expr_to_excel_string(&transformed_ast);
+
+            // Add back the = prefix if it was present
+            if has_equals {
+                format!("={}", excel_formula)
+            } else {
+                excel_formula
+            }
+        }
+        Err(e) => {
+            // If parsing fails, fall back to the old string-based transformation
+            tracing::warn!(
+                "Failed to parse formula '{}': {}. Using fallback transformation.",
+                formula,
+                e
+            );
+            transform_formula_for_excel_fallback(formula)
+        }
+    }
+}
+
+/// Fallback transformation for formulas that can't be parsed
+/// Transform cell references in a formula to account for doubled columns in Excel export
+/// Example: "=A1+B2" becomes "=A1+C2" because B maps to Excel column C
+/// Handles both uppercase and lowercase cell references
+fn transform_formula_for_excel_fallback(formula: &str) -> String {
     let mut result = String::new();
     let mut chars = formula.chars().peekable();
 
@@ -396,6 +502,236 @@ fn extract_unit_from_target(s: &str) -> Option<String> {
 /// Check if a unit is a temperature unit
 fn is_temperature_unit(unit: &str) -> bool {
     matches!(unit, "C" | "F" | "K")
+}
+
+/// Check if an expression contains string literals (recursively)
+fn contains_string_literal(expr: &Expr) -> bool {
+    match expr {
+        Expr::String(_) => true,
+        Expr::Add(left, right)
+        | Expr::Subtract(left, right)
+        | Expr::Multiply(left, right)
+        | Expr::Divide(left, right) => {
+            contains_string_literal(left) || contains_string_literal(right)
+        }
+        Expr::Negate(inner) | Expr::Not(inner) => contains_string_literal(inner),
+        Expr::Function { args, .. } => args.iter().any(contains_string_literal),
+        Expr::Range { start, end } => {
+            contains_string_literal(start) || contains_string_literal(end)
+        }
+        Expr::GreaterThan(left, right)
+        | Expr::LessThan(left, right)
+        | Expr::GreaterOrEqual(left, right)
+        | Expr::LessOrEqual(left, right)
+        | Expr::Equal(left, right)
+        | Expr::NotEqual(left, right)
+        | Expr::And(left, right)
+        | Expr::Or(left, right) => contains_string_literal(left) || contains_string_literal(right),
+        _ => false,
+    }
+}
+
+/// Transform an AST to convert string concatenation (Add with string operands) to CONCATENATE function
+fn transform_ast_for_excel(expr: Expr) -> Expr {
+    match expr {
+        // If it's an Add operation with any string literal, convert to CONCATENATE
+        Expr::Add(left, right) => {
+            let transformed_left = transform_ast_for_excel(*left);
+            let transformed_right = transform_ast_for_excel(*right);
+
+            // Check if either operand contains a string literal
+            if contains_string_literal(&transformed_left)
+                || contains_string_literal(&transformed_right)
+            {
+                // Convert to CONCATENATE function call
+                Expr::Function {
+                    name: "CONCATENATE".to_string(),
+                    args: vec![transformed_left, transformed_right],
+                }
+            } else {
+                // Keep as addition for numeric operations
+                Expr::Add(Box::new(transformed_left), Box::new(transformed_right))
+            }
+        }
+        // Recursively transform other binary operations
+        Expr::Subtract(left, right) => Expr::Subtract(
+            Box::new(transform_ast_for_excel(*left)),
+            Box::new(transform_ast_for_excel(*right)),
+        ),
+        Expr::Multiply(left, right) => Expr::Multiply(
+            Box::new(transform_ast_for_excel(*left)),
+            Box::new(transform_ast_for_excel(*right)),
+        ),
+        Expr::Divide(left, right) => Expr::Divide(
+            Box::new(transform_ast_for_excel(*left)),
+            Box::new(transform_ast_for_excel(*right)),
+        ),
+        Expr::Negate(inner) => Expr::Negate(Box::new(transform_ast_for_excel(*inner))),
+        Expr::Function { name, args } => Expr::Function {
+            name,
+            args: args.into_iter().map(transform_ast_for_excel).collect(),
+        },
+        Expr::Range { start, end } => Expr::Range {
+            start: Box::new(transform_ast_for_excel(*start)),
+            end: Box::new(transform_ast_for_excel(*end)),
+        },
+        Expr::GreaterThan(left, right) => Expr::GreaterThan(
+            Box::new(transform_ast_for_excel(*left)),
+            Box::new(transform_ast_for_excel(*right)),
+        ),
+        Expr::LessThan(left, right) => Expr::LessThan(
+            Box::new(transform_ast_for_excel(*left)),
+            Box::new(transform_ast_for_excel(*right)),
+        ),
+        Expr::GreaterOrEqual(left, right) => Expr::GreaterOrEqual(
+            Box::new(transform_ast_for_excel(*left)),
+            Box::new(transform_ast_for_excel(*right)),
+        ),
+        Expr::LessOrEqual(left, right) => Expr::LessOrEqual(
+            Box::new(transform_ast_for_excel(*left)),
+            Box::new(transform_ast_for_excel(*right)),
+        ),
+        Expr::Equal(left, right) => Expr::Equal(
+            Box::new(transform_ast_for_excel(*left)),
+            Box::new(transform_ast_for_excel(*right)),
+        ),
+        Expr::NotEqual(left, right) => Expr::NotEqual(
+            Box::new(transform_ast_for_excel(*left)),
+            Box::new(transform_ast_for_excel(*right)),
+        ),
+        Expr::And(left, right) => Expr::And(
+            Box::new(transform_ast_for_excel(*left)),
+            Box::new(transform_ast_for_excel(*right)),
+        ),
+        Expr::Or(left, right) => Expr::Or(
+            Box::new(transform_ast_for_excel(*left)),
+            Box::new(transform_ast_for_excel(*right)),
+        ),
+        Expr::Not(inner) => Expr::Not(Box::new(transform_ast_for_excel(*inner))),
+        // Leaf nodes - return as is
+        other => other,
+    }
+}
+
+/// Check if an expression needs parentheses when used as an operand to a higher-precedence operator
+/// Returns true if the expression has lower precedence than the parent operator
+fn needs_parentheses(expr: &Expr, parent_is_mult_or_div: bool) -> bool {
+    if !parent_is_mult_or_div {
+        return false;
+    }
+
+    // Add/Subtract have lower precedence than Multiply/Divide
+    matches!(expr, Expr::Add(..) | Expr::Subtract(..))
+}
+
+/// Convert an AST expression to an Excel formula string
+fn expr_to_excel_string(expr: &Expr) -> String {
+    match expr {
+        Expr::Number(n) => {
+            // Format numbers without unnecessary decimals
+            if n.fract() == 0.0 {
+                format!("{}", *n as i64)
+            } else {
+                n.to_string()
+            }
+        }
+        Expr::NumberWithUnit { value, unit } => format!("{}{}", value, unit),
+        Expr::String(s) => format!("\"{}\"", s.replace('"', "\"\"")), // Escape quotes for Excel
+        Expr::CellRef { col, row } => {
+            // Transform cell reference for doubled-column layout
+            let col_num = column_letter_to_number(col);
+            let excel_col_num = col_num * 2;
+            let excel_col = number_to_column_letter(excel_col_num);
+            format!("{}{}", excel_col, row)
+        }
+        Expr::NamedRef { name } => name.clone(),
+        Expr::Range { start, end } => {
+            format!(
+                "{}:{}",
+                expr_to_excel_string(start),
+                expr_to_excel_string(end)
+            )
+        }
+        Expr::Add(l, r) => {
+            format!("{}+{}", expr_to_excel_string(l), expr_to_excel_string(r))
+        }
+        Expr::Subtract(l, r) => {
+            format!("{}-{}", expr_to_excel_string(l), expr_to_excel_string(r))
+        }
+        Expr::Multiply(l, r) => {
+            let left_str = if needs_parentheses(l, true) {
+                format!("({})", expr_to_excel_string(l))
+            } else {
+                expr_to_excel_string(l)
+            };
+            let right_str = if needs_parentheses(r, true) {
+                format!("({})", expr_to_excel_string(r))
+            } else {
+                expr_to_excel_string(r)
+            };
+            format!("{}*{}", left_str, right_str)
+        }
+        Expr::Divide(l, r) => {
+            let left_str = if needs_parentheses(l, true) {
+                format!("({})", expr_to_excel_string(l))
+            } else {
+                expr_to_excel_string(l)
+            };
+            let right_str = if needs_parentheses(r, true) {
+                format!("({})", expr_to_excel_string(r))
+            } else {
+                expr_to_excel_string(r)
+            };
+            format!("{}/{}", left_str, right_str)
+        }
+        Expr::Negate(e) => {
+            format!("-({})", expr_to_excel_string(e))
+        }
+        Expr::Function { name, args } => {
+            let args_str = args
+                .iter()
+                .map(expr_to_excel_string)
+                .collect::<Vec<_>>()
+                .join(",");
+            format!("{}({})", name, args_str)
+        }
+        Expr::Boolean(b) => if *b { "TRUE" } else { "FALSE" }.to_string(),
+        Expr::GreaterThan(l, r) => {
+            format!("{}>{}", expr_to_excel_string(l), expr_to_excel_string(r))
+        }
+        Expr::LessThan(l, r) => {
+            format!("{}<{}", expr_to_excel_string(l), expr_to_excel_string(r))
+        }
+        Expr::GreaterOrEqual(l, r) => {
+            format!("{}>={}", expr_to_excel_string(l), expr_to_excel_string(r))
+        }
+        Expr::LessOrEqual(l, r) => {
+            format!("{}<={}", expr_to_excel_string(l), expr_to_excel_string(r))
+        }
+        Expr::Equal(l, r) => {
+            format!("{}={}", expr_to_excel_string(l), expr_to_excel_string(r))
+        }
+        Expr::NotEqual(l, r) => {
+            format!("{}<>{}", expr_to_excel_string(l), expr_to_excel_string(r))
+        }
+        Expr::And(l, r) => {
+            format!(
+                "AND({},{})",
+                expr_to_excel_string(l),
+                expr_to_excel_string(r)
+            )
+        }
+        Expr::Or(l, r) => {
+            format!(
+                "OR({},{})",
+                expr_to_excel_string(l),
+                expr_to_excel_string(r)
+            )
+        }
+        Expr::Not(e) => {
+            format!("NOT({})", expr_to_excel_string(e))
+        }
+    }
 }
 
 /// Export a workbook to Excel format
@@ -978,6 +1314,83 @@ mod tests {
     }
 
     #[test]
+    fn test_export_string_concatenation() {
+        // Test string concatenation with literals
+        let formula = r#"=A1 + " world""#;
+        let excel_formula = transform_formula_for_excel(formula);
+        assert_eq!(excel_formula, r#"=CONCATENATE(A1," world")"#);
+
+        // Test string concatenation with two strings
+        let formula = r#"="Hello" + " world""#;
+        let excel_formula = transform_formula_for_excel(formula);
+        assert_eq!(excel_formula, r#"=CONCATENATE("Hello"," world")"#);
+
+        // Test string concatenation with string + cell reference
+        let formula = r#"="Count: " + A1"#;
+        let excel_formula = transform_formula_for_excel(formula);
+        assert_eq!(excel_formula, r#"=CONCATENATE("Count: ",A1)"#);
+
+        // Test multiple string concatenations
+        let formula = r#"="Hello" + " " + "world""#;
+        let excel_formula = transform_formula_for_excel(formula);
+        // Should nest CONCATENATE calls
+        assert_eq!(
+            excel_formula,
+            r#"=CONCATENATE(CONCATENATE("Hello"," "),"world")"#
+        );
+    }
+
+    #[test]
+    fn test_export_numeric_addition() {
+        // Numeric addition should NOT convert to CONCATENATE
+        let formula = "=A1 + B1";
+        let excel_formula = transform_formula_for_excel(formula);
+        assert_eq!(excel_formula, "=A1+C1"); // B1 -> C1 (column doubling)
+
+        // Numeric literal addition
+        let formula = "=10 + 20";
+        let excel_formula = transform_formula_for_excel(formula);
+        assert_eq!(excel_formula, "=10+20");
+
+        // Mixed operations
+        let formula = "=A1 + B1 * 2";
+        let excel_formula = transform_formula_for_excel(formula);
+        assert_eq!(excel_formula, "=A1+C1*2");
+    }
+
+    #[test]
+    fn test_contains_string_literal() {
+        use crate::core::formula::ast::Expr;
+
+        // String literal
+        assert!(contains_string_literal(&Expr::String("hello".to_string())));
+
+        // Number (no string)
+        assert!(!contains_string_literal(&Expr::Number(42.0)));
+
+        // Add with string
+        let expr = Expr::Add(
+            Box::new(Expr::String("hello".to_string())),
+            Box::new(Expr::Number(42.0)),
+        );
+        assert!(contains_string_literal(&expr));
+
+        // Add without string
+        let expr = Expr::Add(Box::new(Expr::Number(1.0)), Box::new(Expr::Number(2.0)));
+        assert!(!contains_string_literal(&expr));
+
+        // Nested: Add(Add(String, Number), Number)
+        let expr = Expr::Add(
+            Box::new(Expr::Add(
+                Box::new(Expr::String("hello".to_string())),
+                Box::new(Expr::Number(1.0)),
+            )),
+            Box::new(Expr::Number(2.0)),
+        );
+        assert!(contains_string_literal(&expr));
+    }
+
+    #[test]
     fn test_parse_cell_ref_rejects_invalid() {
         // Should reject "1m" (number before letter)
         assert!(parse_cell_ref("1m").is_none());
@@ -988,5 +1401,32 @@ mod tests {
         assert!(parse_cell_ref("A1").is_some());
         assert!(parse_cell_ref("B12").is_some());
         assert!(parse_cell_ref("AA100").is_some());
+    }
+
+    #[test]
+    fn test_operator_precedence_parentheses() {
+        // Test the original bug: 2*(B20+B21) should preserve parentheses
+        assert_eq!(transform_formula_for_excel("=2*(B20+B21)"), "=2*(C20+C21)");
+
+        // Multiplication with addition on left side
+        assert_eq!(transform_formula_for_excel("=(A1+A2)*3"), "=(A1+A2)*3");
+
+        // Division with addition
+        assert_eq!(transform_formula_for_excel("=(A1+A2)/B1"), "=(A1+A2)/C1");
+
+        // Division with subtraction
+        assert_eq!(transform_formula_for_excel("=10/(B1-B2)"), "=10/(C1-C2)");
+
+        // Nested: multiplication inside addition (no extra parens needed at top level)
+        assert_eq!(transform_formula_for_excel("=(A1+B1*2)"), "=A1+C1*2");
+
+        // Multiple operations - only add/subtract in multiply/divide need parens
+        assert_eq!(transform_formula_for_excel("=A1*B2+C3*D4"), "=A1*C2+E3*G4");
+
+        // Complex case: (A+B)*(C+D)
+        assert_eq!(
+            transform_formula_for_excel("=(A1+B1)*(C1+D1)"),
+            "=(A1+C1)*(E1+G1)"
+        );
     }
 }

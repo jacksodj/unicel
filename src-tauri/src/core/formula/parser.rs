@@ -105,6 +105,12 @@ fn parse_expr(pair: pest::iterators::Pair<Rule>) -> Result<Expr, ParseError> {
             Ok(Expr::number(value))
         }
 
+        Rule::string_literal => {
+            let mut pairs = pair.into_inner();
+            let string_content = pairs.next().unwrap().as_str();
+            Ok(Expr::string(string_content))
+        }
+
         Rule::currency_with_number => {
             let mut pairs = pair.into_inner();
             let num_str = pairs.next().unwrap().as_str();
@@ -437,6 +443,44 @@ mod tests {
         // All uppercase should be cell ref
         let expr = parse_formula("AA100").unwrap();
         assert!(matches!(expr, Expr::CellRef { .. }));
+    }
+
+    #[test]
+    fn test_parse_string_literal() {
+        // Simple string
+        let expr = parse_formula(r#""Hello""#).unwrap();
+        assert!(matches!(expr, Expr::String(ref s) if s == "Hello"));
+
+        // String with spaces
+        let expr = parse_formula(r#""Hello World""#).unwrap();
+        assert!(matches!(expr, Expr::String(ref s) if s == "Hello World"));
+
+        // Empty string
+        let expr = parse_formula(r#""""#).unwrap();
+        assert!(matches!(expr, Expr::String(ref s) if s.is_empty()));
+    }
+
+    #[test]
+    fn test_parse_string_concatenation() {
+        // String + String
+        let expr = parse_formula(r#"="Hello" + " world""#).unwrap();
+        match expr {
+            Expr::Add(left, right) => {
+                assert!(matches!(*left, Expr::String(ref s) if s == "Hello"));
+                assert!(matches!(*right, Expr::String(ref s) if s == " world"));
+            }
+            _ => panic!("Expected Add expression"),
+        }
+
+        // String + Number
+        let expr = parse_formula(r#"="Count: " + 42"#).unwrap();
+        match expr {
+            Expr::Add(left, right) => {
+                assert!(matches!(*left, Expr::String(ref s) if s == "Count: "));
+                assert!(matches!(*right, Expr::Number(42.0)));
+            }
+            _ => panic!("Expected Add expression"),
+        }
     }
 
     #[test]

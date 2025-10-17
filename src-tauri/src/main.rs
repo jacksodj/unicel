@@ -150,6 +150,10 @@ fn list_example_workbooks() -> Vec<(String, String)> {
             "investment_portfolio.usheet".to_string(),
             "Investment Portfolio Tracker".to_string(),
         ),
+        (
+            "formula_functions_showcase.usheet".to_string(),
+            "Formula Functions Showcase".to_string(),
+        ),
     ]
 }
 

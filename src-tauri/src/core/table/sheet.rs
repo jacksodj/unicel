@@ -347,7 +347,7 @@ impl Sheet {
     pub fn evaluate_formula(
         &self,
         formula: &str,
-    ) -> Result<(f64, crate::core::units::Unit), SheetError> {
+    ) -> Result<(CellValue, crate::core::units::Unit), SheetError> {
         self.evaluate_formula_with_named_refs(formula, None)
     }
 
@@ -356,7 +356,7 @@ impl Sheet {
         &self,
         formula: &str,
         named_refs: Option<&HashMap<String, (f64, crate::core::units::Unit)>>,
-    ) -> Result<(f64, crate::core::units::Unit), SheetError> {
+    ) -> Result<(CellValue, crate::core::units::Unit), SheetError> {
         let expr = parse_formula(formula).map_err(|e| SheetError::ParseError(e.to_string()))?;
 
         let evaluator = SheetEvaluator {
@@ -366,7 +366,12 @@ impl Sheet {
         };
 
         let result = evaluator.eval(&expr)?;
-        Ok((result.value, result.unit))
+        // Convert EvalValue to CellValue
+        let cell_value = match result.value {
+            crate::core::formula::evaluator::EvalValue::Number(n) => CellValue::Number(n),
+            crate::core::formula::evaluator::EvalValue::Text(s) => CellValue::Text(s),
+        };
+        Ok((cell_value, result.unit))
     }
 
     /// Recalculate cells that depend on changed cells
@@ -388,7 +393,7 @@ impl Sheet {
                     match self.evaluate_formula_with_named_refs(formula, named_refs) {
                         Ok((value, unit)) => {
                             let mut updated_cell = cell;
-                            updated_cell.set_value(CellValue::Number(value));
+                            updated_cell.set_value(value);
                             updated_cell.set_storage_unit(unit);
                             self.cells.insert(addr, updated_cell);
                         }
@@ -478,6 +483,8 @@ impl<'a> SheetEvaluator<'a> {
                 Ok(EvalResult::new(*value, unit_obj))
             }
 
+            Expr::String(s) => Ok(EvalResult::text(s.clone())),
+
             Expr::CellRef { col, row } => {
                 let addr = CellAddr::new(col.clone(), *row);
                 let cell = self
@@ -485,11 +492,19 @@ impl<'a> SheetEvaluator<'a> {
                     .get(&addr)
                     .ok_or_else(|| EvalError::CellNotFound(addr.to_string()))?;
 
-                let value = cell.as_number().ok_or_else(|| {
-                    EvalError::InvalidOperation(format!("Cell {} does not contain a number", addr))
-                })?;
-
-                Ok(EvalResult::new(value, cell.storage_unit().clone()))
+                // Handle both number and text cells
+                match cell.value() {
+                    CellValue::Number(n) => Ok(EvalResult::new(*n, cell.storage_unit().clone())),
+                    CellValue::Text(t) => Ok(EvalResult::text(t.clone())),
+                    CellValue::Empty => Err(EvalError::InvalidOperation(format!(
+                        "Cell {} is empty",
+                        addr
+                    ))),
+                    CellValue::Error(e) => Err(EvalError::InvalidOperation(format!(
+                        "Cell {} has error: {}",
+                        addr, e
+                    ))),
+                }
             }
 
             Expr::NamedRef { name } => {
@@ -514,6 +529,34 @@ impl<'a> SheetEvaluator<'a> {
             Expr::Add(left, right) => {
                 let left_result = self.eval(left)?;
                 let right_result = self.eval(right)?;
+
+                // If either operand is text, perform string concatenation
+                if left_result.is_text() || right_result.is_text() {
+                    use crate::core::formula::evaluator::EvalValue;
+                    let left_str = match &left_result.value {
+                        EvalValue::Text(s) => s.clone(),
+                        EvalValue::Number(n) => {
+                            if left_result.unit.is_dimensionless() {
+                                n.to_string()
+                            } else {
+                                format!("{} {}", n, left_result.unit)
+                            }
+                        }
+                    };
+                    let right_str = match &right_result.value {
+                        EvalValue::Text(s) => s.clone(),
+                        EvalValue::Number(n) => {
+                            if right_result.unit.is_dimensionless() {
+                                n.to_string()
+                            } else {
+                                format!("{} {}", n, right_result.unit)
+                            }
+                        }
+                    };
+                    return Ok(EvalResult::text(format!("{}{}", left_str, right_str)));
+                }
+
+                // Both are numbers - proceed with numeric addition
                 self.eval_binary_op(left_result, right_result, |a, b| a + b, "add")
             }
 
@@ -527,7 +570,15 @@ impl<'a> SheetEvaluator<'a> {
                 let left_result = self.eval(left)?;
                 let right_result = self.eval(right)?;
 
-                let value = left_result.value * right_result.value;
+                // Multiplication requires both operands to be numbers
+                let left_value = left_result.as_number().ok_or_else(|| {
+                    EvalError::InvalidOperation("Cannot multiply with text values".to_string())
+                })?;
+                let right_value = right_result.as_number().ok_or_else(|| {
+                    EvalError::InvalidOperation("Cannot multiply with text values".to_string())
+                })?;
+
+                let value = left_value * right_value;
 
                 // If both dimensionless, result is dimensionless
                 if left_result.unit.is_dimensionless() && right_result.unit.is_dimensionless() {
@@ -557,11 +608,19 @@ impl<'a> SheetEvaluator<'a> {
                 let left_result = self.eval(left)?;
                 let right_result = self.eval(right)?;
 
-                if right_result.value == 0.0 {
+                // Division requires both operands to be numbers
+                let left_value = left_result.as_number().ok_or_else(|| {
+                    EvalError::InvalidOperation("Cannot divide with text values".to_string())
+                })?;
+                let right_value = right_result.as_number().ok_or_else(|| {
+                    EvalError::InvalidOperation("Cannot divide with text values".to_string())
+                })?;
+
+                if right_value == 0.0 {
                     return Err(EvalError::DivisionByZero);
                 }
 
-                let value = left_result.value / right_result.value;
+                let value = left_value / right_value;
 
                 // If both dimensionless, result is dimensionless
                 if left_result.unit.is_dimensionless() && right_result.unit.is_dimensionless() {
@@ -614,7 +673,10 @@ impl<'a> SheetEvaluator<'a> {
 
             Expr::Negate(expr) => {
                 let result = self.eval(expr)?;
-                Ok(EvalResult::new(-result.value, result.unit))
+                let value = result.as_number().ok_or_else(|| {
+                    EvalError::InvalidOperation("Cannot negate a text value".to_string())
+                })?;
+                Ok(EvalResult::new(-value, result.unit))
             }
 
             Expr::Boolean(b) => Ok(EvalResult::new(
@@ -632,7 +694,13 @@ impl<'a> SheetEvaluator<'a> {
             Expr::And(left, right) => {
                 let left_result = self.eval(left)?;
                 let right_result = self.eval(right)?;
-                let result = if left_result.value != 0.0 && right_result.value != 0.0 {
+                let left_value = left_result.as_number().ok_or_else(|| {
+                    EvalError::InvalidOperation("Cannot use AND with text values".to_string())
+                })?;
+                let right_value = right_result.as_number().ok_or_else(|| {
+                    EvalError::InvalidOperation("Cannot use AND with text values".to_string())
+                })?;
+                let result = if left_value != 0.0 && right_value != 0.0 {
                     1.0
                 } else {
                     0.0
@@ -646,7 +714,13 @@ impl<'a> SheetEvaluator<'a> {
             Expr::Or(left, right) => {
                 let left_result = self.eval(left)?;
                 let right_result = self.eval(right)?;
-                let result = if left_result.value != 0.0 || right_result.value != 0.0 {
+                let left_value = left_result.as_number().ok_or_else(|| {
+                    EvalError::InvalidOperation("Cannot use OR with text values".to_string())
+                })?;
+                let right_value = right_result.as_number().ok_or_else(|| {
+                    EvalError::InvalidOperation("Cannot use OR with text values".to_string())
+                })?;
+                let result = if left_value != 0.0 || right_value != 0.0 {
                     1.0
                 } else {
                     0.0
@@ -659,7 +733,10 @@ impl<'a> SheetEvaluator<'a> {
 
             Expr::Not(expr) => {
                 let result = self.eval(expr)?;
-                let not_result = if result.value == 0.0 { 1.0 } else { 0.0 };
+                let value = result.as_number().ok_or_else(|| {
+                    EvalError::InvalidOperation("Cannot use NOT with text values".to_string())
+                })?;
+                let not_result = if value == 0.0 { 1.0 } else { 0.0 };
                 Ok(EvalResult::new(
                     not_result,
                     crate::core::units::Unit::dimensionless(),
@@ -681,7 +758,7 @@ impl<'a> SheetEvaluator<'a> {
                 "ABS" => self.eval_abs(args),
                 "ROUND" => self.eval_round(args),
                 "FLOOR" => self.eval_floor(args),
-                "CEIL" => self.eval_ceil(args),
+                "CEIL" | "CEILING" => self.eval_ceil(args),
                 "TRUNC" => self.eval_trunc(args),
                 "MOD" => self.eval_mod(args),
                 "SIGN" => self.eval_sign(args),
@@ -715,10 +792,18 @@ impl<'a> SheetEvaluator<'a> {
     where
         F: Fn(f64, f64) -> f64,
     {
+        // Binary operations require both operands to be numbers
+        let left_value = left.as_number().ok_or_else(|| {
+            EvalError::InvalidOperation(format!("Cannot {} with text values", op_name))
+        })?;
+        let right_value = right.as_number().ok_or_else(|| {
+            EvalError::InvalidOperation(format!("Cannot {} with text values", op_name))
+        })?;
+
         // Both dimensionless - simple operation
         if left.unit.is_dimensionless() && right.unit.is_dimensionless() {
             return Ok(EvalResult::new(
-                op(left.value, right.value),
+                op(left_value, right_value),
                 crate::core::units::Unit::dimensionless(),
             ));
         }
@@ -735,7 +820,7 @@ impl<'a> SheetEvaluator<'a> {
         // If units are exactly the same, just operate
         if left.unit.is_equal(&right.unit) {
             return Ok(EvalResult::new(
-                op(left.value, right.value),
+                op(left_value, right_value),
                 left.unit.clone(),
             ));
         }
@@ -743,7 +828,7 @@ impl<'a> SheetEvaluator<'a> {
         // Units are compatible but different - convert right to left's unit
         let right_value_converted = self
             .library
-            .convert(right.value, right.unit.canonical(), left.unit.canonical())
+            .convert(right_value, right.unit.canonical(), left.unit.canonical())
             .ok_or_else(|| EvalError::IncompatibleUnits {
                 operation: op_name.to_string(),
                 left: left.unit.to_string(),
@@ -751,7 +836,7 @@ impl<'a> SheetEvaluator<'a> {
             })?;
 
         Ok(EvalResult::new(
-            op(left.value, right_value_converted),
+            op(left_value, right_value_converted),
             left.unit.clone(),
         ))
     }
@@ -777,7 +862,10 @@ impl<'a> SheetEvaluator<'a> {
 
         // All values should have compatible units
         let first = &values[0];
-        let mut sum = first.value;
+        let first_value = first.as_number().ok_or_else(|| {
+            EvalError::InvalidOperation("SUM can only be used with numbers".to_string())
+        })?;
+        let mut sum = first_value;
         let result_unit = first.unit.clone();
 
         for val in &values[1..] {
@@ -789,12 +877,17 @@ impl<'a> SheetEvaluator<'a> {
                 });
             }
 
+            // Get numeric value (SUM only works with numbers)
+            let num_value = val.as_number().ok_or_else(|| {
+                EvalError::InvalidOperation("SUM can only be used with numbers".to_string())
+            })?;
+
             // Convert to result unit if needed
             let converted_value = if val.unit.is_equal(&result_unit) {
-                val.value
+                num_value
             } else {
                 self.library
-                    .convert(val.value, val.unit.canonical(), result_unit.canonical())
+                    .convert(num_value, val.unit.canonical(), result_unit.canonical())
                     .ok_or_else(|| EvalError::IncompatibleUnits {
                         operation: "SUM".to_string(),
                         left: result_unit.to_string(),
@@ -830,7 +923,10 @@ impl<'a> SheetEvaluator<'a> {
 
         // Divide by count
         let count = values.len() as f64;
-        Ok(EvalResult::new(sum_result.value / count, sum_result.unit))
+        Ok(EvalResult::new(
+            sum_result.numeric_value() / count,
+            sum_result.unit,
+        ))
     }
 
     /// Evaluate CONVERT function
@@ -866,7 +962,7 @@ impl<'a> SheetEvaluator<'a> {
                 match cell.value() {
                     CellValue::Text(text) => {
                         use crate::core::units::parse_unit;
-                        parse_unit(text, self.library)
+                        parse_unit(text.as_str(), self.library)
                             .map_err(|_| EvalError::UnknownUnit(text.clone()))?
                     }
                     _ => {
@@ -893,14 +989,14 @@ impl<'a> SheetEvaluator<'a> {
 
         // If units are already the same, no conversion needed
         if value_result.unit.is_equal(&target_unit) {
-            return Ok(EvalResult::new(value_result.value, target_unit));
+            return Ok(EvalResult::new(value_result.numeric_value(), target_unit));
         }
 
         // Perform conversion
         let converted_value = self
             .library
             .convert(
-                value_result.value,
+                value_result.numeric_value(),
                 value_result.unit.canonical(),
                 target_unit.canonical(),
             )
@@ -933,7 +1029,7 @@ impl<'a> SheetEvaluator<'a> {
         );
 
         // Return the same value with "%" unit
-        Ok(EvalResult::new(value_result.value, percent_unit))
+        Ok(EvalResult::new(value_result.numeric_value(), percent_unit))
     }
 
     /// Collect values from arguments (expanding ranges)
@@ -1013,7 +1109,7 @@ impl<'a> SheetEvaluator<'a> {
 
         // All values must have compatible units
         let first_unit = &values[0].unit;
-        let mut min_value = values[0].value;
+        let mut min_value = values[0].numeric_value();
 
         for val in &values[1..] {
             if !val.unit.is_compatible(first_unit) {
@@ -1026,10 +1122,14 @@ impl<'a> SheetEvaluator<'a> {
 
             // Convert to first unit before comparing
             let converted_value = if val.unit.is_equal(first_unit) {
-                val.value
+                val.numeric_value()
             } else {
                 self.library
-                    .convert(val.value, val.unit.canonical(), first_unit.canonical())
+                    .convert(
+                        val.numeric_value(),
+                        val.unit.canonical(),
+                        first_unit.canonical(),
+                    )
                     .ok_or_else(|| EvalError::IncompatibleUnits {
                         operation: "MIN".to_string(),
                         left: first_unit.to_string(),
@@ -1058,7 +1158,7 @@ impl<'a> SheetEvaluator<'a> {
 
         // All values must have compatible units
         let first_unit = &values[0].unit;
-        let mut max_value = values[0].value;
+        let mut max_value = values[0].numeric_value();
 
         for val in &values[1..] {
             if !val.unit.is_compatible(first_unit) {
@@ -1071,10 +1171,14 @@ impl<'a> SheetEvaluator<'a> {
 
             // Convert to first unit before comparing
             let converted_value = if val.unit.is_equal(first_unit) {
-                val.value
+                val.numeric_value()
             } else {
                 self.library
-                    .convert(val.value, val.unit.canonical(), first_unit.canonical())
+                    .convert(
+                        val.numeric_value(),
+                        val.unit.canonical(),
+                        first_unit.canonical(),
+                    )
                     .ok_or_else(|| EvalError::IncompatibleUnits {
                         operation: "MAX".to_string(),
                         left: first_unit.to_string(),
@@ -1100,7 +1204,7 @@ impl<'a> SheetEvaluator<'a> {
         }
 
         let result = self.eval(&args[0])?;
-        Ok(EvalResult::new(result.value.abs(), result.unit))
+        Ok(EvalResult::new(result.numeric_value().abs(), result.unit))
     }
 
     /// Evaluate ROUND function
@@ -1116,13 +1220,13 @@ impl<'a> SheetEvaluator<'a> {
 
         let decimals = if args.len() == 2 {
             let decimals_result = self.eval(&args[1])?;
-            decimals_result.value.round() as i32
+            decimals_result.numeric_value().round() as i32
         } else {
             0
         };
 
         let multiplier = 10f64.powi(decimals);
-        let rounded = (result.value * multiplier).round() / multiplier;
+        let rounded = (result.numeric_value() * multiplier).round() / multiplier;
 
         Ok(EvalResult::new(rounded, result.unit))
     }
@@ -1137,7 +1241,7 @@ impl<'a> SheetEvaluator<'a> {
         }
 
         let result = self.eval(&args[0])?;
-        Ok(EvalResult::new(result.value.floor(), result.unit))
+        Ok(EvalResult::new(result.numeric_value().floor(), result.unit))
     }
 
     /// Evaluate CEIL function
@@ -1150,7 +1254,7 @@ impl<'a> SheetEvaluator<'a> {
         }
 
         let result = self.eval(&args[0])?;
-        Ok(EvalResult::new(result.value.ceil(), result.unit))
+        Ok(EvalResult::new(result.numeric_value().ceil(), result.unit))
     }
 
     /// Evaluate TRUNC function
@@ -1163,7 +1267,7 @@ impl<'a> SheetEvaluator<'a> {
         }
 
         let result = self.eval(&args[0])?;
-        Ok(EvalResult::new(result.value.trunc(), result.unit))
+        Ok(EvalResult::new(result.numeric_value().trunc(), result.unit))
     }
 
     /// Evaluate MOD function
@@ -1189,11 +1293,11 @@ impl<'a> SheetEvaluator<'a> {
 
         // Convert divisor to dividend's unit if needed
         let divisor_value = if divisor.unit.is_equal(&dividend.unit) {
-            divisor.value
+            divisor.numeric_value()
         } else {
             self.library
                 .convert(
-                    divisor.value,
+                    divisor.numeric_value(),
                     divisor.unit.canonical(),
                     dividend.unit.canonical(),
                 )
@@ -1204,7 +1308,7 @@ impl<'a> SheetEvaluator<'a> {
                 })?
         };
 
-        let result_value = dividend.value % divisor_value;
+        let result_value = dividend.numeric_value() % divisor_value;
         Ok(EvalResult::new(result_value, dividend.unit))
     }
 
@@ -1218,9 +1322,9 @@ impl<'a> SheetEvaluator<'a> {
         }
 
         let result = self.eval(&args[0])?;
-        let sign = if result.value == 0.0 {
+        let sign = if result.numeric_value() == 0.0 {
             0.0
-        } else if result.value > 0.0 {
+        } else if result.numeric_value() > 0.0 {
             1.0
         } else {
             -1.0
@@ -1255,11 +1359,11 @@ impl<'a> SheetEvaluator<'a> {
 
         // Convert right to left's unit if needed
         let right_converted = if left_val.unit.is_equal(&right_val.unit) {
-            right_val.value
+            right_val.numeric_value()
         } else {
             self.library
                 .convert(
-                    right_val.value,
+                    right_val.numeric_value(),
                     right_val.unit.canonical(),
                     left_val.unit.canonical(),
                 )
@@ -1271,7 +1375,7 @@ impl<'a> SheetEvaluator<'a> {
         };
 
         // Compare and return boolean (as 1.0 or 0.0)
-        let result = if compare(left_val.value, right_converted) {
+        let result = if compare(left_val.numeric_value(), right_converted) {
             1.0
         } else {
             0.0
@@ -1295,7 +1399,7 @@ impl<'a> SheetEvaluator<'a> {
         let condition = self.eval(&args[0])?;
 
         // Treat non-zero as true
-        if condition.value != 0.0 {
+        if condition.numeric_value() != 0.0 {
             self.eval(&args[1])
         } else {
             self.eval(&args[2])
@@ -1313,7 +1417,7 @@ impl<'a> SheetEvaluator<'a> {
 
         for arg in args {
             let val = self.eval(arg)?;
-            if val.value == 0.0 {
+            if val.numeric_value() == 0.0 {
                 return Ok(EvalResult::new(
                     0.0,
                     crate::core::units::Unit::dimensionless(),
@@ -1337,7 +1441,7 @@ impl<'a> SheetEvaluator<'a> {
 
         for arg in args {
             let val = self.eval(arg)?;
-            if val.value != 0.0 {
+            if val.numeric_value() != 0.0 {
                 return Ok(EvalResult::new(
                     1.0,
                     crate::core::units::Unit::dimensionless(),
@@ -1360,7 +1464,7 @@ impl<'a> SheetEvaluator<'a> {
         }
 
         let val = self.eval(&args[0])?;
-        let result = if val.value == 0.0 { 1.0 } else { 0.0 };
+        let result = if val.numeric_value() == 0.0 { 1.0 } else { 0.0 };
         Ok(EvalResult::new(
             result,
             crate::core::units::Unit::dimensionless(),
@@ -1446,7 +1550,7 @@ impl<'a> SheetEvaluator<'a> {
         let result = self.eval(&args[0])?;
 
         // Check for negative values
-        if result.value < 0.0 {
+        if result.numeric_value() < 0.0 {
             return Err(EvalError::InvalidOperation(
                 "SQRT of negative number is not supported (complex numbers not supported)"
                     .to_string(),
@@ -1454,7 +1558,7 @@ impl<'a> SheetEvaluator<'a> {
         }
 
         // Compute square root of value
-        let sqrt_value = result.value.sqrt();
+        let sqrt_value = result.numeric_value().sqrt();
 
         // Transform unit by dividing exponents by 2
         use crate::core::formula::evaluator::transform_unit_exponents;
@@ -1487,10 +1591,10 @@ impl<'a> SheetEvaluator<'a> {
             )));
         }
 
-        let exponent = exponent_result.value;
+        let exponent = exponent_result.numeric_value();
 
         // Compute base^exponent
-        let power_value = base_result.value.powf(exponent);
+        let power_value = base_result.numeric_value().powf(exponent);
 
         // Special case: any unit^0 = dimensionless
         if exponent == 0.0 {
@@ -1531,14 +1635,18 @@ impl<'a> SheetEvaluator<'a> {
 
             let converted = if val.unit != *first_unit {
                 self.library
-                    .convert(val.value, val.unit.canonical(), first_unit.canonical())
+                    .convert(
+                        val.numeric_value(),
+                        val.unit.canonical(),
+                        first_unit.canonical(),
+                    )
                     .ok_or_else(|| EvalError::IncompatibleUnits {
                         operation: "MEDIAN".to_string(),
                         left: first_unit.to_string(),
                         right: val.unit.to_string(),
                     })?
             } else {
-                val.value
+                val.numeric_value()
             };
             converted_values.push(converted);
         }
@@ -1574,14 +1682,18 @@ impl<'a> SheetEvaluator<'a> {
 
             let converted = if val.unit != *first_unit {
                 self.library
-                    .convert(val.value, val.unit.canonical(), first_unit.canonical())
+                    .convert(
+                        val.numeric_value(),
+                        val.unit.canonical(),
+                        first_unit.canonical(),
+                    )
                     .ok_or_else(|| EvalError::IncompatibleUnits {
                         operation: "STDEV".to_string(),
                         left: first_unit.to_string(),
                         right: val.unit.to_string(),
                     })?
             } else {
-                val.value
+                val.numeric_value()
             };
             converted_values.push(converted);
         }
@@ -1619,14 +1731,18 @@ impl<'a> SheetEvaluator<'a> {
 
             let converted = if val.unit != *first_unit {
                 self.library
-                    .convert(val.value, val.unit.canonical(), first_unit.canonical())
+                    .convert(
+                        val.numeric_value(),
+                        val.unit.canonical(),
+                        first_unit.canonical(),
+                    )
                     .ok_or_else(|| EvalError::IncompatibleUnits {
                         operation: "VAR".to_string(),
                         left: first_unit.to_string(),
                         right: val.unit.to_string(),
                     })?
             } else {
-                val.value
+                val.numeric_value()
             };
             converted_values.push(converted);
         }
@@ -1745,7 +1861,7 @@ mod tests {
 
         // Evaluate A1 + A2
         let (value, unit) = sheet.evaluate_formula("=A1 + A2").unwrap();
-        assert_eq!(value, 150.0);
+        assert_eq!(value, CellValue::Number(150.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -1785,7 +1901,7 @@ mod tests {
 
         // Evaluate SUM(A1:A3)
         let (value, unit) = sheet.evaluate_formula("=SUM(A1:A3)").unwrap();
-        assert_eq!(value, 60.0);
+        assert_eq!(value, CellValue::Number(60.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -1809,7 +1925,7 @@ mod tests {
 
         // Evaluate SUM(A1, A2)
         let (value, unit) = sheet.evaluate_formula("=SUM(A1, A2)").unwrap();
-        assert_eq!(value, 30.0);
+        assert_eq!(value, CellValue::Number(30.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -1845,7 +1961,7 @@ mod tests {
 
         // Evaluate AVERAGE(A1:A4)
         let (value, unit) = sheet.evaluate_formula("=AVERAGE(A1:A4)").unwrap();
-        assert_eq!(value, 25.0);
+        assert_eq!(value, CellValue::Number(25.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -1869,7 +1985,7 @@ mod tests {
 
         // Evaluate SUM(A1, A2) - should convert cm to m
         let (value, unit) = sheet.evaluate_formula("=SUM(A1, A2)").unwrap();
-        assert_eq!(value, 100.5); // 100m + 0.5m
+        assert_eq!(value, CellValue::Number(100.5)); // 100m + 0.5m
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -1887,12 +2003,16 @@ mod tests {
 
         // Convert meters to kilometers: CONVERT(A1, 1km)
         let (value, unit) = sheet.evaluate_formula("=CONVERT(A1, 1km)").unwrap();
-        assert_eq!(value, 1.0); // 1000m = 1km
+        assert_eq!(value, CellValue::Number(1.0)); // 1000m = 1km
         assert_eq!(unit.canonical(), "km");
 
         // Convert meters to feet
         let (value, unit) = sheet.evaluate_formula("=CONVERT(A1, 1ft)").unwrap();
-        assert!((value - 3280.84).abs() < 0.1); // 1000m ≈ 3280.84ft
+        if let CellValue::Number(num) = value {
+            assert!((num - 3280.84).abs() < 0.1); // 1000m ≈ 3280.84ft
+        } else {
+            panic!("Expected numeric value");
+        }
         assert_eq!(unit.canonical(), "ft");
     }
 
@@ -1916,7 +2036,7 @@ mod tests {
 
         // Convert A1 to the unit of B1
         let (value, unit) = sheet.evaluate_formula("=CONVERT(A1, B1)").unwrap();
-        assert_eq!(value, 0.1); // 100m = 0.1km
+        assert_eq!(value, CellValue::Number(0.1)); // 100m = 0.1km
         assert_eq!(unit.canonical(), "km");
     }
 
@@ -1947,7 +2067,7 @@ mod tests {
 
         // Evaluate COUNT(A1:A5)
         let (value, unit) = sheet.evaluate_formula("=COUNT(A1:A5)").unwrap();
-        assert_eq!(value, 3.0);
+        assert_eq!(value, CellValue::Number(3.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -1970,7 +2090,7 @@ mod tests {
 
         // Evaluate COUNT(A1, A2, 5)
         let (value, unit) = sheet.evaluate_formula("=COUNT(A1, A2, 5)").unwrap();
-        assert_eq!(value, 3.0);
+        assert_eq!(value, CellValue::Number(3.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -2006,7 +2126,7 @@ mod tests {
 
         // Evaluate MIN(A1:A4)
         let (value, unit) = sheet.evaluate_formula("=MIN(A1:A4)").unwrap();
-        assert_eq!(value, 10.0);
+        assert_eq!(value, CellValue::Number(10.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2030,7 +2150,7 @@ mod tests {
 
         // Evaluate MIN(A1, A2) - should convert cm to m and compare
         let (value, unit) = sheet.evaluate_formula("=MIN(A1, A2)").unwrap();
-        assert_eq!(value, 0.5); // 50cm = 0.5m, which is the minimum
+        assert_eq!(value, CellValue::Number(0.5)); // 50cm = 0.5m, which is the minimum
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2066,7 +2186,7 @@ mod tests {
 
         // Evaluate MAX(A1:A4)
         let (value, unit) = sheet.evaluate_formula("=MAX(A1:A4)").unwrap();
-        assert_eq!(value, 40.0);
+        assert_eq!(value, CellValue::Number(40.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2090,7 +2210,7 @@ mod tests {
 
         // Evaluate MAX(A1, A2) - should convert cm to m and compare
         let (value, unit) = sheet.evaluate_formula("=MAX(A1, A2)").unwrap();
-        assert_eq!(value, 1.5); // 150cm = 1.5m, which is the maximum
+        assert_eq!(value, CellValue::Number(1.5)); // 150cm = 1.5m, which is the maximum
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2107,7 +2227,7 @@ mod tests {
 
         // Evaluate ABS(A1)
         let (value, unit) = sheet.evaluate_formula("=ABS(A1)").unwrap();
-        assert_eq!(value, 42.5);
+        assert_eq!(value, CellValue::Number(42.5));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2124,7 +2244,7 @@ mod tests {
 
         // Evaluate ABS(A1)
         let (value, unit) = sheet.evaluate_formula("=ABS(A1)").unwrap();
-        assert_eq!(value, 42.5);
+        assert_eq!(value, CellValue::Number(42.5));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2141,7 +2261,7 @@ mod tests {
 
         // Evaluate ROUND(A1)
         let (value, unit) = sheet.evaluate_formula("=ROUND(A1)").unwrap();
-        assert_eq!(value, 43.0);
+        assert_eq!(value, CellValue::Number(43.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2158,12 +2278,12 @@ mod tests {
 
         // Evaluate ROUND(A1, 2)
         let (value, unit) = sheet.evaluate_formula("=ROUND(A1, 2)").unwrap();
-        assert_eq!(value, 42.57);
+        assert_eq!(value, CellValue::Number(42.57));
         assert_eq!(unit.canonical(), "m");
 
         // Evaluate ROUND(A1, 1)
         let (value, unit) = sheet.evaluate_formula("=ROUND(A1, 1)").unwrap();
-        assert_eq!(value, 42.6);
+        assert_eq!(value, CellValue::Number(42.6));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2180,7 +2300,7 @@ mod tests {
 
         // Evaluate FLOOR(A1)
         let (value, unit) = sheet.evaluate_formula("=FLOOR(A1)").unwrap();
-        assert_eq!(value, 42.0);
+        assert_eq!(value, CellValue::Number(42.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2197,7 +2317,7 @@ mod tests {
 
         // Evaluate CEIL(A1)
         let (value, unit) = sheet.evaluate_formula("=CEIL(A1)").unwrap();
-        assert_eq!(value, 43.0);
+        assert_eq!(value, CellValue::Number(43.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2214,7 +2334,7 @@ mod tests {
 
         // Evaluate TRUNC(A1)
         let (value, unit) = sheet.evaluate_formula("=TRUNC(A1)").unwrap();
-        assert_eq!(value, 42.0);
+        assert_eq!(value, CellValue::Number(42.0));
         assert_eq!(unit.canonical(), "m");
 
         // Test negative value
@@ -2226,7 +2346,7 @@ mod tests {
             .unwrap();
 
         let (value, unit) = sheet.evaluate_formula("=TRUNC(A2)").unwrap();
-        assert_eq!(value, -42.0);
+        assert_eq!(value, CellValue::Number(-42.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2249,7 +2369,7 @@ mod tests {
 
         // Evaluate MOD(A1, A2)
         let (value, unit) = sheet.evaluate_formula("=MOD(A1, A2)").unwrap();
-        assert_eq!(value, 2.0); // 17 % 5 = 2
+        assert_eq!(value, CellValue::Number(2.0)); // 17 % 5 = 2
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2272,7 +2392,7 @@ mod tests {
 
         // Evaluate MOD(A1, A2)
         let (value, unit) = sheet.evaluate_formula("=MOD(A1, A2)").unwrap();
-        assert_eq!(value, 10.0); // 100 % 30 = 10
+        assert_eq!(value, CellValue::Number(10.0)); // 100 % 30 = 10
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2289,7 +2409,7 @@ mod tests {
             .unwrap();
 
         let (value, unit) = sheet.evaluate_formula("=SIGN(A1)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
         assert!(unit.is_dimensionless());
 
         // Negative value
@@ -2301,7 +2421,7 @@ mod tests {
             .unwrap();
 
         let (value, unit) = sheet.evaluate_formula("=SIGN(A2)").unwrap();
-        assert_eq!(value, -1.0);
+        assert_eq!(value, CellValue::Number(-1.0));
         assert!(unit.is_dimensionless());
 
         // Zero
@@ -2313,7 +2433,7 @@ mod tests {
             .unwrap();
 
         let (value, unit) = sheet.evaluate_formula("=SIGN(A3)").unwrap();
-        assert_eq!(value, 0.0);
+        assert_eq!(value, CellValue::Number(0.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -2391,7 +2511,7 @@ mod tests {
         let mut sheet = Sheet::new();
         // SQRT(4) = 2 (dimensionless)
         let (value, unit) = sheet.evaluate_formula("=SQRT(4)").unwrap();
-        assert_eq!(value, 2.0);
+        assert_eq!(value, CellValue::Number(2.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -2407,7 +2527,7 @@ mod tests {
 
         // SQRT(100 m²) = 10 m
         let (value, unit) = sheet.evaluate_formula("=SQRT(A1)").unwrap();
-        assert_eq!(value, 10.0);
+        assert_eq!(value, CellValue::Number(10.0));
         // Result should be length with exponent 1
         assert_eq!(unit.canonical(), "m");
     }
@@ -2428,7 +2548,7 @@ mod tests {
 
         // SQRT(100 m²/s²) = 10 m/s
         let (value, unit) = sheet.evaluate_formula("=SQRT(A1)").unwrap();
-        assert_eq!(value, 10.0);
+        assert_eq!(value, CellValue::Number(10.0));
         // Result should be m/s
         assert_eq!(unit.canonical(), "m/s");
     }
@@ -2446,7 +2566,7 @@ mod tests {
 
         // SQRT(100 m) = 10 m^0.5 (fractional exponent)
         let (value, unit) = sheet.evaluate_formula("=SQRT(A1)").unwrap();
-        assert_eq!(value, 10.0);
+        assert_eq!(value, CellValue::Number(10.0));
         // Result should have fractional exponent (m^0.5)
         // The unit system will represent this as a compound unit
         assert!(!unit.is_dimensionless());
@@ -2481,7 +2601,7 @@ mod tests {
 
         // POWER(5 m, 2) = 25 m²
         let (value, unit) = sheet.evaluate_formula("=POWER(A1, 2)").unwrap();
-        assert_eq!(value, 25.0);
+        assert_eq!(value, CellValue::Number(25.0));
         // Result should be m² (or m^2 depending on canonical form)
         assert!(unit.canonical() == "m²" || unit.canonical() == "m^2");
     }
@@ -2499,7 +2619,7 @@ mod tests {
 
         // POWER(2 m, 3) = 8 m³
         let (value, unit) = sheet.evaluate_formula("=POWER(A1, 3)").unwrap();
-        assert_eq!(value, 8.0);
+        assert_eq!(value, CellValue::Number(8.0));
         // Result should be m³ (or m^3 depending on canonical form)
         assert!(unit.canonical() == "m³" || unit.canonical() == "m^3");
     }
@@ -2517,8 +2637,12 @@ mod tests {
         // POWER(8 m³, 1/3) = 2 m (cube root)
         // Note: 1/3 evaluates to approximately 0.333...
         let (value, unit) = sheet.evaluate_formula("=POWER(A1, 0.333333333)").unwrap();
-        assert!((value - 2.0).abs() < 0.001); // Allow small floating point error
-                                              // Result should be m
+        if let CellValue::Number(num) = value {
+            assert!((num - 2.0).abs() < 0.001); // Allow small floating point error
+        } else {
+            panic!("Expected numeric value");
+        }
+        // Result should be m
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2535,7 +2659,7 @@ mod tests {
 
         // POWER(2 m, -1) = 0.5 m⁻¹
         let (value, unit) = sheet.evaluate_formula("=POWER(A1, -1)").unwrap();
-        assert_eq!(value, 0.5);
+        assert_eq!(value, CellValue::Number(0.5));
         // Result should have negative exponent (m⁻¹ or 1/m)
         assert!(!unit.is_dimensionless());
     }
@@ -2553,7 +2677,7 @@ mod tests {
 
         // POWER(5 m, 0) = 1 (dimensionless, any unit^0 = 1)
         let (value, unit) = sheet.evaluate_formula("=POWER(A1, 0)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -2562,7 +2686,7 @@ mod tests {
         let mut sheet = Sheet::new();
         // POWER(2, 3) = 8
         let (value, unit) = sheet.evaluate_formula("=POWER(2, 3)").unwrap();
-        assert_eq!(value, 8.0);
+        assert_eq!(value, CellValue::Number(8.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -2582,7 +2706,7 @@ mod tests {
 
         // POWER(2 kg/s, 3) = 8 kg³/s³
         let (value, unit) = sheet.evaluate_formula("=POWER(A1, 3)").unwrap();
-        assert_eq!(value, 8.0);
+        assert_eq!(value, CellValue::Number(8.0));
         // Result should be kg³/s³ (or kg^3/s^3 depending on canonical form)
         assert!(unit.canonical() == "kg³/s³" || unit.canonical() == "kg^3/s^3");
     }
@@ -2648,12 +2772,12 @@ mod tests {
 
         // 10m > 5m → TRUE (1.0)
         let (value, unit) = sheet.evaluate_formula("=GT(A1, A2)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
         assert!(unit.is_dimensionless());
 
         // 5m > 10m → FALSE (0.0)
         let (value, unit) = sheet.evaluate_formula("=GT(A2, A1)").unwrap();
-        assert_eq!(value, 0.0);
+        assert_eq!(value, CellValue::Number(0.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -2676,12 +2800,12 @@ mod tests {
 
         // 5m < 10m → TRUE (1.0)
         let (value, unit) = sheet.evaluate_formula("=LT(A2, A1)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
         assert!(unit.is_dimensionless());
 
         // 10m < 5m → FALSE (0.0)
         let (value, unit) = sheet.evaluate_formula("=LT(A1, A2)").unwrap();
-        assert_eq!(value, 0.0);
+        assert_eq!(value, CellValue::Number(0.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -2710,15 +2834,15 @@ mod tests {
 
         // 10m >= 10m → TRUE (1.0)
         let (value, _) = sheet.evaluate_formula("=GTE(A1, A2)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
 
         // 10m >= 5m → TRUE (1.0)
         let (value, _) = sheet.evaluate_formula("=GTE(A1, A3)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
 
         // 5m >= 10m → FALSE (0.0)
         let (value, _) = sheet.evaluate_formula("=GTE(A3, A1)").unwrap();
-        assert_eq!(value, 0.0);
+        assert_eq!(value, CellValue::Number(0.0));
     }
 
     #[test]
@@ -2746,15 +2870,15 @@ mod tests {
 
         // 10m <= 10m → TRUE (1.0)
         let (value, _) = sheet.evaluate_formula("=LTE(A1, A2)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
 
         // 10m <= 15m → TRUE (1.0)
         let (value, _) = sheet.evaluate_formula("=LTE(A1, A3)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
 
         // 15m <= 10m → FALSE (0.0)
         let (value, _) = sheet.evaluate_formula("=LTE(A3, A1)").unwrap();
-        assert_eq!(value, 0.0);
+        assert_eq!(value, CellValue::Number(0.0));
     }
 
     #[test]
@@ -2782,11 +2906,11 @@ mod tests {
 
         // 10m == 10m → TRUE (1.0)
         let (value, _) = sheet.evaluate_formula("=EQ(A1, A2)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
 
         // 10m == 5m → FALSE (0.0)
         let (value, _) = sheet.evaluate_formula("=EQ(A1, A3)").unwrap();
-        assert_eq!(value, 0.0);
+        assert_eq!(value, CellValue::Number(0.0));
     }
 
     #[test]
@@ -2814,11 +2938,11 @@ mod tests {
 
         // 10m != 5m → TRUE (1.0)
         let (value, _) = sheet.evaluate_formula("=NE(A1, A3)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
 
         // 10m != 10m → FALSE (0.0)
         let (value, _) = sheet.evaluate_formula("=NE(A1, A2)").unwrap();
-        assert_eq!(value, 0.0);
+        assert_eq!(value, CellValue::Number(0.0));
     }
 
     #[test]
@@ -2841,7 +2965,7 @@ mod tests {
 
         // 1000m > 1km → FALSE (1000m == 1km)
         let (value, _) = sheet.evaluate_formula("=GT(A1, A2)").unwrap();
-        assert_eq!(value, 0.0);
+        assert_eq!(value, CellValue::Number(0.0));
 
         // 50cm vs 1m
         sheet
@@ -2859,7 +2983,7 @@ mod tests {
 
         // 50cm < 1m → TRUE
         let (value, _) = sheet.evaluate_formula("=LT(B1, B2)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
     }
 
     #[test]
@@ -2912,7 +3036,7 @@ mod tests {
 
         // IF(1, 100m, 200m) → 100m
         let (value, unit) = sheet.evaluate_formula("=IF(1, A1, A2)").unwrap();
-        assert_eq!(value, 100.0);
+        assert_eq!(value, CellValue::Number(100.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2935,7 +3059,7 @@ mod tests {
 
         // IF(0, 100m, 200m) → 200m
         let (value, unit) = sheet.evaluate_formula("=IF(0, A1, A2)").unwrap();
-        assert_eq!(value, 200.0);
+        assert_eq!(value, CellValue::Number(200.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2970,12 +3094,12 @@ mod tests {
 
         // IF(GT(A1, A2), A3, A4) → IF(10m > 5m, 100m, 200m) → 100m
         let (value, unit) = sheet.evaluate_formula("=IF(GT(A1, A2), A3, A4)").unwrap();
-        assert_eq!(value, 100.0);
+        assert_eq!(value, CellValue::Number(100.0));
         assert_eq!(unit.canonical(), "m");
 
         // IF(LT(A1, A2), A3, A4) → IF(10m < 5m, 100m, 200m) → 200m
         let (value, unit) = sheet.evaluate_formula("=IF(LT(A1, A2), A3, A4)").unwrap();
-        assert_eq!(value, 200.0);
+        assert_eq!(value, CellValue::Number(200.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -2985,7 +3109,7 @@ mod tests {
 
         // AND(1, 1, 1) → 1.0
         let (value, unit) = sheet.evaluate_formula("=AND(1, 1, 1)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -2995,7 +3119,7 @@ mod tests {
 
         // AND(1, 0, 1) → 0.0
         let (value, unit) = sheet.evaluate_formula("=AND(1, 0, 1)").unwrap();
-        assert_eq!(value, 0.0);
+        assert_eq!(value, CellValue::Number(0.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -3005,7 +3129,7 @@ mod tests {
 
         // AND(0, 0, 0) → 0.0
         let (value, unit) = sheet.evaluate_formula("=AND(0, 0, 0)").unwrap();
-        assert_eq!(value, 0.0);
+        assert_eq!(value, CellValue::Number(0.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -3015,7 +3139,7 @@ mod tests {
 
         // OR(1, 1, 1) → 1.0
         let (value, unit) = sheet.evaluate_formula("=OR(1, 1, 1)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -3025,7 +3149,7 @@ mod tests {
 
         // OR(0, 1, 0) → 1.0
         let (value, unit) = sheet.evaluate_formula("=OR(0, 1, 0)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -3035,7 +3159,7 @@ mod tests {
 
         // OR(0, 0, 0) → 0.0
         let (value, unit) = sheet.evaluate_formula("=OR(0, 0, 0)").unwrap();
-        assert_eq!(value, 0.0);
+        assert_eq!(value, CellValue::Number(0.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -3045,7 +3169,7 @@ mod tests {
 
         // NOT(1) → 0.0
         let (value, unit) = sheet.evaluate_formula("=NOT(1)").unwrap();
-        assert_eq!(value, 0.0);
+        assert_eq!(value, CellValue::Number(0.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -3055,7 +3179,7 @@ mod tests {
 
         // NOT(0) → 1.0
         let (value, unit) = sheet.evaluate_formula("=NOT(0)").unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -3086,19 +3210,19 @@ mod tests {
         let (value, _) = sheet
             .evaluate_formula("=AND(GT(A1, A2), LT(A1, A3))")
             .unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
 
         // OR(GT(A1, A3), LT(A2, A1)) → OR(10 > 15, 5 < 10) → OR(0, 1) → 1.0
         let (value, _) = sheet
             .evaluate_formula("=OR(GT(A1, A3), LT(A2, A1))")
             .unwrap();
-        assert_eq!(value, 1.0);
+        assert_eq!(value, CellValue::Number(1.0));
 
         // IF(AND(GT(A1, A2), LT(A1, A3)), A1, A3) → IF(1, 10m, 15m) → 10m
         let (value, unit) = sheet
             .evaluate_formula("=IF(AND(GT(A1, A2), LT(A1, A3)), A1, A3)")
             .unwrap();
-        assert_eq!(value, 10.0);
+        assert_eq!(value, CellValue::Number(10.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -3118,7 +3242,7 @@ mod tests {
         let (value, _) = sheet
             .evaluate_formula("=IF(GT(A1, 5), IF(GT(A1, 15), 100, 50), 0)")
             .unwrap();
-        assert_eq!(value, 50.0);
+        assert_eq!(value, CellValue::Number(50.0));
     }
 
     #[test]
@@ -3128,7 +3252,7 @@ mod tests {
         // MEDIAN(1, 2, 3, 4, 5) = 3
         let (value, unit) = sheet.evaluate_formula("=MEDIAN(1, 2, 3, 4, 5)").unwrap();
 
-        assert_eq!(value, 3.0);
+        assert_eq!(value, CellValue::Number(3.0));
         assert!(unit.is_dimensionless());
     }
 
@@ -3159,7 +3283,7 @@ mod tests {
         // MEDIAN(A1:A3) = 200m
         let (value, unit) = sheet.evaluate_formula("=MEDIAN(A1:A3)").unwrap();
 
-        assert_eq!(value, 200.0);
+        assert_eq!(value, CellValue::Number(200.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -3189,7 +3313,7 @@ mod tests {
 
         let (value, unit) = sheet.evaluate_formula("=MEDIAN(A1:A3)").unwrap();
 
-        assert_eq!(value, 2.0);
+        assert_eq!(value, CellValue::Number(2.0));
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -3200,7 +3324,7 @@ mod tests {
         // MEDIAN(1, 2, 3, 4) = 2.5
         let (value, _) = sheet.evaluate_formula("=MEDIAN(1, 2, 3, 4)").unwrap();
 
-        assert_eq!(value, 2.5);
+        assert_eq!(value, CellValue::Number(2.5));
     }
 
     #[test]
@@ -3214,7 +3338,11 @@ mod tests {
             .unwrap();
 
         // Standard deviation should be approximately 2.138
-        assert!((value - 2.138).abs() < 0.01);
+        if let CellValue::Number(num) = value {
+            assert!((num - 2.138).abs() < 0.01);
+        } else {
+            panic!("Expected numeric value");
+        }
     }
 
     #[test]
@@ -3244,7 +3372,11 @@ mod tests {
         let (value, unit) = sheet.evaluate_formula("=STDEV(A1:A3)").unwrap();
 
         // Standard deviation of [100, 200, 300] ≈ 100
-        assert!((value - 100.0).abs() < 1.0);
+        if let CellValue::Number(num) = value {
+            assert!((num - 100.0).abs() < 1.0);
+        } else {
+            panic!("Expected numeric value");
+        }
         assert_eq!(unit.canonical(), "m");
     }
 
@@ -3258,7 +3390,11 @@ mod tests {
             .unwrap();
 
         // Variance should be approximately 4.571
-        assert!((value - 4.571).abs() < 0.01);
+        if let CellValue::Number(num) = value {
+            assert!((num - 4.571).abs() < 0.01);
+        } else {
+            panic!("Expected numeric value");
+        }
     }
 
     #[test]
@@ -3288,7 +3424,11 @@ mod tests {
         let (value, unit) = sheet.evaluate_formula("=VAR(A1:A3)").unwrap();
 
         // Sample variance (n-1) of [1, 2, 3] = 1.0
-        assert!((value - 1.0).abs() < 0.01);
+        if let CellValue::Number(num) = value {
+            assert!((num - 1.0).abs() < 0.01);
+        } else {
+            panic!("Expected numeric value");
+        }
 
         // Unit should be m² (squared)
         let canonical = unit.canonical();
@@ -3325,7 +3465,11 @@ mod tests {
         let (value, unit) = sheet.evaluate_formula("=VAR(A1:A3)").unwrap();
 
         // Sample variance (n-1) of [10, 20, 30] = 100.0
-        assert!((value - 100.0).abs() < 0.1);
+        if let CellValue::Number(num) = value {
+            assert!((num - 100.0).abs() < 0.1);
+        } else {
+            panic!("Expected numeric value");
+        }
 
         // Unit should be kg² (squared)
         let canonical = unit.canonical();

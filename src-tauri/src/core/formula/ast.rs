@@ -14,6 +14,9 @@ pub enum Expr {
         unit: String,
     },
 
+    /// A string literal (e.g., "Hello", "world")
+    String(String),
+
     /// A cell reference (e.g., A1, B12)
     CellRef {
         col: String,
@@ -81,6 +84,11 @@ impl Expr {
             value,
             unit: unit.into(),
         }
+    }
+
+    /// Create a string literal expression
+    pub fn string(value: impl Into<String>) -> Self {
+        Self::String(value.into())
     }
 
     /// Create a cell reference
@@ -193,6 +201,7 @@ impl std::fmt::Display for Expr {
         match self {
             Expr::Number(n) => write!(f, "{}", n),
             Expr::NumberWithUnit { value, unit } => write!(f, "{}{}", value, unit),
+            Expr::String(s) => write!(f, "\"{}\"", s),
             Expr::CellRef { col, row } => write!(f, "{}{}", col, row),
             Expr::NamedRef { name } => write!(f, "{}", name),
             Expr::Range { start, end } => write!(f, "{}:{}", start, end),

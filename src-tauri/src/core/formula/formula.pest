@@ -20,12 +20,17 @@ unary_op = { "-" | "+" }
 primary = _{
     "(" ~ expr ~ ")" |
     function_call |
+    string_literal |
     cell_ref |
     named_ref |
     currency_with_number |
     number_with_unit |
     number
 }
+
+// String literal (e.g., "Hello", "world")
+string_literal = ${ "\"" ~ string_content ~ "\"" }
+string_content = @{ (!"\"" ~ ANY)* }
 
 // Numbers
 number = @{ float | integer }

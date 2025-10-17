@@ -36,21 +36,36 @@ pub enum EvalError {
 /// Result of evaluating an expression
 #[derive(Debug, Clone, PartialEq)]
 pub struct EvalResult {
-    /// The computed value
-    pub value: f64,
+    /// The computed value (either number or text)
+    pub value: EvalValue,
 
-    /// The unit of the result
+    /// The unit of the result (only applicable for numeric values)
     pub unit: Unit,
 
     /// Optional warning message (for incompatible but allowed operations)
     pub warning: Option<String>,
 }
 
+/// The value type for evaluation results
+#[derive(Debug, Clone, PartialEq)]
+pub enum EvalValue {
+    Number(f64),
+    Text(String),
+}
+
 impl EvalResult {
     pub fn new(value: f64, unit: Unit) -> Self {
         Self {
-            value,
+            value: EvalValue::Number(value),
             unit,
+            warning: None,
+        }
+    }
+
+    pub fn text(value: String) -> Self {
+        Self {
+            value: EvalValue::Text(value),
+            unit: Unit::dimensionless(),
             warning: None,
         }
     }
@@ -58,6 +73,36 @@ impl EvalResult {
     pub fn with_warning(mut self, warning: String) -> Self {
         self.warning = Some(warning);
         self
+    }
+
+    pub fn as_number(&self) -> Option<f64> {
+        match self.value {
+            EvalValue::Number(n) => Some(n),
+            _ => None,
+        }
+    }
+
+    pub fn as_text(&self) -> Option<&str> {
+        match &self.value {
+            EvalValue::Text(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn is_text(&self) -> bool {
+        matches!(self.value, EvalValue::Text(_))
+    }
+
+    pub fn is_number(&self) -> bool {
+        matches!(self.value, EvalValue::Number(_))
+    }
+
+    /// Get the numeric value, unwrapping if it's a number (for internal use where we validated it's a number)
+    pub fn numeric_value(&self) -> f64 {
+        match self.value {
+            EvalValue::Number(n) => n,
+            EvalValue::Text(_) => panic!("Expected number, got text"),
+        }
     }
 }
 
@@ -83,6 +128,8 @@ impl<'a> Evaluator<'a> {
                 Ok(EvalResult::new(*value, unit_obj))
             }
 
+            Expr::String(s) => Ok(EvalResult::text(s.clone())),
+
             Expr::Add(left, right) => self.eval_add(left, right),
             Expr::Subtract(left, right) => self.eval_subtract(left, right),
             Expr::Multiply(left, right) => self.eval_multiply(left, right),
@@ -90,7 +137,12 @@ impl<'a> Evaluator<'a> {
 
             Expr::Negate(expr) => {
                 let result = self.eval(expr)?;
-                Ok(EvalResult::new(-result.value, result.unit))
+                match result.value {
+                    EvalValue::Number(n) => Ok(EvalResult::new(-n, result.unit)),
+                    EvalValue::Text(_) => Err(EvalError::InvalidOperation(
+                        "Cannot negate a text value".to_string(),
+                    )),
+                }
             }
 
             Expr::CellRef { .. } => Err(EvalError::CellNotFound(
@@ -106,7 +158,7 @@ impl<'a> Evaluator<'a> {
                 "Ranges can only be used in functions".to_string(),
             )),
 
-            Expr::Function { name, .. } => Err(EvalError::FunctionNotImplemented(name.clone())),
+            Expr::Function { name, args } => self.eval_function(name, args),
 
             Expr::Boolean(b) => Ok(EvalResult::new(
                 if *b { 1.0 } else { 0.0 },
@@ -132,15 +184,44 @@ impl<'a> Evaluator<'a> {
         }
     }
 
-    /// Add two values (requires compatible units)
+    /// Add two values (requires compatible units) or concatenate strings
     fn eval_add(&self, left: &Expr, right: &Expr) -> Result<EvalResult, EvalError> {
         let left_result = self.eval(left)?;
         let right_result = self.eval(right)?;
 
+        // If either operand is text, perform string concatenation
+        if left_result.is_text() || right_result.is_text() {
+            let left_str = match &left_result.value {
+                EvalValue::Text(s) => s.clone(),
+                EvalValue::Number(n) => {
+                    if left_result.unit.is_dimensionless() {
+                        n.to_string()
+                    } else {
+                        format!("{} {}", n, left_result.unit)
+                    }
+                }
+            };
+            let right_str = match &right_result.value {
+                EvalValue::Text(s) => s.clone(),
+                EvalValue::Number(n) => {
+                    if right_result.unit.is_dimensionless() {
+                        n.to_string()
+                    } else {
+                        format!("{} {}", n, right_result.unit)
+                    }
+                }
+            };
+            return Ok(EvalResult::text(format!("{}{}", left_str, right_str)));
+        }
+
+        // Both are numbers - proceed with numeric addition
+        let left_value = left_result.as_number().unwrap();
+        let right_value = right_result.as_number().unwrap();
+
         // Both dimensionless - simple addition
         if left_result.unit.is_dimensionless() && right_result.unit.is_dimensionless() {
             return Ok(EvalResult::new(
-                left_result.value + right_result.value,
+                left_value + right_value,
                 Unit::dimensionless(),
             ));
         }
@@ -157,7 +238,7 @@ impl<'a> Evaluator<'a> {
         // If units are exactly the same, just add
         if left_result.unit.is_equal(&right_result.unit) {
             return Ok(EvalResult::new(
-                left_result.value + right_result.value,
+                left_value + right_value,
                 left_result.unit.clone(),
             ));
         }
@@ -166,7 +247,7 @@ impl<'a> Evaluator<'a> {
         let right_value_converted = self
             .library
             .convert(
-                right_result.value,
+                right_value,
                 right_result.unit.canonical(),
                 left_result.unit.canonical(),
             )
@@ -177,7 +258,7 @@ impl<'a> Evaluator<'a> {
             })?;
 
         Ok(EvalResult::new(
-            left_result.value + right_value_converted,
+            left_value + right_value_converted,
             left_result.unit.clone(),
         ))
     }
@@ -187,10 +268,18 @@ impl<'a> Evaluator<'a> {
         let left_result = self.eval(left)?;
         let right_result = self.eval(right)?;
 
+        // Subtraction requires both operands to be numbers
+        let left_value = left_result.as_number().ok_or_else(|| {
+            EvalError::InvalidOperation("Cannot subtract with text values".to_string())
+        })?;
+        let right_value = right_result.as_number().ok_or_else(|| {
+            EvalError::InvalidOperation("Cannot subtract with text values".to_string())
+        })?;
+
         // Both dimensionless - simple subtraction
         if left_result.unit.is_dimensionless() && right_result.unit.is_dimensionless() {
             return Ok(EvalResult::new(
-                left_result.value - right_result.value,
+                left_value - right_value,
                 Unit::dimensionless(),
             ));
         }
@@ -207,7 +296,7 @@ impl<'a> Evaluator<'a> {
         // If units are exactly the same, just subtract
         if left_result.unit.is_equal(&right_result.unit) {
             return Ok(EvalResult::new(
-                left_result.value - right_result.value,
+                left_value - right_value,
                 left_result.unit.clone(),
             ));
         }
@@ -216,7 +305,7 @@ impl<'a> Evaluator<'a> {
         let right_value_converted = self
             .library
             .convert(
-                right_result.value,
+                right_value,
                 right_result.unit.canonical(),
                 left_result.unit.canonical(),
             )
@@ -227,7 +316,7 @@ impl<'a> Evaluator<'a> {
             })?;
 
         Ok(EvalResult::new(
-            left_result.value - right_value_converted,
+            left_value - right_value_converted,
             left_result.unit.clone(),
         ))
     }
@@ -237,7 +326,15 @@ impl<'a> Evaluator<'a> {
         let left_result = self.eval(left)?;
         let right_result = self.eval(right)?;
 
-        let value = left_result.value * right_result.value;
+        // Multiplication requires both operands to be numbers
+        let left_value = left_result.as_number().ok_or_else(|| {
+            EvalError::InvalidOperation("Cannot multiply with text values".to_string())
+        })?;
+        let right_value = right_result.as_number().ok_or_else(|| {
+            EvalError::InvalidOperation("Cannot multiply with text values".to_string())
+        })?;
+
+        let value = left_value * right_value;
 
         // If both dimensionless, result is dimensionless
         if left_result.unit.is_dimensionless() && right_result.unit.is_dimensionless() {
@@ -263,11 +360,19 @@ impl<'a> Evaluator<'a> {
         let left_result = self.eval(left)?;
         let right_result = self.eval(right)?;
 
-        if right_result.value == 0.0 {
+        // Division requires both operands to be numbers
+        let left_value = left_result.as_number().ok_or_else(|| {
+            EvalError::InvalidOperation("Cannot divide with text values".to_string())
+        })?;
+        let right_value = right_result.as_number().ok_or_else(|| {
+            EvalError::InvalidOperation("Cannot divide with text values".to_string())
+        })?;
+
+        if right_value == 0.0 {
             return Err(EvalError::DivisionByZero);
         }
 
-        let value = left_result.value / right_result.value;
+        let value = left_value / right_value;
 
         // If both dimensionless, result is dimensionless
         if left_result.unit.is_dimensionless() && right_result.unit.is_dimensionless() {
@@ -310,6 +415,97 @@ impl<'a> Evaluator<'a> {
             create_division_unit(&left_result.unit, &right_result.unit, &compound_symbol);
 
         Ok(EvalResult::new(value, compound_unit))
+    }
+
+    /// Evaluate a function call
+    fn eval_function(&self, name: &str, args: &[Expr]) -> Result<EvalResult, EvalError> {
+        match name.to_uppercase().as_str() {
+            "CEILING" => self.eval_ceiling(args),
+            _ => Err(EvalError::FunctionNotImplemented(name.to_string())),
+        }
+    }
+
+    /// CEILING function: rounds a number up to the nearest integer or to the nearest multiple of significance
+    /// CEILING(number) or CEILING(number, significance)
+    fn eval_ceiling(&self, args: &[Expr]) -> Result<EvalResult, EvalError> {
+        // Validate argument count (1 or 2 arguments)
+        if args.is_empty() || args.len() > 2 {
+            return Err(EvalError::InvalidOperation(format!(
+                "CEILING requires 1 or 2 arguments, got {}",
+                args.len()
+            )));
+        }
+
+        // Evaluate the number argument
+        let number_result = self.eval(&args[0])?;
+        let number = number_result.as_number().ok_or_else(|| {
+            EvalError::InvalidOperation("CEILING requires a numeric first argument".to_string())
+        })?;
+
+        // Get significance (defaults to 1 if not provided)
+        let significance = if args.len() == 2 {
+            let sig_result = self.eval(&args[1])?;
+            let sig_value = sig_result.as_number().ok_or_else(|| {
+                EvalError::InvalidOperation("CEILING significance must be numeric".to_string())
+            })?;
+
+            // Check unit compatibility
+            if !sig_result.unit.is_dimensionless()
+                && !number_result.unit.is_dimensionless()
+                && !sig_result.unit.is_compatible(&number_result.unit)
+            {
+                return Err(EvalError::IncompatibleUnits {
+                    operation: "CEILING".to_string(),
+                    left: number_result.unit.to_string(),
+                    right: sig_result.unit.to_string(),
+                });
+            }
+
+            // Convert significance to same unit as number if needed
+            let converted_sig = if sig_result.unit.is_dimensionless()
+                || number_result.unit.is_dimensionless()
+                || sig_result.unit.is_equal(&number_result.unit)
+            {
+                sig_value
+            } else {
+                // Convert significance to number's unit
+                self.library
+                    .convert(
+                        sig_value,
+                        sig_result.unit.canonical(),
+                        number_result.unit.canonical(),
+                    )
+                    .ok_or_else(|| EvalError::IncompatibleUnits {
+                        operation: "CEILING".to_string(),
+                        left: number_result.unit.to_string(),
+                        right: sig_result.unit.to_string(),
+                    })?
+            };
+
+            converted_sig
+        } else {
+            1.0
+        };
+
+        // Check for zero significance
+        if significance == 0.0 {
+            return Err(EvalError::InvalidOperation(
+                "CEILING significance cannot be zero".to_string(),
+            ));
+        }
+
+        // Perform ceiling operation
+        let result_value = if significance == 1.0 {
+            // Simple ceiling to nearest integer
+            number.ceil()
+        } else {
+            // Ceiling to nearest multiple of significance
+            // Formula: ceil(number / significance) * significance
+            (number / significance).ceil() * significance
+        };
+
+        // Preserve the unit from the number argument
+        Ok(EvalResult::new(result_value, number_result.unit.clone()))
     }
 }
 
@@ -845,7 +1041,7 @@ mod tests {
         let eval = Evaluator::new(&library);
         let expr = Expr::number(42.0);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 42.0);
+        assert_eq!(result.value, EvalValue::Number(42.0));
         assert!(result.unit.is_dimensionless());
     }
 
@@ -855,7 +1051,7 @@ mod tests {
         let eval = Evaluator::new(&library);
         let expr = Expr::number_with_unit(100.0, "m");
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 100.0);
+        assert_eq!(result.value, EvalValue::Number(100.0));
         assert_eq!(result.unit.canonical(), "m");
     }
 
@@ -868,7 +1064,7 @@ mod tests {
             Expr::number_with_unit(50.0, "m"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 150.0);
+        assert_eq!(result.value, EvalValue::Number(150.0));
         assert_eq!(result.unit.canonical(), "m");
     }
 
@@ -881,7 +1077,7 @@ mod tests {
             Expr::number_with_unit(50.0, "cm"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 100.5); // 100m + 0.5m
+        assert_eq!(result.value, EvalValue::Number(100.5)); // 100m + 0.5m
         assert_eq!(result.unit.canonical(), "m");
     }
 
@@ -910,7 +1106,7 @@ mod tests {
             Expr::number_with_unit(30.0, "m"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 70.0);
+        assert_eq!(result.value, EvalValue::Number(70.0));
         assert_eq!(result.unit.canonical(), "m");
     }
 
@@ -923,7 +1119,7 @@ mod tests {
             Expr::number_with_unit(5.0, "m"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         // Result should be m^2 (area, simplified)
         assert_eq!(result.unit.canonical(), "m^2");
     }
@@ -934,7 +1130,7 @@ mod tests {
         let eval = Evaluator::new(&library);
         let expr = Expr::new_multiply(Expr::number_with_unit(10.0, "m"), Expr::number(2.0));
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 20.0);
+        assert_eq!(result.value, EvalValue::Number(20.0));
         assert_eq!(result.unit.canonical(), "m");
     }
 
@@ -947,7 +1143,7 @@ mod tests {
             Expr::number_with_unit(10.0, "m"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 10.0);
+        assert_eq!(result.value, EvalValue::Number(10.0));
         assert!(result.unit.is_dimensionless()); // Units cancel
     }
 
@@ -960,7 +1156,7 @@ mod tests {
             Expr::number_with_unit(2.0, "s"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         // Result should be m/s (velocity)
         assert_eq!(result.unit.canonical(), "m/s");
     }
@@ -981,7 +1177,7 @@ mod tests {
         let eval = Evaluator::new(&library);
         let expr = Expr::negate(Expr::number_with_unit(50.0, "m"));
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, -50.0);
+        assert_eq!(result.value, EvalValue::Number(-50.0));
         assert_eq!(result.unit.canonical(), "m");
     }
 
@@ -998,7 +1194,7 @@ mod tests {
             Expr::number(2.0),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 300.0);
+        assert_eq!(result.value, EvalValue::Number(300.0));
         assert_eq!(result.unit.canonical(), "m");
     }
 
@@ -1012,7 +1208,7 @@ mod tests {
             Expr::number_with_unit(2.0, "hr"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         assert_eq!(result.unit.canonical(), "mi/hr");
     }
 
@@ -1026,7 +1222,7 @@ mod tests {
             Expr::number_with_unit(15.0, "$/ft"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 30.0);
+        assert_eq!(result.value, EvalValue::Number(30.0));
         // The unit should be USD or $ after cancellation
         assert!(result.unit.canonical() == "USD" || result.unit.canonical() == "$");
         assert!(
@@ -1043,7 +1239,7 @@ mod tests {
         // Test that $/ft is parsed correctly as a compound unit
         let expr = Expr::number_with_unit(15.0, "$/ft");
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 15.0);
+        assert_eq!(result.value, EvalValue::Number(15.0));
         assert_eq!(result.unit.canonical(), "$/ft");
     }
 
@@ -1059,7 +1255,7 @@ mod tests {
             Expr::number_with_unit(1.0, "ft"),
         );
         let b2_result = eval.eval(&b2_expr).unwrap();
-        assert_eq!(b2_result.value, 15.0);
+        assert_eq!(b2_result.value, EvalValue::Number(15.0));
         println!("B2 canonical: {}", b2_result.unit.canonical());
 
         // Now use B2's result in a multiplication: 2ft * (result from B2)
@@ -1071,7 +1267,7 @@ mod tests {
         );
         let b4_result = eval.eval(&b4_expr).unwrap();
 
-        assert_eq!(b4_result.value, 30.0);
+        assert_eq!(b4_result.value, EvalValue::Number(30.0));
         println!("B4 canonical: {}", b4_result.unit.canonical());
         println!("B4 dimension: {:?}", b4_result.unit.dimension());
 
@@ -1101,7 +1297,7 @@ mod tests {
             Expr::new_divide(Expr::number(5.0), Expr::number_with_unit(1.0, "m")),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         assert!(result.unit.is_dimensionless());
     }
 
@@ -1116,7 +1312,7 @@ mod tests {
             Expr::number_with_unit(20.0, "USD/kg"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 100.0);
+        assert_eq!(result.value, EvalValue::Number(100.0));
         assert_eq!(result.unit.canonical(), "USD");
     }
 
@@ -1131,7 +1327,7 @@ mod tests {
             Expr::number_with_unit(60.0, "m/hr"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 120.0);
+        assert_eq!(result.value, EvalValue::Number(120.0));
         assert_eq!(result.unit.canonical(), "m");
     }
 
@@ -1146,7 +1342,7 @@ mod tests {
             Expr::number_with_unit(1.0, "s*s"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 32.2);
+        assert_eq!(result.value, EvalValue::Number(32.2));
         // Should have ft in numerator, s² in denominator
         assert!(result.unit.canonical().contains("ft"));
         assert!(result.unit.canonical().contains("s"));
@@ -1180,7 +1376,7 @@ mod tests {
             Expr::number_with_unit(5.0, "$/ft"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 500.0);
+        assert_eq!(result.value, EvalValue::Number(500.0));
         // One ft should cancel, leaving $/ft or USD/ft or ft*USD depending on order
         let canonical = result.unit.canonical();
         assert!(canonical.contains("$") || canonical.contains("USD"));
@@ -1204,7 +1400,7 @@ mod tests {
         let price_per_area = Expr::new_multiply(price_per_ft, per_ft);
         let expr = Expr::new_multiply(area, price_per_area);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 500.0);
+        assert_eq!(result.value, EvalValue::Number(500.0));
         // All ft should cancel leaving just currency
         let canonical = result.unit.canonical();
         assert!(canonical == "$" || canonical == "USD", "Got: {}", canonical);
@@ -1225,7 +1421,7 @@ mod tests {
         let denominator = Expr::number_with_unit(2.0, "kg");
         let expr = Expr::new_divide(numerator, denominator);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 25.0);
+        assert_eq!(result.value, EvalValue::Number(25.0));
         // Currently division doesn't cancel, so kg will still be in there
         // This test documents that we need to add cancellation to division
         assert!(result.unit.canonical().contains("m"));
@@ -1242,7 +1438,7 @@ mod tests {
             Expr::number_with_unit(10.0, "m"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         assert!(result.unit.canonical().contains("kg"));
         assert!(result.unit.canonical().contains("m"));
     }
@@ -1258,7 +1454,7 @@ mod tests {
             Expr::number_with_unit(10.0, "$/yd"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 30.0);
+        assert_eq!(result.value, EvalValue::Number(30.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
         assert!(!result.unit.canonical().contains("yd"));
     }
@@ -1274,7 +1470,7 @@ mod tests {
             Expr::number_with_unit(2.5, "$/mi"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 250.0);
+        assert_eq!(result.value, EvalValue::Number(250.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1294,7 +1490,7 @@ mod tests {
         let per_s_squared = Expr::new_multiply(per_s1, per_s2);
         let expr = Expr::new_multiply(s_squared, per_s_squared);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 40.0);
+        assert_eq!(result.value, EvalValue::Number(40.0));
         assert!(result.unit.is_dimensionless());
     }
 
@@ -1332,7 +1528,7 @@ mod tests {
             Expr::number_with_unit(2.0, "s"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 10.0);
+        assert_eq!(result.value, EvalValue::Number(10.0));
         assert!(result.unit.canonical().contains("kg"));
         assert!(result.unit.canonical().contains("s"));
     }
@@ -1355,7 +1551,7 @@ mod tests {
         let temp = Expr::new_multiply(velocity, time_per_mass);
         let expr = Expr::new_multiply(temp, mass);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 100.0);
+        assert_eq!(result.value, EvalValue::Number(100.0));
         // s and kg should cancel, leaving only m
         assert_eq!(result.unit.canonical(), "m");
     }
@@ -1371,7 +1567,7 @@ mod tests {
             Expr::number_with_unit(3.5, "$/lb"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 35.0);
+        assert_eq!(result.value, EvalValue::Number(35.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1386,7 +1582,7 @@ mod tests {
             Expr::number_with_unit(0.5, "$/oz"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 8.0);
+        assert_eq!(result.value, EvalValue::Number(8.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1401,7 +1597,7 @@ mod tests {
             Expr::number_with_unit(2.0, "$/min"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 60.0);
+        assert_eq!(result.value, EvalValue::Number(60.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1421,7 +1617,7 @@ mod tests {
         );
         let expr = Expr::new_divide(numerator, denominator);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         assert!(result.unit.canonical().contains("kg"));
         assert!(result.unit.canonical().contains("m"));
         assert!(result.unit.canonical().contains("s"));
@@ -1438,7 +1634,7 @@ mod tests {
             Expr::number_with_unit(5.0, "$/in"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 60.0);
+        assert_eq!(result.value, EvalValue::Number(60.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1453,7 +1649,7 @@ mod tests {
             Expr::number_with_unit(100.0, "$/day"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 700.0);
+        assert_eq!(result.value, EvalValue::Number(700.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1468,7 +1664,7 @@ mod tests {
             Expr::number_with_unit(0.1, "$/g"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 10.0);
+        assert_eq!(result.value, EvalValue::Number(10.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1483,7 +1679,7 @@ mod tests {
             Expr::new_divide(Expr::number(2.0), Expr::number_with_unit(1.0, "mm")),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 2000.0);
+        assert_eq!(result.value, EvalValue::Number(2000.0));
         assert!(result.unit.is_dimensionless());
     }
 
@@ -1498,7 +1694,7 @@ mod tests {
             Expr::number_with_unit(1.5, "$/km"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 75.0);
+        assert_eq!(result.value, EvalValue::Number(75.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1513,7 +1709,7 @@ mod tests {
             Expr::number_with_unit(0.5, "$/cm"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1528,7 +1724,7 @@ mod tests {
             Expr::number_with_unit(0.01, "$/mg"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 10.0);
+        assert_eq!(result.value, EvalValue::Number(10.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1551,7 +1747,7 @@ mod tests {
         );
         let expr = Expr::new_divide(numerator, denominator);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 10.0);
+        assert_eq!(result.value, EvalValue::Number(10.0));
         // Division doesn't automatically cancel, so we'll have compound unit
         assert!(result.unit.canonical().contains("m"));
     }
@@ -1568,7 +1764,7 @@ mod tests {
         );
         let expr = Expr::new_divide(temp, Expr::number_with_unit(5.0, "kg"));
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 1.0);
+        assert_eq!(result.value, EvalValue::Number(1.0));
         assert!(result.unit.canonical().contains("m"));
         assert!(result.unit.canonical().contains("s"));
         assert!(result.unit.canonical().contains("kg"));
@@ -1584,7 +1780,7 @@ mod tests {
         let meters = Expr::number_with_unit(10.0, "m");
         let expr = Expr::new_multiply(per_meter, meters);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         assert!(result.unit.is_dimensionless());
     }
 
@@ -1599,7 +1795,7 @@ mod tests {
             Expr::number_with_unit(10.0, "EUR/m"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         // EUR, USD, GBP all map to Currency dimension, so we accept either
         let canonical = result.unit.canonical();
         assert!(
@@ -1620,7 +1816,7 @@ mod tests {
             Expr::number_with_unit(5.0, "GBP/kg"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         // EUR, USD, GBP all map to Currency dimension, so we accept either
         let canonical = result.unit.canonical();
         assert!(
@@ -1646,7 +1842,7 @@ mod tests {
         );
         let expr = Expr::new_multiply(v1, v2);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         assert!(result.unit.canonical().contains("m"));
         assert!(result.unit.canonical().contains("s"));
     }
@@ -1664,7 +1860,7 @@ mod tests {
         let length = Expr::number_with_unit(10.0, "m");
         let expr = Expr::new_divide(area, length);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 5.0);
+        assert_eq!(result.value, EvalValue::Number(5.0));
         // Division doesn't cancel m²/m to m yet, so we'll have a compound unit
         // This test documents that division needs cancellation support
         assert!(result.unit.canonical().contains("m"));
@@ -1689,7 +1885,7 @@ mod tests {
         );
         let expr = Expr::new_divide(volume, area);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 4.0);
+        assert_eq!(result.value, EvalValue::Number(4.0));
         // Division doesn't cancel m³/m² to m yet, so we'll have a compound unit
         // This test documents that division needs cancellation support
         assert!(result.unit.canonical().contains("m"));
@@ -1717,7 +1913,7 @@ mod tests {
         );
         let expr = Expr::new_divide(kg_m_squared, s_cubed);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 100.0);
+        assert_eq!(result.value, EvalValue::Number(100.0));
         assert!(result.unit.canonical().contains("kg"));
         assert!(result.unit.canonical().contains("m"));
         assert!(result.unit.canonical().contains("s"));
@@ -1736,7 +1932,7 @@ mod tests {
             Expr::number_with_unit(0.05, "$/GB"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 5.0);
+        assert_eq!(result.value, EvalValue::Number(5.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1751,7 +1947,7 @@ mod tests {
             Expr::number_with_unit(0.001, "$/MB"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 1.0);
+        assert_eq!(result.value, EvalValue::Number(1.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1766,7 +1962,7 @@ mod tests {
             Expr::number_with_unit(5.0, "$/TB"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1781,7 +1977,7 @@ mod tests {
             Expr::number_with_unit(2.0, "hr"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         assert!(result.unit.canonical().contains("GB"));
         assert!(result.unit.canonical().contains("hr"));
     }
@@ -1797,7 +1993,7 @@ mod tests {
             Expr::number_with_unit(1.0, "month"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50000.0);
+        assert_eq!(result.value, EvalValue::Number(50000.0));
         assert!(result.unit.canonical().contains("MB"));
         assert!(result.unit.canonical().contains("month"));
     }
@@ -1819,7 +2015,7 @@ mod tests {
         let price_rate = Expr::new_multiply(Expr::new_multiply(dollars, per_gb), per_hr);
         let expr = Expr::new_multiply(gb_hours, price_rate);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 2.4);
+        assert_eq!(result.value, EvalValue::Number(2.4));
         assert!(
             result.unit.canonical() == "$" || result.unit.canonical() == "USD",
             "Expected $ or USD, got: {}",
@@ -1844,7 +2040,7 @@ mod tests {
         let price_rate = Expr::new_multiply(Expr::new_multiply(dollars, per_tb), per_month);
         let expr = Expr::new_multiply(tb_months, price_rate);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 150.0);
+        assert_eq!(result.value, EvalValue::Number(150.0));
         assert!(
             result.unit.canonical() == "$" || result.unit.canonical() == "USD",
             "Expected $ or USD, got: {}",
@@ -1863,7 +2059,7 @@ mod tests {
             Expr::number_with_unit(0.00002, "$/Tok"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 0.02);
+        assert_eq!(result.value, EvalValue::Number(0.02));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1878,7 +2074,7 @@ mod tests {
             Expr::number_with_unit(0.02, "$/KTok"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 2.0);
+        assert_eq!(result.value, EvalValue::Number(2.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1893,7 +2089,7 @@ mod tests {
             Expr::number_with_unit(20.0, "$/MTok"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 200.0);
+        assert_eq!(result.value, EvalValue::Number(200.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1908,7 +2104,7 @@ mod tests {
             Expr::number_with_unit(10.0, "hr"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 0.5);
+        assert_eq!(result.value, EvalValue::Number(0.5));
         assert!(result.unit.canonical().contains("MTok"));
         assert!(result.unit.canonical().contains("hr"));
     }
@@ -1930,7 +2126,7 @@ mod tests {
         let price_rate = Expr::new_multiply(Expr::new_multiply(dollars, per_mtok), per_hr);
         let expr = Expr::new_multiply(mtok_hours, price_rate);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 120.0);
+        assert_eq!(result.value, EvalValue::Number(120.0));
         assert!(
             result.unit.canonical() == "$" || result.unit.canonical() == "USD",
             "Expected $ or USD, got: {}",
@@ -1949,7 +2145,7 @@ mod tests {
             Expr::number_with_unit(1.0, "hr"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 1000.0);
+        assert_eq!(result.value, EvalValue::Number(1000.0));
         assert!(result.unit.canonical().contains("Mbits"));
         assert!(result.unit.canonical().contains("hr"));
     }
@@ -1965,7 +2161,7 @@ mod tests {
             Expr::number_with_unit(1.0, "month"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 10000.0);
+        assert_eq!(result.value, EvalValue::Number(10000.0));
         assert!(result.unit.canonical().contains("Gbits"));
         assert!(result.unit.canonical().contains("month"));
     }
@@ -1981,7 +2177,7 @@ mod tests {
             Expr::number_with_unit(0.1, "$/Gbits"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -1996,7 +2192,7 @@ mod tests {
             Expr::number_with_unit(5.0, "GB"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         // System preserves original symbol when multiplying same units
         assert_eq!(result.unit.canonical(), "GB^2");
     }
@@ -2013,7 +2209,7 @@ mod tests {
         );
         let expr = Expr::new_divide(gb_squared, Expr::number_with_unit(10.0, "GB"));
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 10.0);
+        assert_eq!(result.value, EvalValue::Number(10.0));
         // Division doesn't auto-cancel, so result will contain GB
         assert!(result.unit.canonical().contains("GB") || result.unit.canonical().contains("B"));
     }
@@ -2034,7 +2230,7 @@ mod tests {
         let per_mb_squared = Expr::new_multiply(per_mb1, per_mb2);
         let expr = Expr::new_multiply(mb_squared, per_mb_squared);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 100.0);
+        assert_eq!(result.value, EvalValue::Number(100.0));
         assert!(result.unit.is_dimensionless());
     }
 
@@ -2050,7 +2246,7 @@ mod tests {
         );
         let expr = Expr::new_multiply(tb_times_tb, Expr::number_with_unit(5.0, "TB"));
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 30.0);
+        assert_eq!(result.value, EvalValue::Number(30.0));
         // System preserves original symbol when multiplying same units
         assert_eq!(result.unit.canonical(), "TB^3");
     }
@@ -2066,7 +2262,7 @@ mod tests {
             Expr::number_with_unit(0.0001, "$/b"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 1.0);
+        assert_eq!(result.value, EvalValue::Number(1.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -2081,7 +2277,7 @@ mod tests {
             Expr::number_with_unit(0.0002, "$/KB"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 1.0);
+        assert_eq!(result.value, EvalValue::Number(1.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -2096,7 +2292,7 @@ mod tests {
             Expr::number_with_unit(500.0, "$/PB"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 500.0);
+        assert_eq!(result.value, EvalValue::Number(500.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -2111,7 +2307,7 @@ mod tests {
             Expr::number_with_unit(0.0001, "$/Kbits"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 1.0);
+        assert_eq!(result.value, EvalValue::Number(1.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -2126,7 +2322,7 @@ mod tests {
             Expr::number_with_unit(5.0, "$/Tbits"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -2141,7 +2337,7 @@ mod tests {
             Expr::number_with_unit(50.0, "GB/hr"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 1200.0);
+        assert_eq!(result.value, EvalValue::Number(1200.0));
         // DigitalStorage dimension uses "B" as the standard symbol
         assert!(result.unit.canonical() == "B" || result.unit.canonical() == "GB");
     }
@@ -2157,7 +2353,7 @@ mod tests {
             Expr::number_with_unit(100.0, "TB/month"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 300.0);
+        assert_eq!(result.value, EvalValue::Number(300.0));
         // DigitalStorage dimension uses "B" as the standard symbol
         assert!(result.unit.canonical() == "B" || result.unit.canonical() == "TB");
     }
@@ -2173,7 +2369,7 @@ mod tests {
             Expr::number_with_unit(5.0, "MTok/hr"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         // DigitalStorage dimension uses "B" as the standard symbol
         assert!(result.unit.canonical() == "B" || result.unit.canonical() == "MTok");
     }
@@ -2199,7 +2395,7 @@ mod tests {
         let efficiency = Expr::new_multiply(Expr::new_multiply(gb, per_hr), per_dollar);
         let expr = Expr::new_multiply(usage, efficiency);
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 24000.0);
+        assert_eq!(result.value, EvalValue::Number(24000.0));
         // $ and hr cancel, leaving GB²
         assert!(
             result.unit.canonical().contains("B"),
@@ -2220,7 +2416,7 @@ mod tests {
         );
         let expr = Expr::new_divide(gb_squared, Expr::number_with_unit(2.0, "hr"));
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 50.0);
+        assert_eq!(result.value, EvalValue::Number(50.0));
         assert!(result.unit.canonical().contains("B"));
         assert!(result.unit.canonical().contains("hr"));
     }
@@ -2237,7 +2433,7 @@ mod tests {
         );
         let expr = Expr::new_divide(mtok_squared, Expr::number_with_unit(1.0, "month"));
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 20.0);
+        assert_eq!(result.value, EvalValue::Number(20.0));
         assert!(result.unit.canonical().contains("MTok") || result.unit.canonical().contains("B"));
         assert!(result.unit.canonical().contains("month"));
     }
@@ -2253,7 +2449,7 @@ mod tests {
             Expr::number_with_unit(0.00001, "$/B"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 10.0);
+        assert_eq!(result.value, EvalValue::Number(10.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -2268,7 +2464,7 @@ mod tests {
             Expr::number_with_unit(0.00001, "$/bits"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 10.0);
+        assert_eq!(result.value, EvalValue::Number(10.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -2283,7 +2479,7 @@ mod tests {
             Expr::number_with_unit(0.00001, "$/tok"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 0.05);
+        assert_eq!(result.value, EvalValue::Number(0.05));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -2298,7 +2494,7 @@ mod tests {
             Expr::number_with_unit(0.01, "$/Ktok"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 2.0);
+        assert_eq!(result.value, EvalValue::Number(2.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 
@@ -2313,7 +2509,7 @@ mod tests {
             Expr::number_with_unit(10.0, "$/Mtok"),
         );
         let result = eval.eval(&expr).unwrap();
-        assert_eq!(result.value, 500.0);
+        assert_eq!(result.value, EvalValue::Number(500.0));
         assert!(result.unit.canonical() == "$" || result.unit.canonical() == "USD");
     }
 }
