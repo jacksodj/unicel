@@ -256,6 +256,27 @@
   - Currency formatting with thousands separators
   - Percentage display with 2 decimals
 
+### Recent Additions (v0.4.2 - 2025-10-17)
+- [x] **Resizable columns and rows** - Completed ✅
+  - Drag-to-resize column widths and row heights with visual resize handles
+  - Column resize handles on right edge of headers, row handles on bottom edge
+  - Real-time visual feedback during resize (minimum: 50px width, 20px height)
+  - Full persistence in .usheet file format with backward compatibility
+  - Backend: `column_widths` and `row_heights` HashMaps in Sheet struct
+  - Frontend: Mouse drag interaction with global event listeners
+  - All 287 tests passing including dimension serialization tests
+
+- [x] **Insert and delete columns/rows** - Completed ✅
+  - Full insert/delete functionality with cell shifting and formula updates
+  - Right-click context menus on column/row headers (hover highlighting)
+  - Delete confirmation dialogs with keyboard support (Escape/Enter)
+  - Cell shifting preserves all data: values, units, formulas, metadata
+  - Formula reference updating: shifts refs on insert, creates #REF! on delete
+  - Column widths and row heights shift with structure changes
+  - Dependency graph rebuilds after structural modifications
+  - Backend: 6 Sheet methods with 18 comprehensive tests (all passing)
+  - Frontend: GridContextMenu.tsx and DeleteConfirmDialog.tsx components
+
 ### UI/UX Enhancements
 - **Column headers should drive default units for cells below** (High priority)
   - When a column header contains a unit (e.g., "Price (USD)"), automatically apply that unit to cells entered below
