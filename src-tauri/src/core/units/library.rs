@@ -263,20 +263,58 @@ impl UnitLibrary {
 
     // === Length Units ===
     fn add_length_units(&mut self) {
-        // Metric
+        // Metric - short forms
         self.add_unit("m", Unit::simple("m", BaseDimension::Length));
         self.add_unit("cm", Unit::simple("cm", BaseDimension::Length));
         self.add_unit("mm", Unit::simple("mm", BaseDimension::Length));
         self.add_unit("km", Unit::simple("km", BaseDimension::Length));
 
-        // Imperial
+        // Metric - long forms (singular and plural)
+        self.add_unit("meter", Unit::simple("meter", BaseDimension::Length));
+        self.add_unit("meters", Unit::simple("meters", BaseDimension::Length));
+        self.add_unit(
+            "centimeter",
+            Unit::simple("centimeter", BaseDimension::Length),
+        );
+        self.add_unit(
+            "centimeters",
+            Unit::simple("centimeters", BaseDimension::Length),
+        );
+        self.add_unit(
+            "millimeter",
+            Unit::simple("millimeter", BaseDimension::Length),
+        );
+        self.add_unit(
+            "millimeters",
+            Unit::simple("millimeters", BaseDimension::Length),
+        );
+        self.add_unit(
+            "kilometer",
+            Unit::simple("kilometer", BaseDimension::Length),
+        );
+        self.add_unit(
+            "kilometers",
+            Unit::simple("kilometers", BaseDimension::Length),
+        );
+
+        // Imperial - short forms
         self.add_unit("in", Unit::simple("in", BaseDimension::Length));
         self.add_unit("ft", Unit::simple("ft", BaseDimension::Length));
         self.add_unit("yd", Unit::simple("yd", BaseDimension::Length));
         self.add_unit("mi", Unit::simple("mi", BaseDimension::Length));
 
+        // Imperial - long forms (singular and plural)
+        self.add_unit("inch", Unit::simple("inch", BaseDimension::Length));
+        self.add_unit("inches", Unit::simple("inches", BaseDimension::Length));
+        self.add_unit("foot", Unit::simple("foot", BaseDimension::Length));
+        self.add_unit("feet", Unit::simple("feet", BaseDimension::Length));
+        self.add_unit("yard", Unit::simple("yard", BaseDimension::Length));
+        self.add_unit("yards", Unit::simple("yards", BaseDimension::Length));
+        self.add_unit("mile", Unit::simple("mile", BaseDimension::Length));
+        self.add_unit("miles", Unit::simple("miles", BaseDimension::Length));
+
         // Conversions (all to meters as base)
-        // Metric
+        // Metric - short to short
         self.add_conversion("cm", "m", ConversionFactor::new(0.01));
         self.add_conversion("m", "cm", ConversionFactor::new(100.0));
         self.add_conversion("mm", "m", ConversionFactor::new(0.001));
@@ -284,7 +322,17 @@ impl UnitLibrary {
         self.add_conversion("km", "m", ConversionFactor::new(1000.0));
         self.add_conversion("m", "km", ConversionFactor::new(0.001));
 
-        // Imperial
+        // Metric - long to short (canonical)
+        self.add_conversion("meter", "m", ConversionFactor::new(1.0));
+        self.add_conversion("meters", "m", ConversionFactor::new(1.0));
+        self.add_conversion("centimeter", "cm", ConversionFactor::new(1.0));
+        self.add_conversion("centimeters", "cm", ConversionFactor::new(1.0));
+        self.add_conversion("millimeter", "mm", ConversionFactor::new(1.0));
+        self.add_conversion("millimeters", "mm", ConversionFactor::new(1.0));
+        self.add_conversion("kilometer", "km", ConversionFactor::new(1.0));
+        self.add_conversion("kilometers", "km", ConversionFactor::new(1.0));
+
+        // Imperial - short to short
         self.add_conversion("in", "m", ConversionFactor::new(0.0254));
         self.add_conversion("m", "in", ConversionFactor::new(39.3701));
         self.add_conversion("ft", "m", ConversionFactor::new(0.3048));
@@ -293,6 +341,16 @@ impl UnitLibrary {
         self.add_conversion("m", "yd", ConversionFactor::new(1.09361));
         self.add_conversion("mi", "m", ConversionFactor::new(1609.34));
         self.add_conversion("m", "mi", ConversionFactor::new(0.000621371));
+
+        // Imperial - long to short (canonical)
+        self.add_conversion("inch", "in", ConversionFactor::new(1.0));
+        self.add_conversion("inches", "in", ConversionFactor::new(1.0));
+        self.add_conversion("foot", "ft", ConversionFactor::new(1.0));
+        self.add_conversion("feet", "ft", ConversionFactor::new(1.0));
+        self.add_conversion("yard", "yd", ConversionFactor::new(1.0));
+        self.add_conversion("yards", "yd", ConversionFactor::new(1.0));
+        self.add_conversion("mile", "mi", ConversionFactor::new(1.0));
+        self.add_conversion("miles", "mi", ConversionFactor::new(1.0));
 
         // Imperial to Imperial (using rational numbers for exact arithmetic)
         self.add_conversion("ft", "in", ConversionFactor::from_rational(12, 1));
@@ -307,27 +365,58 @@ impl UnitLibrary {
 
     // === Mass Units ===
     fn add_mass_units(&mut self) {
-        // Metric
+        // Metric - short forms
         self.add_unit("g", Unit::simple("g", BaseDimension::Mass));
         self.add_unit("kg", Unit::simple("kg", BaseDimension::Mass));
         self.add_unit("mg", Unit::simple("mg", BaseDimension::Mass));
 
-        // Imperial
+        // Metric - long forms
+        self.add_unit("gram", Unit::simple("gram", BaseDimension::Mass));
+        self.add_unit("grams", Unit::simple("grams", BaseDimension::Mass));
+        self.add_unit("kilogram", Unit::simple("kilogram", BaseDimension::Mass));
+        self.add_unit("kilograms", Unit::simple("kilograms", BaseDimension::Mass));
+        self.add_unit("milligram", Unit::simple("milligram", BaseDimension::Mass));
+        self.add_unit(
+            "milligrams",
+            Unit::simple("milligrams", BaseDimension::Mass),
+        );
+
+        // Imperial - short forms
         self.add_unit("oz", Unit::simple("oz", BaseDimension::Mass));
         self.add_unit("lb", Unit::simple("lb", BaseDimension::Mass));
 
+        // Imperial - long forms
+        self.add_unit("ounce", Unit::simple("ounce", BaseDimension::Mass));
+        self.add_unit("ounces", Unit::simple("ounces", BaseDimension::Mass));
+        self.add_unit("pound", Unit::simple("pound", BaseDimension::Mass));
+        self.add_unit("pounds", Unit::simple("pounds", BaseDimension::Mass));
+
         // Conversions (all to kg as base)
-        // Metric
+        // Metric - short to short
         self.add_conversion("g", "kg", ConversionFactor::new(0.001));
         self.add_conversion("kg", "g", ConversionFactor::new(1000.0));
         self.add_conversion("mg", "kg", ConversionFactor::new(0.000001));
         self.add_conversion("kg", "mg", ConversionFactor::new(1_000_000.0));
 
-        // Imperial
+        // Metric - long to short
+        self.add_conversion("gram", "g", ConversionFactor::new(1.0));
+        self.add_conversion("grams", "g", ConversionFactor::new(1.0));
+        self.add_conversion("kilogram", "kg", ConversionFactor::new(1.0));
+        self.add_conversion("kilograms", "kg", ConversionFactor::new(1.0));
+        self.add_conversion("milligram", "mg", ConversionFactor::new(1.0));
+        self.add_conversion("milligrams", "mg", ConversionFactor::new(1.0));
+
+        // Imperial - short to short
         self.add_conversion("oz", "kg", ConversionFactor::new(0.0283495));
         self.add_conversion("kg", "oz", ConversionFactor::new(35.274));
         self.add_conversion("lb", "kg", ConversionFactor::new(0.453592));
         self.add_conversion("kg", "lb", ConversionFactor::new(2.20462));
+
+        // Imperial - long to short
+        self.add_conversion("ounce", "oz", ConversionFactor::new(1.0));
+        self.add_conversion("ounces", "oz", ConversionFactor::new(1.0));
+        self.add_conversion("pound", "lb", ConversionFactor::new(1.0));
+        self.add_conversion("pounds", "lb", ConversionFactor::new(1.0));
 
         // Imperial to Imperial
         self.add_conversion("lb", "oz", ConversionFactor::new(16.0));
@@ -336,24 +425,33 @@ impl UnitLibrary {
 
     // === Time Units ===
     fn add_time_units(&mut self) {
+        // Short forms
         self.add_unit("s", Unit::simple("s", BaseDimension::Time));
         self.add_unit("min", Unit::simple("min", BaseDimension::Time));
         self.add_unit("hr", Unit::simple("hr", BaseDimension::Time));
         self.add_unit("h", Unit::simple("h", BaseDimension::Time)); // alias for hr
-        self.add_unit("hour", Unit::simple("hour", BaseDimension::Time)); // alias for hr
         self.add_unit("day", Unit::simple("day", BaseDimension::Time));
         self.add_unit("month", Unit::simple("month", BaseDimension::Time));
         self.add_unit("year", Unit::simple("year", BaseDimension::Time));
 
-        // Conversions (all to seconds as base)
+        // Long forms
+        self.add_unit("second", Unit::simple("second", BaseDimension::Time));
+        self.add_unit("seconds", Unit::simple("seconds", BaseDimension::Time));
+        self.add_unit("minute", Unit::simple("minute", BaseDimension::Time));
+        self.add_unit("minutes", Unit::simple("minutes", BaseDimension::Time));
+        self.add_unit("hour", Unit::simple("hour", BaseDimension::Time));
+        self.add_unit("hours", Unit::simple("hours", BaseDimension::Time));
+        self.add_unit("days", Unit::simple("days", BaseDimension::Time));
+        self.add_unit("months", Unit::simple("months", BaseDimension::Time));
+        self.add_unit("years", Unit::simple("years", BaseDimension::Time));
+
+        // Conversions (all to seconds as base) - short to short
         self.add_conversion("min", "s", ConversionFactor::new(60.0));
         self.add_conversion("s", "min", ConversionFactor::new(1.0 / 60.0));
         self.add_conversion("hr", "s", ConversionFactor::new(3600.0));
         self.add_conversion("s", "hr", ConversionFactor::new(1.0 / 3600.0));
         self.add_conversion("h", "s", ConversionFactor::new(3600.0));
         self.add_conversion("s", "h", ConversionFactor::new(1.0 / 3600.0));
-        self.add_conversion("hour", "s", ConversionFactor::new(3600.0));
-        self.add_conversion("s", "hour", ConversionFactor::new(1.0 / 3600.0));
         self.add_conversion("day", "s", ConversionFactor::new(86400.0));
         self.add_conversion("s", "day", ConversionFactor::new(1.0 / 86400.0));
         self.add_conversion("month", "s", ConversionFactor::new(2_628_000.0)); // 30.42 days average
@@ -361,21 +459,26 @@ impl UnitLibrary {
         self.add_conversion("year", "s", ConversionFactor::new(31_536_000.0)); // 365 days
         self.add_conversion("s", "year", ConversionFactor::new(1.0 / 31_536_000.0));
 
-        // Time to Time
+        // Long to short conversions
+        self.add_conversion("second", "s", ConversionFactor::new(1.0));
+        self.add_conversion("seconds", "s", ConversionFactor::new(1.0));
+        self.add_conversion("minute", "min", ConversionFactor::new(1.0));
+        self.add_conversion("minutes", "min", ConversionFactor::new(1.0));
+        self.add_conversion("hour", "hr", ConversionFactor::new(1.0));
+        self.add_conversion("hours", "hr", ConversionFactor::new(1.0));
+        self.add_conversion("days", "day", ConversionFactor::new(1.0));
+        self.add_conversion("months", "month", ConversionFactor::new(1.0));
+        self.add_conversion("years", "year", ConversionFactor::new(1.0));
+
+        // Time to Time - short to short
         self.add_conversion("hr", "min", ConversionFactor::new(60.0));
         self.add_conversion("min", "hr", ConversionFactor::new(1.0 / 60.0));
-        self.add_conversion("hour", "min", ConversionFactor::new(60.0));
-        self.add_conversion("min", "hour", ConversionFactor::new(1.0 / 60.0));
         self.add_conversion("day", "hr", ConversionFactor::new(24.0));
         self.add_conversion("hr", "day", ConversionFactor::new(1.0 / 24.0));
-        self.add_conversion("day", "hour", ConversionFactor::new(24.0));
-        self.add_conversion("hour", "day", ConversionFactor::new(1.0 / 24.0));
         self.add_conversion("month", "day", ConversionFactor::new(30.42));
         self.add_conversion("day", "month", ConversionFactor::new(1.0 / 30.42));
         self.add_conversion("month", "hr", ConversionFactor::new(730.0)); // 30.42 * 24
         self.add_conversion("hr", "month", ConversionFactor::new(1.0 / 730.0));
-        self.add_conversion("month", "hour", ConversionFactor::new(730.0));
-        self.add_conversion("hour", "month", ConversionFactor::new(1.0 / 730.0));
         self.add_conversion("year", "day", ConversionFactor::new(365.0));
         self.add_conversion("day", "year", ConversionFactor::new(1.0 / 365.0));
         self.add_conversion("year", "month", ConversionFactor::new(12.0));
@@ -384,9 +487,30 @@ impl UnitLibrary {
 
     // === Temperature Units ===
     fn add_temperature_units(&mut self) {
+        // Short forms
         self.add_unit("C", Unit::simple("C", BaseDimension::Temperature));
         self.add_unit("F", Unit::simple("F", BaseDimension::Temperature));
         self.add_unit("K", Unit::simple("K", BaseDimension::Temperature));
+
+        // Long forms
+        self.add_unit(
+            "Celsius",
+            Unit::simple("Celsius", BaseDimension::Temperature),
+        );
+        self.add_unit(
+            "celsius",
+            Unit::simple("celsius", BaseDimension::Temperature),
+        );
+        self.add_unit(
+            "Fahrenheit",
+            Unit::simple("Fahrenheit", BaseDimension::Temperature),
+        );
+        self.add_unit(
+            "fahrenheit",
+            Unit::simple("fahrenheit", BaseDimension::Temperature),
+        );
+        self.add_unit("Kelvin", Unit::simple("Kelvin", BaseDimension::Temperature));
+        self.add_unit("kelvin", Unit::simple("kelvin", BaseDimension::Temperature));
 
         // Temperature conversions (using formulas)
         // C to F: (C × 9/5) + 32
@@ -394,6 +518,7 @@ impl UnitLibrary {
         // C to K: C + 273.15
         // K to C: K − 273.15
 
+        // Short form conversions
         self.add_conversion("C", "F", ConversionFactor::with_offset(1.8, 32.0));
         self.add_conversion(
             "F",
@@ -408,6 +533,14 @@ impl UnitLibrary {
             ConversionFactor::with_offset(5.0 / 9.0, 273.15 - 32.0 * 5.0 / 9.0),
         );
         self.add_conversion("K", "F", ConversionFactor::with_offset(1.8, -459.67));
+
+        // Long to short conversions (identity - no offset needed)
+        self.add_conversion("Celsius", "C", ConversionFactor::new(1.0));
+        self.add_conversion("celsius", "C", ConversionFactor::new(1.0));
+        self.add_conversion("Fahrenheit", "F", ConversionFactor::new(1.0));
+        self.add_conversion("fahrenheit", "F", ConversionFactor::new(1.0));
+        self.add_conversion("Kelvin", "K", ConversionFactor::new(1.0));
+        self.add_conversion("kelvin", "K", ConversionFactor::new(1.0));
     }
 
     // === Currency Units ===

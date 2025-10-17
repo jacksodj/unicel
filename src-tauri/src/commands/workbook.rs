@@ -536,16 +536,48 @@ fn parse_dimension_with_power(unit_str: &str) -> (BaseDimension, i32) {
 
 fn get_base_dimension(unit_str: &str) -> BaseDimension {
     match unit_str {
+        // Length - short forms
         "m" | "cm" | "mm" | "km" | "in" | "ft" | "yd" | "mi" => BaseDimension::Length,
+        // Length - long forms (singular and plural)
+        "meter" | "meters" | "centimeter" | "centimeters" | "millimeter" | "millimeters"
+        | "kilometer" | "kilometers" | "inch" | "inches" | "foot" | "feet" | "yard" | "yards"
+        | "mile" | "miles" => BaseDimension::Length,
+
+        // Mass - short forms
         "g" | "kg" | "mg" | "oz" | "lb" => BaseDimension::Mass,
-        // Only basic time units (s, min, hr) are Time dimension
+        // Mass - long forms (singular and plural)
+        "gram" | "grams" | "kilogram" | "kilograms" | "milligram" | "milligrams" | "ounce"
+        | "ounces" | "pound" | "pounds" => BaseDimension::Mass,
+
+        // Time - short forms (basic time units are Time dimension)
+        "s" | "min" | "hr" | "h" => BaseDimension::Time,
+        // Time - long forms (singular and plural)
+        "second" | "seconds" | "minute" | "minutes" | "hour" | "hours" => BaseDimension::Time,
+
         // Period units (day, month, year) are Custom to allow proper cancellation
-        "s" | "min" | "hr" | "h" | "hour" => BaseDimension::Time,
-        "day" | "month" | "year" => BaseDimension::Custom(unit_str.to_string()),
+        "day" | "days" | "month" | "months" | "year" | "years" => {
+            BaseDimension::Custom(unit_str.to_string())
+        }
+
+        // Temperature - short forms
         "C" | "F" | "K" => BaseDimension::Temperature,
+        // Temperature - long forms
+        "Celsius" | "celsius" | "Fahrenheit" | "fahrenheit" | "Kelvin" | "kelvin" => {
+            BaseDimension::Temperature
+        }
+
+        // Currency
         "USD" | "EUR" | "GBP" | "$" => BaseDimension::Currency,
+
+        // Digital Storage
         "B" | "KB" | "MB" | "GB" | "TB" | "PB" | "Kb" | "Mb" | "Gb" | "Tb" | "Pb" | "Tok"
         | "MTok" => BaseDimension::DigitalStorage,
+        // Digital Storage - long forms
+        "byte" | "bytes" | "kilobyte" | "kilobytes" | "megabyte" | "megabytes" | "gigabyte"
+        | "gigabytes" | "terabyte" | "terabytes" | "petabyte" | "petabytes" => {
+            BaseDimension::DigitalStorage
+        }
+
         _ => BaseDimension::Custom(unit_str.to_string()),
     }
 }
