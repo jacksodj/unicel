@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { tauriApi } from '../api/tauri';
 
 interface RibbonProps {
   displayMode: 'AsEntered' | 'Metric' | 'Imperial';
   onDisplayModeChange: (mode: 'AsEntered' | 'Metric' | 'Imperial') => void;
   onNew: () => void;
   onOpen: () => void;
+  onOpenRecent?: (path: string) => void;
   onSave: () => void;
   onSaveAs: () => void;
   onOpenPreferences: () => void;
@@ -20,6 +22,7 @@ export default function Ribbon({
   onDisplayModeChange,
   onNew,
   onOpen,
+  onOpenRecent,
   onSave,
   onSaveAs,
   onOpenPreferences,
@@ -30,12 +33,31 @@ export default function Ribbon({
   isDirty = false,
 }: RibbonProps) {
   const [showFileMenu, setShowFileMenu] = useState(false);
+  const [recentFiles, setRecentFiles] = useState<string[]>([]);
 
   const displayModeOptions = [
     { value: 'AsEntered' as const, label: 'As Entered', icon: '✏️' },
     { value: 'Metric' as const, label: 'Metric', icon: '🌍' },
     { value: 'Imperial' as const, label: 'Imperial', icon: '🇺🇸' },
   ];
+
+  // Fetch recent files when file menu opens
+  useEffect(() => {
+    if (showFileMenu) {
+      tauriApi.getRecentFiles()
+        .then(setRecentFiles)
+        .catch(error => {
+          console.error('Failed to fetch recent files:', error);
+          setRecentFiles([]);
+        });
+    }
+  }, [showFileMenu]);
+
+  // Extract filename from full path
+  const getFilename = (path: string): string => {
+    const parts = path.split(/[\\/]/); // Split by both forward and back slashes
+    return parts[parts.length - 1] || path; // Fallback to full path if splitting fails
+  };
 
   return (
     <div className="bg-gray-100 border-b border-gray-300">
@@ -127,6 +149,35 @@ export default function Ribbon({
                     <span className="text-lg">📚</span>
                     Open Example...
                   </button>
+                )}
+                {/* Recent Files section */}
+                {onOpenRecent && (
+                  <>
+                    <div className="border-t border-gray-200" />
+                    <div className="px-4 py-1 text-xs text-gray-500 font-semibold">
+                      Recent Files
+                    </div>
+                    {recentFiles.length > 0 ? (
+                      recentFiles.map((path) => (
+                        <button
+                          key={path}
+                          className="w-full px-4 py-2 text-left hover:bg-gray-100 text-sm flex items-center gap-2"
+                          onClick={() => {
+                            onOpenRecent(path);
+                            setShowFileMenu(false);
+                          }}
+                          title={path}
+                        >
+                          <span className="text-lg">🕒</span>
+                          <span className="truncate">{getFilename(path)}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-2 text-sm text-gray-400 italic">
+                        No recent files
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </>

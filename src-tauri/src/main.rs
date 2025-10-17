@@ -44,6 +44,11 @@ fn get_current_file(state: State<AppState>) -> Option<String> {
 }
 
 #[tauri::command]
+fn get_recent_files(state: State<AppState>) -> Vec<String> {
+    unicel_lib::commands::get_recent_files_impl(&state)
+}
+
+#[tauri::command]
 fn set_display_mode(state: State<AppState>, mode: String) -> Result<(), String> {
     unicel_lib::commands::set_display_mode_impl(&state, mode)
 }
@@ -95,8 +100,12 @@ fn get_cells_with_base_unit(
 }
 
 #[tauri::command]
-fn export_debug_to_clipboard(state: State<AppState>) -> Result<(), String> {
-    unicel_lib::commands::export_debug_to_clipboard_impl(&state)
+fn export_debug_to_clipboard(
+    state: State<AppState>,
+    frontend_version: Option<String>,
+    frontend_commit: Option<String>,
+) -> Result<(), String> {
+    unicel_lib::commands::export_debug_to_clipboard_impl(&state, frontend_version, frontend_commit)
 }
 
 #[tauri::command]
@@ -239,6 +248,7 @@ fn main() {
             save_workbook,
             load_workbook,
             get_current_file,
+            get_recent_files,
             set_display_mode,
             get_unit_preferences,
             update_unit_preferences,

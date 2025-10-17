@@ -1,10 +1,35 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { execSync } from 'child_process';
+
+// Get git commit hash at build time
+const getGitCommit = (): string => {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim();
+  } catch {
+    return 'unknown';
+  }
+};
+
+// Get package version
+const getVersion = (): string => {
+  try {
+    return require('./package.json').version;
+  } catch {
+    return 'unknown';
+  }
+};
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+
+  // Define build-time constants
+  define: {
+    '__APP_VERSION__': JSON.stringify(getVersion()),
+    '__GIT_COMMIT__': JSON.stringify(getGitCommit()),
+  },
 
   // Prevent vite from obscuring rust errors
   clearScreen: false,

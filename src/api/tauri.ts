@@ -78,6 +78,10 @@ export const tauriApi = {
     return invoke('get_current_file');
   },
 
+  async getRecentFiles(): Promise<string[]> {
+    return invoke('get_recent_files');
+  },
+
   async setDisplayMode(mode: 'AsEntered' | 'Metric' | 'Imperial'): Promise<void> {
     return invoke('set_display_mode', { mode });
   },
@@ -115,7 +119,10 @@ export const tauriApi = {
   },
 
   async exportDebugToClipboard(): Promise<void> {
-    return invoke('export_debug_to_clipboard');
+    return invoke('export_debug_to_clipboard', {
+      frontendVersion: __APP_VERSION__,
+      frontendCommit: __GIT_COMMIT__,
+    });
   },
 
   async exportToExcel(path: string): Promise<void> {

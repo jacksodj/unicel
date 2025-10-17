@@ -25,6 +25,7 @@ pub struct AppState {
     pub current_file: Mutex<Option<String>>,
     pub display_mode: Mutex<DisplayMode>,
     pub unit_preferences: Mutex<UnitPreferences>,
+    pub recent_files: Mutex<Vec<String>>,
 }
 
 impl Default for AppState {
@@ -34,6 +35,7 @@ impl Default for AppState {
             current_file: Mutex::new(None),
             display_mode: Mutex::new(DisplayMode::AsEntered),
             unit_preferences: Mutex::new(UnitPreferences::default()),
+            recent_files: Mutex::new(Vec::new()),
         }
     }
 }
@@ -365,8 +367,9 @@ fn convert_time_unit(value: f64, from: &str, to: &str) -> Option<f64> {
             "min" => Some(1.0 / 60.0),
             "hr" | "h" => Some(1.0),
             "day" => Some(24.0),
-            "month" => Some(730.0), // Average 30.42 days
-            "year" => Some(8760.0), // 365 days
+            "month" => Some(730.0),    // Average 30.42 days
+            "quarter" => Some(2190.0), // 3 months = 91.26 days * 24
+            "year" => Some(8760.0),    // 365 days
             _ => None,
         }
     };
@@ -554,8 +557,8 @@ fn get_base_dimension(unit_str: &str) -> BaseDimension {
         // Time - long forms (singular and plural)
         "second" | "seconds" | "minute" | "minutes" | "hour" | "hours" => BaseDimension::Time,
 
-        // Period units (day, month, year) are Custom to allow proper cancellation
-        "day" | "days" | "month" | "months" | "year" | "years" => {
+        // Period units (day, month, quarter, year) are Custom to allow proper cancellation
+        "day" | "days" | "month" | "months" | "quarter" | "quarters" | "year" | "years" => {
             BaseDimension::Custom(unit_str.to_string())
         }
 
@@ -706,6 +709,14 @@ pub fn load_workbook_impl(state: &AppState, path: String) -> Result<(), String> 
 
     let mut workbook = file.to_workbook().map_err(|e| e.to_string())?;
 
+    // Extract filename from path and set it as the workbook name
+    if let Some(filename) = std::path::Path::new(&path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+    {
+        workbook.set_name(filename);
+    }
+
     // Save the original active sheet index
     let original_active = workbook.active_sheet_index();
 
@@ -741,7 +752,10 @@ pub fn load_workbook_impl(state: &AppState, path: String) -> Result<(), String> 
     workbook.set_active_sheet(original_active).ok();
 
     *state.workbook.lock().unwrap() = Some(workbook);
-    *state.current_file.lock().unwrap() = Some(path);
+    *state.current_file.lock().unwrap() = Some(path.clone());
+
+    // Add to recent files
+    add_to_recent_files_impl(state, path);
 
     Ok(())
 }
@@ -1182,8 +1196,12 @@ pub fn get_cells_with_base_unit(
 }
 
 /// Generate debug export text and copy to clipboard
-pub fn export_debug_to_clipboard_impl(state: &AppState) -> Result<(), String> {
-    let debug_text = get_debug_export_impl(state)?;
+pub fn export_debug_to_clipboard_impl(
+    state: &AppState,
+    frontend_version: Option<String>,
+    frontend_commit: Option<String>,
+) -> Result<(), String> {
+    let debug_text = get_debug_export_impl(state, frontend_version, frontend_commit)?;
 
     // Copy to clipboard using arboard
     use arboard::Clipboard;
@@ -1197,7 +1215,11 @@ pub fn export_debug_to_clipboard_impl(state: &AppState) -> Result<(), String> {
 }
 
 /// Generate debug export text for clipboard
-pub fn get_debug_export_impl(state: &AppState) -> Result<String, String> {
+pub fn get_debug_export_impl(
+    state: &AppState,
+    frontend_version: Option<String>,
+    frontend_commit: Option<String>,
+) -> Result<String, String> {
     let workbook_guard = state.workbook.lock().unwrap();
     let workbook = workbook_guard.as_ref().ok_or("No workbook loaded")?;
     let display_mode = state.display_mode.lock().unwrap();
@@ -1208,10 +1230,22 @@ pub fn get_debug_export_impl(state: &AppState) -> Result<String, String> {
     // Version information
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     const GIT_COMMIT: &str = env!("GIT_COMMIT");
+
+    // Backend version
     output.push_str(&format!(
-        "version: backend={} commit={}\n\n",
+        "version: backend={} commit={}\n",
         VERSION, GIT_COMMIT
     ));
+
+    // Frontend version
+    if let (Some(fe_version), Some(fe_commit)) = (frontend_version, frontend_commit) {
+        output.push_str(&format!(
+            "         frontend={} commit={}\n\n",
+            fe_version, fe_commit
+        ));
+    } else {
+        output.push_str("         frontend=unknown commit=unknown\n\n");
+    }
 
     // Display mode
     output.push_str(&format!("display: {:?}\n", display_mode));
@@ -1395,6 +1429,27 @@ pub fn sheet_has_data_impl(state: &AppState, index: usize) -> Result<bool, Strin
     let has_data = !sheet.cell_addresses().is_empty();
 
     Ok(has_data)
+}
+
+// Recent files management
+
+/// Add a file to the recent files list
+pub fn add_to_recent_files_impl(state: &AppState, path: String) {
+    let mut recent_files = state.recent_files.lock().unwrap();
+
+    // Remove the path if it already exists (we'll re-add it at the front)
+    recent_files.retain(|p| p != &path);
+
+    // Add to the front of the list
+    recent_files.insert(0, path);
+
+    // Keep only the 3 most recent files
+    recent_files.truncate(3);
+}
+
+/// Get the list of recent files
+pub fn get_recent_files_impl(state: &AppState) -> Vec<String> {
+    state.recent_files.lock().unwrap().clone()
 }
 
 // Named range commands

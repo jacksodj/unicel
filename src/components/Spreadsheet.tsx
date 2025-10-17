@@ -289,6 +289,25 @@ export default function Spreadsheet() {
     }
   };
 
+  const handleOpenRecent = async (path: string) => {
+    try {
+      setLoadingMessage('Opening workbook...');
+      setIsLoading(true);
+      await tauriApi.loadWorkbook(path);
+      await loadCellsFromBackend();
+
+      const info = await tauriApi.getWorkbookInfo();
+      setWorkbookName(info.name);
+      setIsDirty(false);
+
+      addToast('Workbook loaded successfully', 'success');
+    } catch (error) {
+      addToast(`Failed to open workbook: ${error}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSave = async () => {
     try {
       setLoadingMessage('Saving workbook...');
@@ -627,6 +646,7 @@ export default function Spreadsheet() {
           onDisplayModeChange={handleDisplayModeChange}
           onNew={handleNew}
           onOpen={handleOpen}
+          onOpenRecent={handleOpenRecent}
           onSave={handleSave}
           onSaveAs={handleSaveAs}
           onOpenPreferences={handleOpenPreferences}

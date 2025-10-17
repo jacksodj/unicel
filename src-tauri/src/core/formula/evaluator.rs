@@ -336,6 +336,37 @@ impl<'a> Evaluator<'a> {
 
         let value = left_value * right_value;
 
+        // Check if either operand is a percentage - treat as dimensionless multiplier
+        let left_is_percent = is_percentage_unit(&left_result.unit);
+        let right_is_percent = is_percentage_unit(&right_result.unit);
+
+        tracing::debug!(
+            "eval_multiply: left_value={}, left_unit={:?}, left_canonical={}, left_is_percent={}",
+            left_value,
+            left_result.unit,
+            left_result.unit.canonical(),
+            left_is_percent
+        );
+        tracing::debug!(
+            "eval_multiply: right_value={}, right_unit={:?}, right_canonical={}, right_is_percent={}",
+            right_value,
+            right_result.unit,
+            right_result.unit.canonical(),
+            right_is_percent
+        );
+
+        // If one is percentage, result has the non-percentage unit (percentage gets removed)
+        if left_is_percent && !right_is_percent {
+            return Ok(EvalResult::new(value, right_result.unit.clone()));
+        }
+        if right_is_percent && !left_is_percent {
+            return Ok(EvalResult::new(value, left_result.unit.clone()));
+        }
+        // If both are percentages, result is dimensionless
+        if left_is_percent && right_is_percent {
+            return Ok(EvalResult::new(value, Unit::dimensionless()));
+        }
+
         // If both dimensionless, result is dimensionless
         if left_result.unit.is_dimensionless() && right_result.unit.is_dimensionless() {
             return Ok(EvalResult::new(value, Unit::dimensionless()));
@@ -373,6 +404,33 @@ impl<'a> Evaluator<'a> {
         }
 
         let value = left_value / right_value;
+
+        // Check if either operand is a percentage - treat as dimensionless multiplier
+        let left_is_percent = is_percentage_unit(&left_result.unit);
+        let right_is_percent = is_percentage_unit(&right_result.unit);
+
+        // If right is percentage, result has left's unit (percentage gets removed)
+        if right_is_percent && !left_is_percent {
+            return Ok(EvalResult::new(value, left_result.unit.clone()));
+        }
+        // If left is percentage and right is not, result is percentage/right_unit
+        // This is unusual but should be handled - treated as dimensionless/right_unit
+        if left_is_percent && !right_is_percent {
+            let compound_symbol = format!("1/{}", right_result.unit.canonical());
+            let compound_unit = Unit::compound(
+                compound_symbol.clone(),
+                vec![],
+                vec![(
+                    right_result.unit.dimension().as_simple().unwrap().clone(),
+                    1,
+                )],
+            );
+            return Ok(EvalResult::new(value, compound_unit));
+        }
+        // If both are percentages, result is dimensionless
+        if left_is_percent && right_is_percent {
+            return Ok(EvalResult::new(value, Unit::dimensionless()));
+        }
 
         // If both dimensionless, result is dimensionless
         if left_result.unit.is_dimensionless() && right_result.unit.is_dimensionless() {
@@ -507,6 +565,12 @@ impl<'a> Evaluator<'a> {
         // Preserve the unit from the number argument
         Ok(EvalResult::new(result_value, number_result.unit.clone()))
     }
+}
+
+// Helper function to check if a unit is a percentage unit
+fn is_percentage_unit(unit: &Unit) -> bool {
+    // Check if the unit's canonical form is "%"
+    unit.canonical() == "%"
 }
 
 // Helper function to create compound units for division

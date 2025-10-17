@@ -432,6 +432,7 @@ impl UnitLibrary {
         self.add_unit("h", Unit::simple("h", BaseDimension::Time)); // alias for hr
         self.add_unit("day", Unit::simple("day", BaseDimension::Time));
         self.add_unit("month", Unit::simple("month", BaseDimension::Time));
+        self.add_unit("quarter", Unit::simple("quarter", BaseDimension::Time));
         self.add_unit("year", Unit::simple("year", BaseDimension::Time));
 
         // Long forms
@@ -443,6 +444,7 @@ impl UnitLibrary {
         self.add_unit("hours", Unit::simple("hours", BaseDimension::Time));
         self.add_unit("days", Unit::simple("days", BaseDimension::Time));
         self.add_unit("months", Unit::simple("months", BaseDimension::Time));
+        self.add_unit("quarters", Unit::simple("quarters", BaseDimension::Time));
         self.add_unit("years", Unit::simple("years", BaseDimension::Time));
 
         // Conversions (all to seconds as base) - short to short
@@ -468,6 +470,7 @@ impl UnitLibrary {
         self.add_conversion("hours", "hr", ConversionFactor::new(1.0));
         self.add_conversion("days", "day", ConversionFactor::new(1.0));
         self.add_conversion("months", "month", ConversionFactor::new(1.0));
+        self.add_conversion("quarters", "quarter", ConversionFactor::new(1.0));
         self.add_conversion("years", "year", ConversionFactor::new(1.0));
 
         // Time to Time - short to short
@@ -479,10 +482,19 @@ impl UnitLibrary {
         self.add_conversion("day", "month", ConversionFactor::new(1.0 / 30.42));
         self.add_conversion("month", "hr", ConversionFactor::new(730.0)); // 30.42 * 24
         self.add_conversion("hr", "month", ConversionFactor::new(1.0 / 730.0));
+
+        // Quarter conversions (1 quarter = 3 months)
+        self.add_conversion("quarter", "month", ConversionFactor::new(3.0));
+        self.add_conversion("month", "quarter", ConversionFactor::new(1.0 / 3.0));
+        self.add_conversion("quarter", "day", ConversionFactor::new(91.26)); // 3 * 30.42
+        self.add_conversion("day", "quarter", ConversionFactor::new(1.0 / 91.26));
+
         self.add_conversion("year", "day", ConversionFactor::new(365.0));
         self.add_conversion("day", "year", ConversionFactor::new(1.0 / 365.0));
         self.add_conversion("year", "month", ConversionFactor::new(12.0));
         self.add_conversion("month", "year", ConversionFactor::new(1.0 / 12.0));
+        self.add_conversion("year", "quarter", ConversionFactor::new(4.0));
+        self.add_conversion("quarter", "year", ConversionFactor::new(1.0 / 4.0));
     }
 
     // === Temperature Units ===
