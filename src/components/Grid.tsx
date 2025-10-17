@@ -192,9 +192,16 @@ export default function Grid({
       return;
     }
 
-    // Single click now starts editing immediately
+    const address = { col, row };
+
+    // First, update the selected cell (this updates formula bar, unit indicator, etc.)
+    if (onCellSelect) {
+      onCellSelect(address);
+    }
+
+    // Then start editing immediately
     if (onCellDoubleClick) {
-      onCellDoubleClick({ col, row });
+      onCellDoubleClick(address);
     }
   };
 
@@ -526,6 +533,10 @@ export default function Grid({
                         value={editValue}
                         onChange={(e) => handleInputChange(e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, col, row)}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck={false}
                       />
                     ) : (
                       <div

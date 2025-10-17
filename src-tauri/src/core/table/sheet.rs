@@ -308,9 +308,19 @@ impl Sheet {
 
     /// Set a cell with a direct value
     pub fn set(&mut self, addr: CellAddr, cell: Cell) -> Result<(), SheetError> {
+        self.set_with_named_ranges(addr, cell, None)
+    }
+
+    /// Set a cell with named range context for dependency tracking
+    pub fn set_with_named_ranges(
+        &mut self,
+        addr: CellAddr,
+        cell: Cell,
+        named_range_mapping: Option<&HashMap<String, CellAddr>>,
+    ) -> Result<(), SheetError> {
         // If the cell has a formula, extract dependencies
         if let Some(formula) = cell.formula() {
-            self.update_dependencies(&addr, formula)?;
+            self.update_dependencies(&addr, formula, named_range_mapping)?;
         } else {
             // Clear dependencies if no formula
             self.dependencies.remove_dependencies(&addr);
@@ -321,14 +331,19 @@ impl Sheet {
     }
 
     /// Update dependencies for a formula
-    fn update_dependencies(&mut self, addr: &CellAddr, formula: &str) -> Result<(), SheetError> {
+    fn update_dependencies(
+        &mut self,
+        addr: &CellAddr,
+        formula: &str,
+        named_range_mapping: Option<&HashMap<String, CellAddr>>,
+    ) -> Result<(), SheetError> {
         // Clear existing dependencies
         self.dependencies.remove_dependencies(addr);
 
         // Parse formula and extract cell references
         let expr = parse_formula(formula).map_err(|e| SheetError::ParseError(e.to_string()))?;
 
-        let deps = extract_cell_refs(&expr);
+        let deps = extract_cell_refs(&expr, named_range_mapping);
 
         // Add new dependencies
         for dep in deps {
@@ -418,20 +433,35 @@ impl Default for Sheet {
 }
 
 /// Extract cell references from an expression
-fn extract_cell_refs(expr: &Expr) -> HashSet<CellAddr> {
+fn extract_cell_refs(
+    expr: &Expr,
+    named_range_mapping: Option<&HashMap<String, CellAddr>>,
+) -> HashSet<CellAddr> {
     let mut refs = HashSet::new();
-    extract_cell_refs_recursive(expr, &mut refs);
+    extract_cell_refs_recursive(expr, &mut refs, named_range_mapping);
     refs
 }
 
-fn extract_cell_refs_recursive(expr: &Expr, refs: &mut HashSet<CellAddr>) {
+fn extract_cell_refs_recursive(
+    expr: &Expr,
+    refs: &mut HashSet<CellAddr>,
+    named_range_mapping: Option<&HashMap<String, CellAddr>>,
+) {
     match expr {
         Expr::CellRef { col, row } => {
             refs.insert(CellAddr::new(col.clone(), *row));
         }
+        Expr::NamedRef { name } => {
+            // Resolve named reference to cell address
+            if let Some(mapping) = named_range_mapping {
+                if let Some(addr) = mapping.get(name) {
+                    refs.insert(addr.clone());
+                }
+            }
+        }
         Expr::Range { start, end } => {
-            extract_cell_refs_recursive(start, refs);
-            extract_cell_refs_recursive(end, refs);
+            extract_cell_refs_recursive(start, refs, named_range_mapping);
+            extract_cell_refs_recursive(end, refs, named_range_mapping);
         }
         Expr::Add(l, r)
         | Expr::Subtract(l, r)
@@ -445,15 +475,15 @@ fn extract_cell_refs_recursive(expr: &Expr, refs: &mut HashSet<CellAddr>) {
         | Expr::NotEqual(l, r)
         | Expr::And(l, r)
         | Expr::Or(l, r) => {
-            extract_cell_refs_recursive(l, refs);
-            extract_cell_refs_recursive(r, refs);
+            extract_cell_refs_recursive(l, refs, named_range_mapping);
+            extract_cell_refs_recursive(r, refs, named_range_mapping);
         }
         Expr::Negate(e) | Expr::Not(e) => {
-            extract_cell_refs_recursive(e, refs);
+            extract_cell_refs_recursive(e, refs, named_range_mapping);
         }
         Expr::Function { args, .. } => {
             for arg in args {
-                extract_cell_refs_recursive(arg, refs);
+                extract_cell_refs_recursive(arg, refs, named_range_mapping);
             }
         }
         _ => {}
@@ -1869,7 +1899,7 @@ mod tests {
     fn test_extract_cell_refs() {
         let expr = Expr::new_add(Expr::cell_ref("A", 1), Expr::cell_ref("B", 2));
 
-        let refs = extract_cell_refs(&expr);
+        let refs = extract_cell_refs(&expr, None);
         assert_eq!(refs.len(), 2);
         assert!(refs.contains(&CellAddr::new("A", 1)));
         assert!(refs.contains(&CellAddr::new("B", 2)));

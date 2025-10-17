@@ -657,13 +657,16 @@ pub fn set_cell_impl(state: &AppState, address: String, value: String) -> Result
         }
     };
 
-    // Set the cell
+    // Get named range mapping for dependency tracking
+    let named_range_mapping = workbook.get_named_range_mapping_for_sheet(active_sheet_idx);
+
+    // Set the cell with named range context for dependency tracking
     workbook
         .active_sheet_mut()
-        .set(addr.clone(), cell.clone())
+        .set_with_named_ranges(addr.clone(), cell.clone(), Some(&named_range_mapping))
         .map_err(|e| e.to_string())?;
 
-    // Resolve all named ranges to their current values
+    // Resolve all named ranges to their current values for recalculation
     let named_refs = workbook.resolve_named_ranges();
 
     // Always recalculate dependent cells when ANY cell changes
@@ -1201,6 +1204,14 @@ pub fn get_debug_export_impl(state: &AppState) -> Result<String, String> {
     let preferences = state.unit_preferences.lock().unwrap();
 
     let mut output = String::new();
+
+    // Version information
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
+    const GIT_COMMIT: &str = env!("GIT_COMMIT");
+    output.push_str(&format!(
+        "version: backend={} commit={}\n\n",
+        VERSION, GIT_COMMIT
+    ));
 
     // Display mode
     output.push_str(&format!("display: {:?}\n", display_mode));

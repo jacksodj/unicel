@@ -342,6 +342,19 @@ impl Workbook {
         resolved
     }
 
+    /// Get named range mapping for a specific sheet (for dependency tracking)
+    /// Returns a HashMap mapping name to cell address for ranges on this sheet
+    pub fn get_named_range_mapping_for_sheet(
+        &self,
+        sheet_index: usize,
+    ) -> HashMap<String, CellAddr> {
+        self.named_ranges
+            .iter()
+            .filter(|(_, (sheet_idx, _))| *sheet_idx == sheet_index)
+            .map(|(name, (_, addr))| (name.clone(), addr.clone()))
+            .collect()
+    }
+
     /// Check if a name is valid for a named range
     /// Must start with lowercase letter or underscore, contain only alphanumerics and underscores
     fn is_valid_name(name: &str) -> bool {

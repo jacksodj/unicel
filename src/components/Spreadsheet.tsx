@@ -78,6 +78,9 @@ export default function Spreadsheet() {
   const [renamingSheetIndex, setRenamingSheetIndex] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [previousUnit, setPreviousUnit] = useState<string | null>(null);
+  const [cellNamedRange, setCellNamedRange] = useState<string | null>(null);
+  const [editingNamedRange, setEditingNamedRange] = useState(false);
+  const [namedRangeEditValue, setNamedRangeEditValue] = useState('');
 
   // Initialize workbook on mount
   useEffect(() => {
@@ -113,10 +116,11 @@ export default function Spreadsheet() {
     }
   };
 
-  const handleCellSelect = (address: CellAddress) => {
+  const handleCellSelect = async (address: CellAddress) => {
     setSelectedCell(address);
     setEditingCell(null); // Stop editing when selecting a different cell
     setPreviousUnit(null); // Clear previous unit when selecting a different cell
+    setEditingNamedRange(false); // Stop editing named range
 
     // Update formula bar
     const cellAddr = getCellAddress(address.col, address.row);
@@ -135,6 +139,15 @@ export default function Spreadsheet() {
       }
     } else {
       setFormulaBarValue('');
+    }
+
+    // Fetch named range for this cell
+    try {
+      const namedRange = await tauriApi.getNamedRangeForCell(activeSheetIndex, cellAddr);
+      setCellNamedRange(namedRange);
+    } catch (error) {
+      console.error('Error fetching named range:', error);
+      setCellNamedRange(null);
     }
   };
 
@@ -461,6 +474,59 @@ export default function Spreadsheet() {
     setRenamingSheetIndex(null);
   };
 
+  const handleStartEditingNamedRange = () => {
+    setEditingNamedRange(true);
+    setNamedRangeEditValue(cellNamedRange || '');
+  };
+
+  const handleSaveNamedRange = async () => {
+    if (!selectedCell) {
+      setEditingNamedRange(false);
+      return;
+    }
+
+    const cellAddr = getCellAddress(selectedCell.col, selectedCell.row);
+    const trimmedValue = namedRangeEditValue.trim();
+
+    // If value hasn't changed, just cancel editing
+    if (trimmedValue === (cellNamedRange || '')) {
+      setEditingNamedRange(false);
+      return;
+    }
+
+    try {
+      if (trimmedValue === '') {
+        // Delete the named range if empty (user cleared it)
+        if (cellNamedRange) {
+          await tauriApi.deleteNamedRange(cellNamedRange);
+          setCellNamedRange(null);
+          addToast('Named range deleted', 'success');
+          setIsDirty(true);
+        }
+      } else {
+        // Create or update named range
+        // First delete old one if it exists
+        if (cellNamedRange) {
+          await tauriApi.deleteNamedRange(cellNamedRange);
+        }
+        // Then create new one
+        await tauriApi.createNamedRange(trimmedValue, activeSheetIndex, cellAddr);
+        setCellNamedRange(trimmedValue);
+        addToast('Named range saved', 'success');
+        setIsDirty(true);
+      }
+      setEditingNamedRange(false);
+    } catch (error) {
+      addToast(`Failed to save named range: ${error}`, 'error');
+      setEditingNamedRange(false);
+    }
+  };
+
+  const handleCancelNamedRangeEdit = () => {
+    setEditingNamedRange(false);
+    setNamedRangeEditValue('');
+  };
+
   const handleDeleteSheet = async (index: number, sheetName: string) => {
     if (sheetNames.length <= 1) {
       addToast('Cannot delete the last sheet', 'error');
@@ -574,9 +640,38 @@ export default function Spreadsheet() {
         {/* Formula bar */}
         <div className="border-b border-gray-300 p-2 bg-gray-50">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-700 w-16">
-              {selectedCell ? getCellAddress(selectedCell.col, selectedCell.row) : ''}
-            </span>
+            {selectedCell && (
+              editingNamedRange ? (
+                <input
+                  type="text"
+                  className="px-2 py-1 border border-blue-500 rounded text-sm focus:outline-none min-w-[80px]"
+                  value={namedRangeEditValue}
+                  onChange={(e) => setNamedRangeEditValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSaveNamedRange();
+                    } else if (e.key === 'Escape') {
+                      handleCancelNamedRangeEdit();
+                    }
+                  }}
+                  onBlur={handleSaveNamedRange}
+                  placeholder={getCellAddress(selectedCell.col, selectedCell.row)}
+                  autoFocus
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                />
+              ) : (
+                <span
+                  className="text-sm font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 px-2 py-1 rounded transition-colors min-w-[60px]"
+                  onClick={handleStartEditingNamedRange}
+                  title="Click to edit named range"
+                >
+                  {cellNamedRange || getCellAddress(selectedCell.col, selectedCell.row)}
+                </span>
+              )
+            )}
             <input
               type="text"
               className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -589,6 +684,10 @@ export default function Spreadsheet() {
               }}
               placeholder="Select a cell to edit..."
               disabled={!selectedCell}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
             />
           </div>
         </div>
@@ -612,6 +711,10 @@ export default function Spreadsheet() {
                   }}
                   onBlur={handleRenameCancelOrBlur}
                   autoFocus
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                 />
               ) : (
                 <button
