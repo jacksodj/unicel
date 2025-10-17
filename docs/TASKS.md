@@ -2,9 +2,9 @@
 
 > This file tracks all tasks. Mark [x] when complete. Auto-generated from PROJECT_PLAN.md
 
-**Current Phase:** Phase 9 - Release Preparation (COMPLETE)
-**Week:** 24 of 24
-**Updated:** 2025-10-14
+**Current Phase:** Phase 10 - iOS Viewer MVP (IN PROGRESS)
+**Week:** 25 of 29
+**Updated:** 2025-10-17
 
 ---
 
@@ -237,8 +237,9 @@
 - **Phase 7:** ✅ Complete (16/16 tasks)
 - **Phase 8:** ✅ Complete (5/5 tasks)
 - **Phase 9:** ✅ Complete (5/6 tasks - Community sharing pending)
+- **Phase 10:** 🚧 In Progress (0/37 tasks) - iOS Viewer MVP
 
-**Overall Progress:** 122/132 tasks (92.4%) - MVP COMPLETE
+**Overall Progress:** 122/169 tasks (72.2%) - Desktop MVP Complete, iOS MVP Starting
 
 ---
 
@@ -397,6 +398,57 @@
     - Performance impact on calculations (rational arithmetic is slower than float)
     - Add UI toggle: "Display as: Decimal | Fraction | Auto"
   - Location: Core numeric representation in `src/core/cell/cell.rs`
+
+---
+
+## Phase 10: iOS Viewer MVP (Weeks 25-29)
+
+### Week 25: iOS Platform Setup
+- [ ] 10.1: Run `npm run tauri ios init` to create iOS project structure
+- [ ] 10.2: Configure Xcode project settings and bundle identifiers
+- [ ] 10.3: Set up Info.plist with file associations for .usheet files
+- [ ] 10.4: Configure code signing and provisioning profiles
+- [ ] 10.5: Test basic build in iOS simulator (iPhone and iPad)
+- [ ] 10.6: Add iOS-specific dependencies (@use-gesture/react, react-responsive)
+- [ ] 10.7: Verify Tauri commands work on iOS (load_workbook, get_cell_value)
+
+### Week 26: Mobile UI Adaptation
+- [ ] 10.8: Create platform detection hook (useMobile.ts)
+- [ ] 10.9: Implement MobileGrid component with touch interaction
+- [ ] 10.10: Add gesture library integration (@use-gesture/react)
+- [ ] 10.11: Implement touch patterns (tap, swipe, pinch, long-press)
+- [ ] 10.12: Create MobileToolbar with simplified controls
+- [ ] 10.13: Create MobileStatusBar with safe area handling
+- [ ] 10.14: Remove desktop-only features (editing, right-click menus)
+- [ ] 10.15: Add haptic feedback for touch interactions
+
+### Week 27: File Handling & Polish
+- [ ] 10.16: Implement iOS document picker for .usheet files
+- [ ] 10.17: Add file preview/thumbnail generation
+- [ ] 10.18: Implement virtual scrolling for large spreadsheets
+- [ ] 10.19: Add display toggle (Metric/Imperial) for mobile
+- [ ] 10.20: Optimize rendering performance (60fps target)
+- [ ] 10.21: Add loading states and error handling
+- [ ] 10.22: Test with example workbooks (Construction, AWS, Investment)
+
+### Week 28: iPad Optimization & Testing
+- [ ] 10.23: Create iPad-specific layouts (larger grid, split views)
+- [ ] 10.24: Test on all iOS device sizes (iPhone SE to iPad Pro)
+- [ ] 10.25: Implement landscape mode support
+- [ ] 10.26: Add keyboard shortcuts for external keyboards
+- [ ] 10.27: Test accessibility features (VoiceOver, Dynamic Type)
+- [ ] 10.28: Performance testing with 10,000+ cell workbooks
+- [ ] 10.29: Fix iOS-specific bugs and edge cases
+
+### Week 29: App Store Preparation
+- [ ] 10.30: Generate app icons for all required sizes (1024x1024, 180x180, etc.)
+- [ ] 10.31: Create screenshots for all device sizes (iPhone 6.7", 6.5", iPad 12.9", etc.)
+- [ ] 10.32: Write App Store description and metadata
+- [ ] 10.33: Create privacy policy and support page
+- [ ] 10.34: Build signed release IPA
+- [ ] 10.35: Upload to TestFlight for beta testing
+- [ ] 10.36: Submit to App Store for review
+- [ ] 10.37: Monitor reviews and respond to feedback
 
 ---
 
