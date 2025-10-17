@@ -557,9 +557,10 @@ fn get_base_dimension(unit_str: &str) -> BaseDimension {
         // Time - long forms (singular and plural)
         "second" | "seconds" | "minute" | "minutes" | "hour" | "hours" => BaseDimension::Time,
 
-        // Period units (day, month, quarter, year) are Custom to allow proper cancellation
-        "day" | "days" | "month" | "months" | "quarter" | "quarters" | "year" | "years" => {
-            BaseDimension::Custom(unit_str.to_string())
+        // Period units (day, month, quarter, year) are also Time dimension
+        // This allows proper conversion between rates like $/quarter and $/year
+        "day" | "days" | "month" | "months" | "quarter" | "quarters" | "year" | "years" | "yr" => {
+            BaseDimension::Time
         }
 
         // Temperature - short forms

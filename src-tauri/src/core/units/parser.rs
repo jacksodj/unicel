@@ -85,7 +85,9 @@ fn get_base_dimension(unit_str: &str, library: &UnitLibrary) -> Result<BaseDimen
     match unit_str {
         "m" | "cm" | "mm" | "km" | "in" | "ft" | "yd" | "mi" => Ok(BaseDimension::Length),
         "g" | "kg" | "mg" | "oz" | "lb" => Ok(BaseDimension::Mass),
-        "s" | "min" | "hr" | "h" | "day" | "month" | "quarter" | "year" => Ok(BaseDimension::Time),
+        "s" | "min" | "hr" | "h" | "day" | "month" | "quarter" | "year" | "yr" => {
+            Ok(BaseDimension::Time)
+        }
         "C" | "F" | "K" => Ok(BaseDimension::Temperature),
         "USD" | "EUR" | "GBP" | "$" => Ok(BaseDimension::Currency),
         // Digital storage units (bytes)

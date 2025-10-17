@@ -434,6 +434,7 @@ impl UnitLibrary {
         self.add_unit("month", Unit::simple("month", BaseDimension::Time));
         self.add_unit("quarter", Unit::simple("quarter", BaseDimension::Time));
         self.add_unit("year", Unit::simple("year", BaseDimension::Time));
+        self.add_unit("yr", Unit::simple("yr", BaseDimension::Time)); // alias for year
 
         // Long forms
         self.add_unit("second", Unit::simple("second", BaseDimension::Time));
@@ -460,6 +461,8 @@ impl UnitLibrary {
         self.add_conversion("s", "month", ConversionFactor::new(1.0 / 2_628_000.0));
         self.add_conversion("year", "s", ConversionFactor::new(31_536_000.0)); // 365 days
         self.add_conversion("s", "year", ConversionFactor::new(1.0 / 31_536_000.0));
+        self.add_conversion("yr", "s", ConversionFactor::new(31_536_000.0)); // alias for year
+        self.add_conversion("s", "yr", ConversionFactor::new(1.0 / 31_536_000.0));
 
         // Long to short conversions
         self.add_conversion("second", "s", ConversionFactor::new(1.0));
@@ -495,6 +498,16 @@ impl UnitLibrary {
         self.add_conversion("month", "year", ConversionFactor::new(1.0 / 12.0));
         self.add_conversion("year", "quarter", ConversionFactor::new(4.0));
         self.add_conversion("quarter", "year", ConversionFactor::new(1.0 / 4.0));
+
+        // Year alias (yr) conversions
+        self.add_conversion("yr", "year", ConversionFactor::new(1.0));
+        self.add_conversion("year", "yr", ConversionFactor::new(1.0));
+        self.add_conversion("yr", "quarter", ConversionFactor::new(4.0));
+        self.add_conversion("quarter", "yr", ConversionFactor::new(1.0 / 4.0));
+        self.add_conversion("yr", "month", ConversionFactor::new(12.0));
+        self.add_conversion("month", "yr", ConversionFactor::new(1.0 / 12.0));
+        self.add_conversion("yr", "day", ConversionFactor::new(365.0));
+        self.add_conversion("day", "yr", ConversionFactor::new(1.0 / 365.0));
     }
 
     // === Temperature Units ===

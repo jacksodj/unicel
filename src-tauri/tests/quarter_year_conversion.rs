@@ -211,3 +211,169 @@ fn test_convert_reverse_dollar_per_year_to_dollar_per_quarter() {
 
     // This test primarily verifies that $/year and $/quarter parse correctly and are compatible
 }
+
+#[test]
+fn test_convert_function_actually_evaluates_quarter_to_year() {
+    // THIS IS THE KEY TEST - Actually evaluate the formula, not just parse it
+    // Bug: The formula "=convert(B9,1$/year)" where B9=30000 $/quarter fails with
+    // "Incompatible units: cannot CONVERT $/quarter and $/year"
+    // Expected: 30000 $/quarter = 30000 * 0.25 = 7500 $/year
+
+    let mut workbook = Workbook::new("Test");
+    let sheet = workbook.active_sheet_mut();
+
+    // Set B9 with 30000 $/quarter
+    let cell_b9 = Cell::new(
+        30000.0,
+        Unit::compound(
+            "$/quarter".to_string(),
+            vec![(BaseDimension::Currency, 1)],
+            vec![(BaseDimension::Time, 1)],
+        ),
+    );
+
+    sheet
+        .set(CellAddr::from_string("B9").unwrap(), cell_b9)
+        .unwrap();
+
+    // Set A1 with formula =CONVERT(B9, 1 $/year)
+    let cell_a1 = Cell::with_formula("=CONVERT(B9, 1 $/year)".to_string());
+    sheet
+        .set(CellAddr::from_string("A1").unwrap(), cell_a1)
+        .unwrap();
+
+    // NOW ACTUALLY EVALUATE THE FORMULA
+    let result = sheet.evaluate_formula("=CONVERT(B9, 1 $/year)");
+
+    // This should NOT error
+    assert!(
+        result.is_ok(),
+        "Formula evaluation failed: {:?}",
+        result.err()
+    );
+
+    let (value, unit) = result.unwrap();
+
+    // Check the result value
+    match value {
+        unicel_lib::core::cell::CellValue::Number(n) => {
+            // Correct conversion: 30000 $/quarter * 4 quarters/year = 120000 $/year
+            // If you earn $30,000 per quarter, you earn $120,000 per year (4 quarters/year)
+            assert!((n - 120000.0).abs() < 0.01, "Expected 120000, got {}", n);
+        }
+        _ => panic!("Expected numeric result"),
+    }
+
+    // Check the result unit
+    assert_eq!(unit.canonical(), "$/year", "Expected $/year unit");
+}
+
+#[test]
+fn test_convert_function_actually_evaluates_year_to_quarter() {
+    // Test the reverse conversion with actual evaluation
+    // 10000 $/year = 10000 * 4 quarters/year = 40000 $/quarter
+
+    let mut workbook = Workbook::new("Test");
+    let sheet = workbook.active_sheet_mut();
+
+    // Set B9 with 10000 $/year
+    let cell_b9 = Cell::new(
+        10000.0,
+        Unit::compound(
+            "$/year".to_string(),
+            vec![(BaseDimension::Currency, 1)],
+            vec![(BaseDimension::Time, 1)],
+        ),
+    );
+
+    sheet
+        .set(CellAddr::from_string("B9").unwrap(), cell_b9)
+        .unwrap();
+
+    // NOW ACTUALLY EVALUATE THE FORMULA
+    let result = sheet.evaluate_formula("=CONVERT(B9, 1 $/quarter)");
+
+    // This should NOT error
+    assert!(
+        result.is_ok(),
+        "Formula evaluation failed: {:?}",
+        result.err()
+    );
+
+    let (value, unit) = result.unwrap();
+
+    // Check the result value
+    match value {
+        unicel_lib::core::cell::CellValue::Number(n) => {
+            // Correct conversion: 10000 $/year / 4 quarters/year = 2500 $/quarter
+            // If you earn $10,000 per year, you earn $2,500 per quarter (1/4 of annual)
+            assert!((n - 2500.0).abs() < 0.01, "Expected 2500, got {}", n);
+        }
+        _ => panic!("Expected numeric result"),
+    }
+
+    // Check the result unit
+    assert_eq!(unit.canonical(), "$/quarter", "Expected $/quarter unit");
+}
+
+#[test]
+fn test_convert_with_manual_cell_input() {
+    // Simplified test - just manually create cells and evaluate
+    //  This tests what's described in the issue - the formula itself failing
+
+    let mut workbook = Workbook::new("Test");
+    let sheet = workbook.active_sheet_mut();
+
+    // Set B9 with 30000 $/quarter (using the same approach as earlier tests)
+    let cell_b9 = Cell::new(
+        30000.0,
+        Unit::compound(
+            "$/quarter".to_string(),
+            vec![(BaseDimension::Currency, 1)],
+            vec![(BaseDimension::Time, 1)],
+        ),
+    );
+
+    sheet
+        .set(CellAddr::from_string("B9").unwrap(), cell_b9)
+        .unwrap();
+
+    println!("Cell B9 set successfully");
+    let b9_cell = sheet.get(&CellAddr::from_string("B9").unwrap()).unwrap();
+    println!("B9 value: {:?}", b9_cell.value());
+    println!("B9 unit: {}", b9_cell.storage_unit().canonical());
+
+    // Now try to evaluate the CONVERT formula
+    println!("Evaluating CONVERT formula...");
+    let result = sheet.evaluate_formula("=CONVERT(B9, 1 $/year)");
+
+    if let Err(ref e) = result {
+        println!("ERROR: {:?}", e);
+    }
+
+    assert!(
+        result.is_ok(),
+        "Formula evaluation failed: {:?}",
+        result.as_ref().err()
+    );
+
+    let (result_value, result_unit) = result.unwrap();
+
+    match result_value {
+        unicel_lib::core::cell::CellValue::Number(n) => {
+            println!("Result value: {}", n);
+            println!("Result unit: {}", result_unit.canonical());
+
+            // The mathematically correct answer is:
+            // $30,000 per quarter = $30,000 * 4 quarters/year = $120,000 per year
+            assert!(
+                (n - 120000.0).abs() < 0.01,
+                "Expected 120000 (30000 * 4), got {}",
+                n
+            );
+        }
+        _ => panic!("Expected numeric result"),
+    }
+
+    assert_eq!(result_unit.canonical(), "$/year");
+}
