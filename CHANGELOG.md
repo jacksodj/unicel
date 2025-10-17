@@ -5,6 +5,25 @@ All notable changes to Unicel will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2025-10-17
+
+### Fixed
+- Fixed percentage unit handling in SheetEvaluator (properly handles % units in formulas)
+- Fixed CONVERT function to handle compound unit conversions (e.g., mi/hr to km/hr)
+- Fixed period units dimension to enable quarter/year conversions (aligned time period dimensions)
+- Added frontend version info to debug export for better troubleshooting
+
+## [0.4.0] - 2025-10-16
+
+### Added
+- Named range UI and improved dependency tracking
+- Frontend version information in debug exports
+
+### Fixed
+- Preserved units when editing cells with bare numbers
+- Fixed metric conversion for long-form unit names
+- Fixed Excel export tests to work on Windows CI
+
 ## [0.3.0] - 2025-10-16
 
 ### Added
@@ -49,5 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic Tauri integration
 - File I/O with .usheet format
 
+[0.4.1]: https://github.com/jacksodj/unicel/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/jacksodj/unicel/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jacksodj/unicel/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jacksodj/unicel/releases/tag/v0.2.0
