@@ -5,6 +5,29 @@ All notable changes to Unicel will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2025-10-17
+
+### Added
+- **Resizable columns and rows**: Drag column/row borders to resize with visual feedback
+  - Drag handles on column headers (right edge) and row headers (bottom edge)
+  - Real-time visual feedback during resize
+  - Minimum constraints: 50px width, 20px height
+  - Sizes persisted in .usheet files and restored on load
+- **Insert columns and rows**: Right-click context menus to insert before/after
+  - Cell shifting preserves all data: values, units, formulas, metadata
+  - Formula reference updating automatically shifts cell references
+  - Right-click context menus with hover highlighting
+- **Delete columns and rows**: Right-click to delete with confirmation dialog
+  - Confirmation dialogs with keyboard support (Enter/Escape)
+  - Formula references become #REF! errors when targets are deleted
+  - Cell shifting handles edge cases correctly
+
+### Technical
+- Backend: 6 new Sheet methods (`insert_column_before`, `insert_column_after`, `delete_column`, `insert_row_before`, `insert_row_after`, `delete_row`)
+- Added 18 comprehensive tests for column/row operations
+- Frontend: 2 new React components (`GridContextMenu`, `DeleteConfirmDialog`)
+- All 287 tests passing
+
 ## [0.4.1] - 2025-10-17
 
 ### Fixed
@@ -68,6 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic Tauri integration
 - File I/O with .usheet format
 
+[0.4.2]: https://github.com/jacksodj/unicel/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/jacksodj/unicel/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/jacksodj/unicel/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/jacksodj/unicel/compare/v0.2.0...v0.3.0
