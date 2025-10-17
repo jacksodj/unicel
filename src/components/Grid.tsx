@@ -89,6 +89,9 @@ export default function Grid({
 
   // Load stored column widths and row heights
   useEffect(() => {
+    // Only load dimensions after cells are loaded (indicates sheet is ready)
+    if (cells.size === 0) return;
+
     const loadDimensions = async () => {
       try {
         const widths = await tauriApi.getAllColumnWidths();
@@ -100,7 +103,7 @@ export default function Grid({
       }
     };
     loadDimensions();
-  }, [activeSheetIndex]);
+  }, [activeSheetIndex, cells.size]);
 
   // Focus and select input when editing starts (but not on every value change)
   useEffect(() => {
