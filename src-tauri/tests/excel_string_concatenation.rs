@@ -1,3 +1,4 @@
+use std::env;
 use std::fs;
 use unicel_lib::core::cell::Cell;
 use unicel_lib::core::table::CellAddr;
@@ -64,14 +65,14 @@ fn test_excel_export_string_concatenation() {
         .unwrap();
 
     // Export to Excel
-    let temp_file = "/tmp/test_string_concatenation.xlsx";
-    export_to_excel(&workbook, temp_file).expect("Export failed");
+    let temp_file = env::temp_dir().join("test_string_concatenation.xlsx");
+    export_to_excel(&workbook, temp_file.to_str().unwrap()).expect("Export failed");
 
     // Verify the file was created
-    assert!(fs::metadata(temp_file).is_ok());
+    assert!(fs::metadata(&temp_file).is_ok());
 
     // Clean up
-    fs::remove_file(temp_file).ok();
+    fs::remove_file(&temp_file).ok();
 }
 
 #[test]
@@ -121,12 +122,12 @@ fn test_excel_export_mixed_concatenation() {
         .unwrap();
 
     // Export to Excel
-    let temp_file = "/tmp/test_mixed_concatenation.xlsx";
-    export_to_excel(&workbook, temp_file).expect("Export failed");
+    let temp_file = env::temp_dir().join("test_mixed_concatenation.xlsx");
+    export_to_excel(&workbook, temp_file.to_str().unwrap()).expect("Export failed");
 
     // Verify the file was created
-    assert!(fs::metadata(temp_file).is_ok());
+    assert!(fs::metadata(&temp_file).is_ok());
 
     // Clean up
-    fs::remove_file(temp_file).ok();
+    fs::remove_file(&temp_file).ok();
 }
