@@ -84,10 +84,7 @@ export default function ExamplePickerDialog({
 
           {/* Footer */}
           <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
-            <button
-              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded"
-              onClick={onClose}
-            >
+            <button className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded" onClick={onClose}>
               Cancel
             </button>
             <button

@@ -15,7 +15,9 @@ export default function UnitPreferencesDialog({
   const [preferences, setPreferences] = useState<UnitPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'metric' | 'imperial' | 'digital' | 'rates' | 'currency'>('metric');
+  const [activeTab, setActiveTab] = useState<
+    'metric' | 'imperial' | 'digital' | 'rates' | 'currency'
+  >('metric');
   const [unitsInUse, setUnitsInUse] = useState<string[]>([]);
 
   useEffect(() => {
@@ -121,9 +123,7 @@ export default function UnitPreferencesDialog({
           {/* Base Units in Use Section */}
           {unitsInUse.length > 0 && (
             <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-1">
-                Base Units in Use
-              </h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-1">Base Units in Use</h3>
               <p className="text-xs text-gray-500 mb-3">
                 Simplified units (exponents and duplicates removed)
               </p>
@@ -138,7 +138,8 @@ export default function UnitPreferencesDialog({
                 ))}
               </div>
               <p className="text-xs text-gray-600 mt-2">
-                These are the base units detected in your current sheet. Configure how they display in different modes below.
+                These are the base units detected in your current sheet. Configure how they display
+                in different modes below.
               </p>
             </div>
           )}
@@ -219,9 +220,7 @@ export default function UnitPreferencesDialog({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Mass Unit
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mass Unit</label>
                   <select
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={preferences.metric_mass}
@@ -236,9 +235,7 @@ export default function UnitPreferencesDialog({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Time Unit
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Time Unit</label>
                   <select
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={preferences.metric_time}
@@ -296,9 +293,7 @@ export default function UnitPreferencesDialog({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Mass Unit
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mass Unit</label>
                   <select
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={preferences.imperial_mass}
@@ -312,9 +307,7 @@ export default function UnitPreferencesDialog({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Time Unit
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Time Unit</label>
                   <select
                     className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={preferences.imperial_time}
@@ -380,7 +373,8 @@ export default function UnitPreferencesDialog({
                   <div className="text-sm text-blue-900">
                     <p className="font-medium mb-1">Note:</p>
                     <p>
-                      This setting applies to all digital storage and token units (Tok, MTok, etc.) when no specific unit is entered.
+                      This setting applies to all digital storage and token units (Tok, MTok, etc.)
+                      when no specific unit is entered.
                     </p>
                   </div>
                 </div>
@@ -395,7 +389,8 @@ export default function UnitPreferencesDialog({
                   Time Unit for Rates
                 </label>
                 <p className="text-sm text-gray-600 mb-4">
-                  When displaying rate units (e.g., $/hr, mi/hr), convert the time denominator to this unit
+                  When displaying rate units (e.g., $/hr, mi/hr), convert the time denominator to
+                  this unit
                 </p>
                 <select
                   className="w-full max-w-md px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -419,7 +414,9 @@ export default function UnitPreferencesDialog({
                   <div className="text-sm text-blue-900">
                     <p className="font-medium mb-1">Example:</p>
                     <p>
-                      If you enter "100 $/hr" and set this to "month", the cell will display as "$/month" in Metric or Imperial mode with the value automatically converted to the monthly rate.
+                      If you enter "100 $/hr" and set this to "month", the cell will display as
+                      "$/month" in Metric or Imperial mode with the value automatically converted to
+                      the monthly rate.
                     </p>
                   </div>
                 </div>
@@ -436,9 +433,7 @@ export default function UnitPreferencesDialog({
                 <select
                   className="w-full max-w-md px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={preferences.currency}
-                  onChange={(e) =>
-                    setPreferences({ ...preferences, currency: e.target.value })
-                  }
+                  onChange={(e) => setPreferences({ ...preferences, currency: e.target.value })}
                 >
                   {Object.keys(preferences.currency_rates).map((curr) => (
                     <option key={curr} value={curr}>
@@ -492,7 +487,8 @@ export default function UnitPreferencesDialog({
                   <div className="text-sm text-yellow-900">
                     <p className="font-medium mb-1">Important:</p>
                     <p>
-                      Exchange rates should be updated regularly for accurate conversions. Rates are relative to 1 USD.
+                      Exchange rates should be updated regularly for accurate conversions. Rates are
+                      relative to 1 USD.
                     </p>
                   </div>
                 </div>

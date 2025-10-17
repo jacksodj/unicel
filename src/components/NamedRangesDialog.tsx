@@ -47,7 +47,9 @@ export default function NamedRangesDialog({
 
     // Validate name format (must start with lowercase or underscore)
     if (!/^[a-z_][a-z0-9_]*$/i.test(newName.trim())) {
-      setError('Name must start with lowercase letter or underscore, and contain only letters, numbers, and underscores');
+      setError(
+        'Name must start with lowercase letter or underscore, and contain only letters, numbers, and underscores'
+      );
       return;
     }
 
@@ -133,10 +135,12 @@ export default function NamedRangesDialog({
                 </p>
                 <ul className="list-disc list-inside space-y-1">
                   <li>
-                    <code className="bg-white px-1 py-0.5 rounded">tax_rate: 0.15</code> - creates a named range with a value
+                    <code className="bg-white px-1 py-0.5 rounded">tax_rate: 0.15</code> - creates a
+                    named range with a value
                   </li>
                   <li>
-                    <code className="bg-white px-1 py-0.5 rounded">total:= A1+A2</code> - creates a named range with a formula
+                    <code className="bg-white px-1 py-0.5 rounded">total:= A1+A2</code> - creates a
+                    named range with a formula
                   </li>
                 </ul>
               </div>
@@ -155,9 +159,7 @@ export default function NamedRangesDialog({
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Create New Named Range</h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
                 <input
                   type="text"
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -171,9 +173,7 @@ export default function NamedRangesDialog({
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cell Address
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cell Address</label>
                 <input
                   type="text"
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"

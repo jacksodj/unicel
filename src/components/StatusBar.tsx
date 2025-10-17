@@ -35,9 +35,7 @@ export default function StatusBar({
     Imperial: '🇺🇸 Imperial',
   };
 
-  const selectedCellAddress = selectedCell
-    ? `${selectedCell.col}${selectedCell.row}`
-    : null;
+  const selectedCellAddress = selectedCell ? `${selectedCell.col}${selectedCell.row}` : null;
 
   // Load base units when cell count changes
   useEffect(() => {

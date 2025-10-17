@@ -54,10 +54,7 @@ export default function Ribbon({
           {showFileMenu && (
             <>
               {/* Backdrop to close menu */}
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setShowFileMenu(false)}
-              />
+              <div className="fixed inset-0 z-10" onClick={() => setShowFileMenu(false)} />
               {/* Menu */}
               <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded shadow-lg z-20 min-w-[200px]">
                 <button
@@ -148,9 +145,10 @@ export default function Ribbon({
                 key={option.value}
                 className={`
                   px-3 py-1 text-sm flex items-center gap-1 border-r border-gray-300 last:border-r-0
-                  ${displayMode === option.value
-                    ? 'bg-blue-500 text-white'
-                    : 'hover:bg-gray-100 text-gray-700'
+                  ${
+                    displayMode === option.value
+                      ? 'bg-blue-500 text-white'
+                      : 'hover:bg-gray-100 text-gray-700'
                   }
                 `}
                 onClick={() => onDisplayModeChange(option.value)}

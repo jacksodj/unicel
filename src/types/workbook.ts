@@ -16,13 +16,13 @@ export interface Cell {
 }
 
 export interface CellAddress {
-  col: string;  // Column letter (A, B, C, ...)
-  row: number;  // Row number (1, 2, 3, ...)
+  col: string; // Column letter (A, B, C, ...)
+  row: number; // Row number (1, 2, 3, ...)
 }
 
 export interface Sheet {
   name: string;
-  cells: Map<string, Cell>;  // Key is "A1", "B2", etc.
+  cells: Map<string, Cell>; // Key is "A1", "B2", etc.
 }
 
 export interface Workbook {

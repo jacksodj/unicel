@@ -1,5 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Cell, CellAddress, getCellAddress, colNumberToLetter, colLetterToNumber } from '../types/workbook';
+import {
+  Cell,
+  CellAddress,
+  getCellAddress,
+  colNumberToLetter,
+  colLetterToNumber,
+} from '../types/workbook';
 import { tauriApi } from '../api/tauri';
 
 interface GridProps {
@@ -37,7 +43,9 @@ export default function Grid({
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
   // Use local state that syncs with prop to ensure immediate visual updates
-  const [localSelectedCell, setLocalSelectedCell] = useState<CellAddress | null>(selectedCell || null);
+  const [localSelectedCell, setLocalSelectedCell] = useState<CellAddress | null>(
+    selectedCell || null
+  );
   const selectedCellRef = useRef<CellAddress | null | undefined>(selectedCell);
 
   // Keep ref and local state in sync with prop
@@ -90,8 +98,8 @@ export default function Grid({
     if (cellElement) {
       cellElement.scrollIntoView({
         behavior: 'smooth',
-        block: 'nearest',   // Only scroll vertically if needed
-        inline: 'nearest'   // Only scroll horizontally if needed
+        block: 'nearest', // Only scroll vertically if needed
+        inline: 'nearest', // Only scroll horizontally if needed
       });
     }
   }, [selectedCell]);
@@ -303,7 +311,12 @@ export default function Grid({
     }
 
     // Handle arrow keys for unmodified cells or formula mode
-    if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    if (
+      e.key === 'ArrowUp' ||
+      e.key === 'ArrowDown' ||
+      e.key === 'ArrowLeft' ||
+      e.key === 'ArrowRight'
+    ) {
       // In formula mode, arrow keys activate/move the picker and STAY in edit mode
       if (isFormulaMode) {
         e.preventDefault();
@@ -367,12 +380,22 @@ export default function Grid({
 
     // In formula mode with picker active, math operators insert cell reference + operator
     // Only if picker is active (user has pressed arrow keys)
-    if (isFormulaMode && pickerCell && (e.key === '+' || e.key === '-' || e.key === '*' || e.key === '/' || e.key === '(' || e.key === ')')) {
+    if (
+      isFormulaMode &&
+      pickerCell &&
+      (e.key === '+' ||
+        e.key === '-' ||
+        e.key === '*' ||
+        e.key === '/' ||
+        e.key === '(' ||
+        e.key === ')')
+    ) {
       e.preventDefault();
       const cellRef = getCellAddress(pickerCell.col, pickerCell.row);
 
       // Check if this cell has a named range
-      tauriApi.getNamedRangeForCell(activeSheetIndex, cellRef)
+      tauriApi
+        .getNamedRangeForCell(activeSheetIndex, cellRef)
         .then((namedRange) => {
           const referenceToInsert = namedRange || cellRef;
           if (onEditValueChange) {
@@ -505,9 +528,14 @@ export default function Grid({
                         onKeyDown={(e) => handleKeyDown(e, col, row)}
                       />
                     ) : (
-                      <div className={`px-2 flex items-center h-full ${isNumeric ? 'justify-end' : ''}`}>
+                      <div
+                        className={`px-2 flex items-center h-full ${isNumeric ? 'justify-end' : ''}`}
+                      >
                         {hasFormula && !hasWarning && (
-                          <span className="text-blue-500 text-[11px] mr-1 opacity-55" title={cell?.formula || ''}>
+                          <span
+                            className="text-blue-500 text-[11px] mr-1 opacity-55"
+                            title={cell?.formula || ''}
+                          >
                             ƒ
                           </span>
                         )}
@@ -515,7 +543,10 @@ export default function Grid({
                           {cell ? formatCellValue(cell) : ''}
                         </span>
                         {hasWarning && (
-                          <span className="text-orange-500 text-xs ml-1" title={cell?.warning || ''}>
+                          <span
+                            className="text-orange-500 text-xs ml-1"
+                            title={cell?.warning || ''}
+                          >
                             ⚠️
                           </span>
                         )}

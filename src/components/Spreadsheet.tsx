@@ -77,6 +77,7 @@ export default function Spreadsheet() {
   const [activeSheetIndex, setActiveSheetIndex] = useState(0);
   const [renamingSheetIndex, setRenamingSheetIndex] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [previousUnit, setPreviousUnit] = useState<string | null>(null);
 
   // Initialize workbook on mount
   useEffect(() => {
@@ -96,7 +97,7 @@ export default function Spreadsheet() {
     try {
       const [cellsData, workbookInfo] = await Promise.all([
         tauriApi.getSheetCells(),
-        tauriApi.getWorkbookInfo()
+        tauriApi.getWorkbookInfo(),
       ]);
 
       const newCells = new Map<string, Cell>();
@@ -115,6 +116,7 @@ export default function Spreadsheet() {
   const handleCellSelect = (address: CellAddress) => {
     setSelectedCell(address);
     setEditingCell(null); // Stop editing when selecting a different cell
+    setPreviousUnit(null); // Clear previous unit when selecting a different cell
 
     // Update formula bar
     const cellAddr = getCellAddress(address.col, address.row);
@@ -142,8 +144,26 @@ export default function Spreadsheet() {
     const cellAddr = getCellAddress(address.col, address.row);
 
     try {
+      // Process the value to append previous unit if applicable
+      let processedValue = value;
+
+      // Only append unit if:
+      // 1. Value is not empty
+      // 2. Value is not a formula (doesn't start with =)
+      // 3. Value appears to be a bare number (no unit already present)
+      // 4. We have a previous unit to append
+      if (value && !value.startsWith('=') && previousUnit) {
+        const trimmedValue = value.trim();
+        // Check if it's a bare number (optionally with decimal point and/or negative sign)
+        const isBareNumber = /^-?\d+\.?\d*$/.test(trimmedValue);
+
+        if (isBareNumber) {
+          processedValue = `${trimmedValue} ${previousUnit}`;
+        }
+      }
+
       // Set the cell (backend will recalculate all dependent cells)
-      await tauriApi.setCell(cellAddr, value);
+      await tauriApi.setCell(cellAddr, processedValue);
 
       // Reload all cells from backend to get recalculated values
       await loadCellsFromBackend();
@@ -151,9 +171,11 @@ export default function Spreadsheet() {
       setIsDirty(true);
       setEditingCell(null);
       setSelectedCell(address);
+      setPreviousUnit(null); // Clear previous unit after edit
     } catch (error) {
       addToast(`Failed to set cell: ${error}`, 'error');
       setEditingCell(null);
+      setPreviousUnit(null); // Clear previous unit on error too
     }
   };
 
@@ -163,6 +185,9 @@ export default function Spreadsheet() {
     const cell = cells.get(cellAddr);
 
     let initialValue = '';
+    // Store the previous unit for later use
+    setPreviousUnit(cell?.storageUnit || null);
+
     if (cell?.formula) {
       initialValue = cell.formula;
     } else if (cell?.value.type === 'text') {
@@ -447,7 +472,12 @@ export default function Spreadsheet() {
       const hasData = await tauriApi.sheetHasData(index);
 
       // Only show confirmation if sheet has data
-      if (hasData && !confirm(`Are you sure you want to delete sheet "${sheetName}"? This action cannot be undone.`)) {
+      if (
+        hasData &&
+        !confirm(
+          `Are you sure you want to delete sheet "${sheetName}"? This action cannot be undone.`
+        )
+      ) {
         return;
       }
 
@@ -517,132 +547,132 @@ export default function Spreadsheet() {
         currentSheetIndex={activeSheetIndex}
       />
       <div className="h-screen w-screen flex flex-col bg-white">
-      {/* Title bar */}
-      <div className="bg-gray-800 text-white px-4 py-2">
-        <h1 className="text-lg font-bold">
-          Unicel - {workbookName}
-          {isDirty && ' *'}
-        </h1>
-      </div>
+        {/* Title bar */}
+        <div className="bg-gray-800 text-white px-4 py-2">
+          <h1 className="text-lg font-bold">
+            Unicel - {workbookName}
+            {isDirty && ' *'}
+          </h1>
+        </div>
 
-      {/* Ribbon */}
-      <Ribbon
-        displayMode={displayMode}
-        onDisplayModeChange={handleDisplayModeChange}
-        onNew={handleNew}
-        onOpen={handleOpen}
-        onSave={handleSave}
-        onSaveAs={handleSaveAs}
-        onOpenPreferences={handleOpenPreferences}
-        onOpenNamedRanges={handleOpenNamedRanges}
-        onDebugExport={handleDebugExport}
-        onExportExcel={handleExportExcel}
-        onOpenExampleDialog={handleOpenExampleDialog}
-        isDirty={isDirty}
-      />
+        {/* Ribbon */}
+        <Ribbon
+          displayMode={displayMode}
+          onDisplayModeChange={handleDisplayModeChange}
+          onNew={handleNew}
+          onOpen={handleOpen}
+          onSave={handleSave}
+          onSaveAs={handleSaveAs}
+          onOpenPreferences={handleOpenPreferences}
+          onOpenNamedRanges={handleOpenNamedRanges}
+          onDebugExport={handleDebugExport}
+          onExportExcel={handleExportExcel}
+          onOpenExampleDialog={handleOpenExampleDialog}
+          isDirty={isDirty}
+        />
 
-      {/* Formula bar */}
-      <div className="border-b border-gray-300 p-2 bg-gray-50">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-700 w-16">
-            {selectedCell ? getCellAddress(selectedCell.col, selectedCell.row) : ''}
-          </span>
-          <input
-            type="text"
-            className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={formulaBarValue}
-            onChange={(e) => setFormulaBarValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleFormulaBarEdit();
-              }
-            }}
-            placeholder="Select a cell to edit..."
-            disabled={!selectedCell}
+        {/* Formula bar */}
+        <div className="border-b border-gray-300 p-2 bg-gray-50">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-700 w-16">
+              {selectedCell ? getCellAddress(selectedCell.col, selectedCell.row) : ''}
+            </span>
+            <input
+              type="text"
+              className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={formulaBarValue}
+              onChange={(e) => setFormulaBarValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleFormulaBarEdit();
+                }
+              }}
+              placeholder="Select a cell to edit..."
+              disabled={!selectedCell}
+            />
+          </div>
+        </div>
+
+        {/* Sheet tabs */}
+        <div className="border-b border-gray-300 bg-gray-50 px-2 py-1 flex gap-1 items-center">
+          {sheetNames.map((name, index) => (
+            <div key={index} className="relative">
+              {renamingSheetIndex === index ? (
+                <input
+                  type="text"
+                  className="px-3 py-1 border border-blue-500 rounded-t text-sm font-semibold focus:outline-none"
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleRenameSheet();
+                    } else if (e.key === 'Escape') {
+                      handleRenameCancelOrBlur();
+                    }
+                  }}
+                  onBlur={handleRenameCancelOrBlur}
+                  autoFocus
+                />
+              ) : (
+                <button
+                  className={`px-3 py-1 border border-gray-300 rounded-t text-sm font-semibold transition-colors flex items-center gap-2 ${
+                    index === activeSheetIndex
+                      ? 'bg-white border-b-transparent'
+                      : 'bg-gray-200 hover:bg-gray-100'
+                  }`}
+                  onClick={() => handleSheetChange(index)}
+                  onDoubleClick={() => handleSheetDoubleClick(index, name)}
+                >
+                  <span>{name}</span>
+                  {sheetNames.length > 1 && (
+                    <span
+                      className="text-gray-500 hover:text-red-600 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteSheet(index, name);
+                      }}
+                      title="Delete sheet"
+                    >
+                      ×
+                    </span>
+                  )}
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            className="px-3 py-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded text-sm font-bold transition-colors"
+            onClick={handleAddSheet}
+            title="Add new sheet"
+          >
+            +
+          </button>
+        </div>
+
+        {/* Grid */}
+        <div className="flex-1 overflow-hidden">
+          <Grid
+            cells={cells}
+            selectedCell={selectedCell}
+            editingCell={editingCell}
+            editValue={formulaBarValue}
+            onEditValueChange={setFormulaBarValue}
+            onCellSelect={handleCellSelect}
+            onCellEdit={handleCellEdit}
+            onCellDoubleClick={handleCellDoubleClick}
+            activeSheetIndex={activeSheetIndex}
           />
         </div>
-      </div>
 
-      {/* Sheet tabs */}
-      <div className="border-b border-gray-300 bg-gray-50 px-2 py-1 flex gap-1 items-center">
-        {sheetNames.map((name, index) => (
-          <div key={index} className="relative">
-            {renamingSheetIndex === index ? (
-              <input
-                type="text"
-                className="px-3 py-1 border border-blue-500 rounded-t text-sm font-semibold focus:outline-none"
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleRenameSheet();
-                  } else if (e.key === 'Escape') {
-                    handleRenameCancelOrBlur();
-                  }
-                }}
-                onBlur={handleRenameCancelOrBlur}
-                autoFocus
-              />
-            ) : (
-              <button
-                className={`px-3 py-1 border border-gray-300 rounded-t text-sm font-semibold transition-colors flex items-center gap-2 ${
-                  index === activeSheetIndex
-                    ? 'bg-white border-b-transparent'
-                    : 'bg-gray-200 hover:bg-gray-100'
-                }`}
-                onClick={() => handleSheetChange(index)}
-                onDoubleClick={() => handleSheetDoubleClick(index, name)}
-              >
-                <span>{name}</span>
-                {sheetNames.length > 1 && (
-                  <span
-                    className="text-gray-500 hover:text-red-600 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteSheet(index, name);
-                    }}
-                    title="Delete sheet"
-                  >
-                    ×
-                  </span>
-                )}
-              </button>
-            )}
-          </div>
-        ))}
-        <button
-          className="px-3 py-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded text-sm font-bold transition-colors"
-          onClick={handleAddSheet}
-          title="Add new sheet"
-        >
-          +
-        </button>
-      </div>
-
-      {/* Grid */}
-      <div className="flex-1 overflow-hidden">
-        <Grid
-          cells={cells}
+        {/* Status bar */}
+        <StatusBar
+          displayMode={displayMode}
+          autoRecalculate={true}
+          cellCount={cells.size}
           selectedCell={selectedCell}
-          editingCell={editingCell}
-          editValue={formulaBarValue}
-          onEditValueChange={setFormulaBarValue}
-          onCellSelect={handleCellSelect}
-          onCellEdit={handleCellEdit}
-          onCellDoubleClick={handleCellDoubleClick}
-          activeSheetIndex={activeSheetIndex}
+          cellUnit={getSelectedCellUnit()}
+          onSelectCell={setSelectedCell}
         />
-      </div>
-
-      {/* Status bar */}
-      <StatusBar
-        displayMode={displayMode}
-        autoRecalculate={true}
-        cellCount={cells.size}
-        selectedCell={selectedCell}
-        cellUnit={getSelectedCellUnit()}
-        onSelectCell={setSelectedCell}
-      />
       </div>
     </>
   );
