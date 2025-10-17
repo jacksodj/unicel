@@ -178,6 +178,56 @@ export const tauriApi = {
     return invoke('get_named_range_for_cell', { sheetIndex, cellAddress });
   },
 
+  // Column and row sizing
+  async setColumnWidth(col: string, width: number): Promise<void> {
+    return invoke('set_column_width', { col, width });
+  },
+
+  async getColumnWidth(col: string): Promise<number | null> {
+    return invoke('get_column_width', { col });
+  },
+
+  async setRowHeight(row: number, height: number): Promise<void> {
+    return invoke('set_row_height', { row, height });
+  },
+
+  async getRowHeight(row: number): Promise<number | null> {
+    return invoke('get_row_height', { row });
+  },
+
+  async getAllColumnWidths(): Promise<Record<string, number>> {
+    return invoke('get_all_column_widths');
+  },
+
+  async getAllRowHeights(): Promise<Record<number, number>> {
+    return invoke('get_all_row_heights');
+  },
+
+  // Insert and delete operations
+  async insertColumnBefore(col: string): Promise<void> {
+    return invoke('insert_column_before', { col });
+  },
+
+  async insertColumnAfter(col: string): Promise<void> {
+    return invoke('insert_column_after', { col });
+  },
+
+  async insertRowBefore(row: number): Promise<void> {
+    return invoke('insert_row_before', { row });
+  },
+
+  async insertRowAfter(row: number): Promise<void> {
+    return invoke('insert_row_after', { row });
+  },
+
+  async deleteColumn(col: string): Promise<void> {
+    return invoke('delete_column', { col });
+  },
+
+  async deleteRow(row: number): Promise<void> {
+    return invoke('delete_row', { row });
+  },
+
   // File dialogs
   async openFileDialog(): Promise<string | null> {
     const selected = await open({

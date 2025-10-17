@@ -1542,3 +1542,86 @@ pub fn get_named_range_for_cell_impl(
 
     Ok(workbook.get_named_range_for_cell(sheet_index, &addr))
 }
+
+// Column and row sizing commands
+
+/// Set the width of a column
+pub fn set_column_width_impl(state: &AppState, col: String, width: f64) -> Result<(), String> {
+    let mut workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
+
+    workbook.active_sheet_mut().set_column_width(col, width);
+    Ok(())
+}
+
+/// Get the width of a column
+pub fn get_column_width_impl(state: &AppState, col: String) -> Result<Option<f64>, String> {
+    let workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_ref().ok_or("No workbook loaded")?;
+
+    Ok(workbook.active_sheet().get_column_width(&col))
+}
+
+/// Set the height of a row
+pub fn set_row_height_impl(state: &AppState, row: usize, height: f64) -> Result<(), String> {
+    let mut workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_mut().ok_or("No workbook loaded")?;
+
+    workbook.active_sheet_mut().set_row_height(row, height);
+    Ok(())
+}
+
+/// Get the height of a row
+pub fn get_row_height_impl(state: &AppState, row: usize) -> Result<Option<f64>, String> {
+    let workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_ref().ok_or("No workbook loaded")?;
+
+    Ok(workbook.active_sheet().get_row_height(row))
+}
+
+/// Get all custom column widths for the active sheet
+pub fn get_all_column_widths_impl(
+    state: &AppState,
+) -> Result<std::collections::HashMap<String, f64>, String> {
+    let workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_ref().ok_or("No workbook loaded")?;
+
+    Ok(workbook.active_sheet().get_all_column_widths().clone())
+}
+
+/// Get all custom row heights for the active sheet
+pub fn get_all_row_heights_impl(
+    state: &AppState,
+) -> Result<std::collections::HashMap<usize, f64>, String> {
+    let workbook_guard = state.workbook.lock().unwrap();
+    let workbook = workbook_guard.as_ref().ok_or("No workbook loaded")?;
+
+    Ok(workbook.active_sheet().get_all_row_heights().clone())
+}
+
+// Column and row insert/delete placeholder implementations
+// TODO: Implement actual cell shifting logic
+
+pub fn insert_column_before_impl(_state: &AppState, _col: String) -> Result<(), String> {
+    Err("Insert column not yet implemented".to_string())
+}
+
+pub fn insert_column_after_impl(_state: &AppState, _col: String) -> Result<(), String> {
+    Err("Insert column not yet implemented".to_string())
+}
+
+pub fn insert_row_before_impl(_state: &AppState, _row: usize) -> Result<(), String> {
+    Err("Insert row not yet implemented".to_string())
+}
+
+pub fn insert_row_after_impl(_state: &AppState, _row: usize) -> Result<(), String> {
+    Err("Insert row not yet implemented".to_string())
+}
+
+pub fn delete_column_impl(_state: &AppState, _col: String) -> Result<(), String> {
+    Err("Delete column not yet implemented".to_string())
+}
+
+pub fn delete_row_impl(_state: &AppState, _row: usize) -> Result<(), String> {
+    Err("Delete row not yet implemented".to_string())
+}

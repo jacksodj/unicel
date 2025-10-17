@@ -7,6 +7,7 @@ import { LoadingOverlay } from './LoadingSpinner';
 import UnitPreferencesDialog from './UnitPreferencesDialog';
 import ExamplePickerDialog from './ExamplePickerDialog';
 import NamedRangesDialog from './NamedRangesDialog';
+import { DeleteConfirmDialog } from './DeleteConfirmDialog';
 import { Cell, CellAddress, getCellAddress } from '../types/workbook';
 import { tauriApi, convertCellData } from '../api/tauri';
 
@@ -81,6 +82,10 @@ export default function Spreadsheet() {
   const [cellNamedRange, setCellNamedRange] = useState<string | null>(null);
   const [editingNamedRange, setEditingNamedRange] = useState(false);
   const [namedRangeEditValue, setNamedRangeEditValue] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    type: 'column' | 'row';
+    identifier: string | number;
+  } | null>(null);
 
   // Initialize workbook on mount
   useEffect(() => {
@@ -575,6 +580,107 @@ export default function Spreadsheet() {
     }
   };
 
+  // Column and row operations
+  const handleInsertColumnBefore = async (col: string) => {
+    try {
+      setLoadingMessage('Inserting column...');
+      setIsLoading(true);
+      await tauriApi.insertColumnBefore(col);
+      await loadCellsFromBackend();
+      setIsDirty(true);
+      addToast(`Column inserted before ${col}`, 'success');
+    } catch (error) {
+      addToast(`Failed to insert column: ${error}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInsertColumnAfter = async (col: string) => {
+    try {
+      setLoadingMessage('Inserting column...');
+      setIsLoading(true);
+      await tauriApi.insertColumnAfter(col);
+      await loadCellsFromBackend();
+      setIsDirty(true);
+      addToast(`Column inserted after ${col}`, 'success');
+    } catch (error) {
+      addToast(`Failed to insert column: ${error}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInsertRowBefore = async (row: number) => {
+    try {
+      setLoadingMessage('Inserting row...');
+      setIsLoading(true);
+      await tauriApi.insertRowBefore(row);
+      await loadCellsFromBackend();
+      setIsDirty(true);
+      addToast(`Row inserted before ${row}`, 'success');
+    } catch (error) {
+      addToast(`Failed to insert row: ${error}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInsertRowAfter = async (row: number) => {
+    try {
+      setLoadingMessage('Inserting row...');
+      setIsLoading(true);
+      await tauriApi.insertRowAfter(row);
+      await loadCellsFromBackend();
+      setIsDirty(true);
+      addToast(`Row inserted after ${row}`, 'success');
+    } catch (error) {
+      addToast(`Failed to insert row: ${error}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteColumn = (col: string) => {
+    setDeleteConfirm({ type: 'column', identifier: col });
+  };
+
+  const handleDeleteRow = (row: number) => {
+    setDeleteConfirm({ type: 'row', identifier: row });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
+
+    try {
+      setLoadingMessage(
+        `Deleting ${deleteConfirm.type === 'column' ? 'column' : 'row'}...`
+      );
+      setIsLoading(true);
+
+      if (deleteConfirm.type === 'column') {
+        await tauriApi.deleteColumn(deleteConfirm.identifier as string);
+        addToast(`Column ${deleteConfirm.identifier} deleted`, 'success');
+      } else {
+        await tauriApi.deleteRow(deleteConfirm.identifier as number);
+        addToast(`Row ${deleteConfirm.identifier} deleted`, 'success');
+      }
+
+      await loadCellsFromBackend();
+      setIsDirty(true);
+      setDeleteConfirm(null);
+    } catch (error) {
+      addToast(`Failed to delete: ${error}`, 'error');
+      setDeleteConfirm(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirm(null);
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -616,6 +722,14 @@ export default function Spreadsheet() {
     <>
       {isLoading && <LoadingOverlay message={loadingMessage} />}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+      {deleteConfirm && (
+        <DeleteConfirmDialog
+          type={deleteConfirm.type}
+          identifier={deleteConfirm.identifier}
+          onConfirm={handleConfirmDelete}
+          onCancel={handleCancelDelete}
+        />
+      )}
       <UnitPreferencesDialog
         isOpen={showPreferences}
         onClose={handleClosePreferences}
@@ -784,6 +898,12 @@ export default function Spreadsheet() {
             onCellEdit={handleCellEdit}
             onCellDoubleClick={handleCellDoubleClick}
             activeSheetIndex={activeSheetIndex}
+            onInsertColumnBefore={handleInsertColumnBefore}
+            onInsertColumnAfter={handleInsertColumnAfter}
+            onInsertRowBefore={handleInsertRowBefore}
+            onInsertRowAfter={handleInsertRowAfter}
+            onDeleteColumn={handleDeleteColumn}
+            onDeleteRow={handleDeleteRow}
           />
         </div>
 

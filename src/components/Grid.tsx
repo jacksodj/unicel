@@ -7,6 +7,7 @@ import {
   colLetterToNumber,
 } from '../types/workbook';
 import { tauriApi } from '../api/tauri';
+import { ColumnContextMenu, RowContextMenu, ContextMenuPosition } from './GridContextMenu';
 
 interface GridProps {
   cells: Map<string, Cell>;
@@ -20,6 +21,12 @@ interface GridProps {
   editValue?: string;
   onEditValueChange?: (value: string) => void;
   activeSheetIndex?: number;
+  onInsertColumnBefore?: (col: string) => void;
+  onInsertColumnAfter?: (col: string) => void;
+  onInsertRowBefore?: (row: number) => void;
+  onInsertRowAfter?: (row: number) => void;
+  onDeleteColumn?: (col: string) => void;
+  onDeleteRow?: (row: number) => void;
 }
 
 export default function Grid({
@@ -34,11 +41,27 @@ export default function Grid({
   editValue = '',
   onEditValueChange,
   activeSheetIndex = 0,
+  onInsertColumnBefore,
+  onInsertColumnAfter,
+  onInsertRowBefore,
+  onInsertRowAfter,
+  onDeleteColumn,
+  onDeleteRow,
 }: GridProps) {
   const [isFormulaMode, setIsFormulaMode] = useState(false);
   const [pickerCell, setPickerCell] = useState<CellAddress | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [initialEditValue, setInitialEditValue] = useState('');
+  const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+  const [columnContextMenu, setColumnContextMenu] = useState<{
+    column: string;
+    position: ContextMenuPosition;
+  } | null>(null);
+  const [rowContextMenu, setRowContextMenu] = useState<{
+    row: number;
+    position: ContextMenuPosition;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
@@ -466,6 +489,23 @@ export default function Grid({
     }
   };
 
+  // Context menu handlers
+  const handleColumnContextMenu = (col: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    setColumnContextMenu({
+      column: col,
+      position: { x: event.clientX, y: event.clientY },
+    });
+  };
+
+  const handleRowContextMenu = (row: number, event: React.MouseEvent) => {
+    event.preventDefault();
+    setRowContextMenu({
+      row,
+      position: { x: event.clientX, y: event.clientY },
+    });
+  };
+
   return (
     <div ref={gridContainerRef} className="overflow-auto h-full w-full border border-gray-300">
       <table className="border-collapse">
@@ -477,7 +517,12 @@ export default function Grid({
             {columns.map((col) => (
               <th
                 key={col}
-                className="border border-gray-300 bg-gray-100 min-w-[100px] h-8 text-xs font-semibold text-gray-700"
+                className={`border border-gray-300 min-w-[100px] h-8 text-xs font-semibold text-gray-700 cursor-pointer transition-colors ${
+                  hoveredColumn === col ? 'bg-blue-200' : 'bg-gray-100 hover:bg-blue-100'
+                }`}
+                onMouseEnter={() => setHoveredColumn(col)}
+                onMouseLeave={() => setHoveredColumn(null)}
+                onContextMenu={(e) => handleColumnContextMenu(col, e)}
               >
                 {col}
               </th>
@@ -488,7 +533,14 @@ export default function Grid({
           {rows.map((row) => (
             <tr key={row}>
               {/* Row header */}
-              <td className="border border-gray-300 bg-gray-100 w-12 h-8 text-xs font-semibold text-gray-700 text-center sticky left-0">
+              <td
+                className={`border border-gray-300 w-12 h-8 text-xs font-semibold text-gray-700 text-center sticky left-0 cursor-pointer transition-colors ${
+                  hoveredRow === row ? 'bg-blue-200' : 'bg-gray-100 hover:bg-blue-100'
+                }`}
+                onMouseEnter={() => setHoveredRow(row)}
+                onMouseLeave={() => setHoveredRow(null)}
+                onContextMenu={(e) => handleRowContextMenu(row, e)}
+              >
                 {row}
               </td>
               {/* Cells */}
@@ -570,6 +622,29 @@ export default function Grid({
           ))}
         </tbody>
       </table>
+
+      {/* Context menus */}
+      {columnContextMenu && onInsertColumnBefore && onInsertColumnAfter && onDeleteColumn && (
+        <ColumnContextMenu
+          position={columnContextMenu.position}
+          column={columnContextMenu.column}
+          onClose={() => setColumnContextMenu(null)}
+          onInsertBefore={onInsertColumnBefore}
+          onInsertAfter={onInsertColumnAfter}
+          onDelete={onDeleteColumn}
+        />
+      )}
+
+      {rowContextMenu && onInsertRowBefore && onInsertRowAfter && onDeleteRow && (
+        <RowContextMenu
+          position={rowContextMenu.position}
+          row={rowContextMenu.row}
+          onClose={() => setRowContextMenu(null)}
+          onInsertBefore={onInsertRowBefore}
+          onInsertAfter={onInsertRowAfter}
+          onDelete={onDeleteRow}
+        />
+      )}
     </div>
   );
 }

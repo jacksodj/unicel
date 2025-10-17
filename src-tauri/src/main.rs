@@ -225,6 +225,70 @@ fn get_named_range_for_cell(
     unicel_lib::commands::get_named_range_for_cell_impl(&state, sheet_index, cell_address)
 }
 
+#[tauri::command]
+fn set_column_width(state: State<AppState>, col: String, width: f64) -> Result<(), String> {
+    unicel_lib::commands::set_column_width_impl(&state, col, width)
+}
+
+#[tauri::command]
+fn get_column_width(state: State<AppState>, col: String) -> Result<Option<f64>, String> {
+    unicel_lib::commands::get_column_width_impl(&state, col)
+}
+
+#[tauri::command]
+fn set_row_height(state: State<AppState>, row: usize, height: f64) -> Result<(), String> {
+    unicel_lib::commands::set_row_height_impl(&state, row, height)
+}
+
+#[tauri::command]
+fn get_row_height(state: State<AppState>, row: usize) -> Result<Option<f64>, String> {
+    unicel_lib::commands::get_row_height_impl(&state, row)
+}
+
+#[tauri::command]
+fn get_all_column_widths(
+    state: State<AppState>,
+) -> Result<std::collections::HashMap<String, f64>, String> {
+    unicel_lib::commands::get_all_column_widths_impl(&state)
+}
+
+#[tauri::command]
+fn get_all_row_heights(
+    state: State<AppState>,
+) -> Result<std::collections::HashMap<usize, f64>, String> {
+    unicel_lib::commands::get_all_row_heights_impl(&state)
+}
+
+#[tauri::command]
+fn insert_column_before(state: State<AppState>, col: String) -> Result<(), String> {
+    unicel_lib::commands::insert_column_before_impl(&state, col)
+}
+
+#[tauri::command]
+fn insert_column_after(state: State<AppState>, col: String) -> Result<(), String> {
+    unicel_lib::commands::insert_column_after_impl(&state, col)
+}
+
+#[tauri::command]
+fn insert_row_before(state: State<AppState>, row: usize) -> Result<(), String> {
+    unicel_lib::commands::insert_row_before_impl(&state, row)
+}
+
+#[tauri::command]
+fn insert_row_after(state: State<AppState>, row: usize) -> Result<(), String> {
+    unicel_lib::commands::insert_row_after_impl(&state, row)
+}
+
+#[tauri::command]
+fn delete_column(state: State<AppState>, col: String) -> Result<(), String> {
+    unicel_lib::commands::delete_column_impl(&state, col)
+}
+
+#[tauri::command]
+fn delete_row(state: State<AppState>, row: usize) -> Result<(), String> {
+    unicel_lib::commands::delete_row_impl(&state, row)
+}
+
 fn main() {
     // Initialize logging
     tracing_subscriber::registry()
@@ -272,6 +336,18 @@ fn main() {
             delete_named_range,
             get_named_range,
             get_named_range_for_cell,
+            set_column_width,
+            get_column_width,
+            set_row_height,
+            get_row_height,
+            get_all_column_widths,
+            get_all_row_heights,
+            insert_column_before,
+            insert_column_after,
+            insert_row_before,
+            insert_row_after,
+            delete_column,
+            delete_row,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
