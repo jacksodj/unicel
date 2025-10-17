@@ -5,6 +5,30 @@ All notable changes to Unicel will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2025-10-17
+
+### Added
+- **Excel Export: Implicit Conversion Factor Injection**
+  - Excel export now captures implicit unit conversions from arithmetic operations
+  - Formulas with cross-scale operations (e.g., `TB × $/GB`) export with explicit conversion factors
+  - Conversion factors added as named ranges in Conversions sheet
+  - Works seamlessly with existing CONVERT function expansion
+
+### Technical
+- Implicit conversion detection in formula evaluation
+- Automatic injection of conversion factor named ranges during Excel export
+- Formula rewriting to include conversion factors (e.g., `=C1*A2*TB_GB_m`)
+
+### Example
+- **Before:** Formula `=B1*A2` (B1=100 TB, A2=15 $/GB) exported as calculated value `1536000`
+- **After:** Exports as `=C1*A2*TB_GB_m` where `TB_GB_m` is a named range = 1024
+
+### Benefits
+- Users can see exactly what conversions are being applied
+- Conversion factors can be modified directly in Excel
+- Formula structure preserved instead of losing logic to calculated values
+- Makes exported spreadsheets more transparent and maintainable
+
 ## [0.4.2] - 2025-10-17
 
 ### Added
@@ -91,6 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic Tauri integration
 - File I/O with .usheet format
 
+[0.5.1]: https://github.com/jacksodj/unicel/compare/v0.4.2...v0.5.1
 [0.4.2]: https://github.com/jacksodj/unicel/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/jacksodj/unicel/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/jacksodj/unicel/compare/v0.3.0...v0.4.0
