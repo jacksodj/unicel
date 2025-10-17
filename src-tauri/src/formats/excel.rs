@@ -33,6 +33,369 @@ struct ConversionEntry {
     description: String,
 }
 
+/// Determine the unit of an expression by analyzing its AST
+fn get_expr_unit(
+    expr: &Expr,
+    sheet: &Sheet,
+    library: &UnitLibrary,
+) -> Option<crate::core::units::Unit> {
+    match expr {
+        Expr::CellRef { col, row } => {
+            // Look up the cell and return its storage unit
+            let addr = crate::core::table::CellAddr::new(col.clone(), *row);
+            sheet.get(&addr).map(|cell| cell.storage_unit().clone())
+        }
+        Expr::Number(_) => {
+            // Numbers are dimensionless
+            Some(crate::core::units::Unit::dimensionless())
+        }
+        Expr::NumberWithUnit { unit, .. } => {
+            // Parse and return the unit
+            library.get(unit).cloned()
+        }
+        Expr::NamedRef { .. } => {
+            // Named references: we can't easily determine the unit without evaluating
+            // Return None for now
+            None
+        }
+        Expr::Multiply(left, right) => {
+            // Multiply the units
+            let left_unit = get_expr_unit(left, sheet, library)?;
+            let right_unit = get_expr_unit(right, sheet, library)?;
+
+            // Extract unit symbols
+            use crate::core::formula::evaluator::extract_unit_symbols;
+            let (mut left_num, mut left_den) = extract_unit_symbols(&left_unit);
+            let (right_num, right_den) = extract_unit_symbols(&right_unit);
+
+            // Multiply: add symbols together
+            for (symbol, power) in right_num {
+                *left_num.entry(symbol).or_insert(0) += power;
+            }
+            for (symbol, power) in right_den {
+                *left_den.entry(symbol).or_insert(0) += power;
+            }
+
+            // Build the result unit (without cancellation for now)
+            use crate::core::formula::evaluator::build_unit_from_symbols;
+            Some(build_unit_from_symbols(left_num, left_den, library))
+        }
+        Expr::Divide(left, right) => {
+            // Divide the units
+            let left_unit = get_expr_unit(left, sheet, library)?;
+            let right_unit = get_expr_unit(right, sheet, library)?;
+
+            // Extract unit symbols
+            use crate::core::formula::evaluator::extract_unit_symbols;
+            let (mut left_num, mut left_den) = extract_unit_symbols(&left_unit);
+            let (right_num, right_den) = extract_unit_symbols(&right_unit);
+
+            // Divide: right's numerator becomes left's denominator, right's denominator becomes left's numerator
+            for (symbol, power) in right_num {
+                *left_den.entry(symbol).or_insert(0) += power;
+            }
+            for (symbol, power) in right_den {
+                *left_num.entry(symbol).or_insert(0) += power;
+            }
+
+            // Build the result unit
+            use crate::core::formula::evaluator::build_unit_from_symbols;
+            Some(build_unit_from_symbols(left_num, left_den, library))
+        }
+        Expr::Add(left, _right) | Expr::Subtract(left, _right) => {
+            // For add/subtract, assume compatible units and return left's unit
+            get_expr_unit(left, sheet, library)
+        }
+        Expr::Negate(inner) => {
+            // Negation preserves unit
+            get_expr_unit(inner, sheet, library)
+        }
+        _ => {
+            // For other expressions (functions, etc.), return None
+            None
+        }
+    }
+}
+
+/// Recursively walk AST and inject conversion factors where needed
+fn inject_conversion_factors(
+    expr: Expr,
+    sheet: &Sheet,
+    library: &UnitLibrary,
+    conversions: &mut BTreeMap<String, ConversionEntry>,
+) -> Expr {
+    match expr {
+        Expr::Multiply(left, right) => {
+            // Recursively process sub-expressions first
+            let processed_left = inject_conversion_factors(*left, sheet, library, conversions);
+            let processed_right = inject_conversion_factors(*right, sheet, library, conversions);
+
+            // Get units of operands
+            let left_unit = match get_expr_unit(&processed_left, sheet, library) {
+                Some(u) => u,
+                None => return Expr::Multiply(Box::new(processed_left), Box::new(processed_right)),
+            };
+            let right_unit = match get_expr_unit(&processed_right, sheet, library) {
+                Some(u) => u,
+                None => return Expr::Multiply(Box::new(processed_left), Box::new(processed_right)),
+            };
+
+            // Calculate the result unit with cancellation
+            use crate::core::formula::evaluator::{cancel_and_convert_units, extract_unit_symbols};
+            let (mut left_num, mut left_den) = extract_unit_symbols(&left_unit);
+            let (right_num, right_den) = extract_unit_symbols(&right_unit);
+
+            // Multiply units
+            for (symbol, power) in right_num {
+                *left_num.entry(symbol).or_insert(0) += power;
+            }
+            for (symbol, power) in right_den {
+                *left_den.entry(symbol).or_insert(0) += power;
+            }
+
+            // Before cancellation, store original units
+            let left_num_clone = left_num.clone();
+            let left_den_clone = left_den.clone();
+
+            // Apply cancellation and conversions
+            let (_final_num, _final_den, conversion_factor) =
+                cancel_and_convert_units(left_num, left_den, library);
+
+            // If conversion factor is not 1.0, a conversion was applied
+            if (conversion_factor - 1.0).abs() > 1e-10 {
+                // Try to identify which units were converted
+                // Look for units that appear in both numerator and denominator with compatible dimensions
+                let mut conversion_name = String::new();
+                let mut from_unit = String::new();
+                let mut to_unit = String::new();
+
+                // Check for conversions between compatible units
+                'outer: for num_symbol in left_num_clone.keys() {
+                    for den_symbol in left_den_clone.keys() {
+                        if num_symbol != den_symbol && library.can_convert(num_symbol, den_symbol) {
+                            // Found a conversion pair
+                            conversion_name = format!(
+                                "{}_{}",
+                                num_symbol.replace('/', "_per_").replace(' ', "_"),
+                                den_symbol.replace('/', "_per_").replace(' ', "_")
+                            );
+                            from_unit = num_symbol.clone();
+                            to_unit = den_symbol.clone();
+                            break 'outer;
+                        }
+                    }
+                }
+
+                // If we didn't find a specific conversion pair, use a generic name
+                if conversion_name.is_empty() {
+                    conversion_name = format!(
+                        "conv_{}_{}",
+                        left_unit
+                            .canonical()
+                            .replace('/', "_per_")
+                            .replace(' ', "_"),
+                        right_unit
+                            .canonical()
+                            .replace('/', "_per_")
+                            .replace(' ', "_")
+                    );
+                    from_unit = left_unit.canonical().to_string();
+                    to_unit = right_unit.canonical().to_string();
+                }
+
+                // Create conversion entry
+                let entry = ConversionEntry {
+                    name: conversion_name.clone(),
+                    multiplier: conversion_factor,
+                    offset: 0.0,
+                    from_unit: from_unit.clone(),
+                    to_unit: to_unit.clone(),
+                    description: format!(
+                        "Implicit conversion: {} → {} (factor: {})",
+                        from_unit, to_unit, conversion_factor
+                    ),
+                };
+
+                // Add to conversions map (avoid duplicates)
+                if !conversions.contains_key(&conversion_name) {
+                    conversions.insert(conversion_name.clone(), entry);
+                }
+
+                // Inject multiplication by conversion factor named range
+                let mult_name = format!("{}_m", conversion_name);
+                Expr::Multiply(
+                    Box::new(Expr::Multiply(
+                        Box::new(processed_left),
+                        Box::new(processed_right),
+                    )),
+                    Box::new(Expr::NamedRef { name: mult_name }),
+                )
+            } else {
+                // No conversion needed
+                Expr::Multiply(Box::new(processed_left), Box::new(processed_right))
+            }
+        }
+        Expr::Divide(left, right) => {
+            // Recursively process sub-expressions first
+            let processed_left = inject_conversion_factors(*left, sheet, library, conversions);
+            let processed_right = inject_conversion_factors(*right, sheet, library, conversions);
+
+            // Get units of operands
+            let left_unit = match get_expr_unit(&processed_left, sheet, library) {
+                Some(u) => u,
+                None => return Expr::Divide(Box::new(processed_left), Box::new(processed_right)),
+            };
+            let right_unit = match get_expr_unit(&processed_right, sheet, library) {
+                Some(u) => u,
+                None => return Expr::Divide(Box::new(processed_left), Box::new(processed_right)),
+            };
+
+            // Calculate the result unit with cancellation
+            use crate::core::formula::evaluator::{cancel_and_convert_units, extract_unit_symbols};
+            let (mut left_num, mut left_den) = extract_unit_symbols(&left_unit);
+            let (right_num, right_den) = extract_unit_symbols(&right_unit);
+
+            // Divide units: flip right's numerator/denominator
+            for (symbol, power) in right_num {
+                *left_den.entry(symbol).or_insert(0) += power;
+            }
+            for (symbol, power) in right_den {
+                *left_num.entry(symbol).or_insert(0) += power;
+            }
+
+            // Before cancellation, store original units
+            let left_num_clone = left_num.clone();
+            let left_den_clone = left_den.clone();
+
+            // Apply cancellation and conversions
+            let (_final_num, _final_den, conversion_factor) =
+                cancel_and_convert_units(left_num, left_den, library);
+
+            // If conversion factor is not 1.0, a conversion was applied
+            if (conversion_factor - 1.0).abs() > 1e-10 {
+                // Try to identify which units were converted
+                let mut conversion_name = String::new();
+                let mut from_unit = String::new();
+                let mut to_unit = String::new();
+
+                // Check for conversions between compatible units
+                'outer: for num_symbol in left_num_clone.keys() {
+                    for den_symbol in left_den_clone.keys() {
+                        if num_symbol != den_symbol && library.can_convert(num_symbol, den_symbol) {
+                            // Found a conversion pair
+                            conversion_name = format!(
+                                "{}_{}",
+                                num_symbol.replace('/', "_per_").replace(' ', "_"),
+                                den_symbol.replace('/', "_per_").replace(' ', "_")
+                            );
+                            from_unit = num_symbol.clone();
+                            to_unit = den_symbol.clone();
+                            break 'outer;
+                        }
+                    }
+                }
+
+                // If we didn't find a specific conversion pair, use a generic name
+                if conversion_name.is_empty() {
+                    conversion_name = format!(
+                        "conv_{}_{}",
+                        left_unit
+                            .canonical()
+                            .replace('/', "_per_")
+                            .replace(' ', "_"),
+                        right_unit
+                            .canonical()
+                            .replace('/', "_per_")
+                            .replace(' ', "_")
+                    );
+                    from_unit = left_unit.canonical().to_string();
+                    to_unit = right_unit.canonical().to_string();
+                }
+
+                // Create conversion entry
+                let entry = ConversionEntry {
+                    name: conversion_name.clone(),
+                    multiplier: conversion_factor,
+                    offset: 0.0,
+                    from_unit: from_unit.clone(),
+                    to_unit: to_unit.clone(),
+                    description: format!(
+                        "Implicit conversion: {} → {} (factor: {})",
+                        from_unit, to_unit, conversion_factor
+                    ),
+                };
+
+                // Add to conversions map (avoid duplicates)
+                if !conversions.contains_key(&conversion_name) {
+                    conversions.insert(conversion_name.clone(), entry);
+                }
+
+                // Inject multiplication by conversion factor named range
+                let mult_name = format!("{}_m", conversion_name);
+                Expr::Multiply(
+                    Box::new(Expr::Divide(
+                        Box::new(processed_left),
+                        Box::new(processed_right),
+                    )),
+                    Box::new(Expr::NamedRef { name: mult_name }),
+                )
+            } else {
+                // No conversion needed
+                Expr::Divide(Box::new(processed_left), Box::new(processed_right))
+            }
+        }
+        // Recursively process other binary operations
+        Expr::Add(left, right) => {
+            let processed_left = inject_conversion_factors(*left, sheet, library, conversions);
+            let processed_right = inject_conversion_factors(*right, sheet, library, conversions);
+            Expr::Add(Box::new(processed_left), Box::new(processed_right))
+        }
+        Expr::Subtract(left, right) => {
+            let processed_left = inject_conversion_factors(*left, sheet, library, conversions);
+            let processed_right = inject_conversion_factors(*right, sheet, library, conversions);
+            Expr::Subtract(Box::new(processed_left), Box::new(processed_right))
+        }
+        Expr::Negate(inner) => {
+            let processed = inject_conversion_factors(*inner, sheet, library, conversions);
+            Expr::Negate(Box::new(processed))
+        }
+        Expr::Function { name, args } => {
+            let processed_args = args
+                .into_iter()
+                .map(|arg| inject_conversion_factors(arg, sheet, library, conversions))
+                .collect();
+            Expr::Function {
+                name,
+                args: processed_args,
+            }
+        }
+        // Leaf nodes - return as is
+        other => other,
+    }
+}
+
+/// Expand implicit conversions in formulas to Excel-compatible math with conversion factors
+/// Similar to expand_convert_formula but for implicit conversions in arithmetic
+fn expand_implicit_conversions(
+    formula: &str,
+    sheet: &Sheet,
+    conversions: &mut BTreeMap<String, ConversionEntry>,
+) -> Option<String> {
+    // Parse the formula
+    let ast = parse_formula(formula).ok()?;
+
+    // Create a UnitLibrary instance
+    let library = UnitLibrary::new();
+
+    // Inject conversion factors into the AST
+    let modified_ast = inject_conversion_factors(ast, sheet, &library, conversions);
+
+    // Convert back to string
+    let expanded_formula = expr_to_excel_string(&modified_ast);
+
+    Some(expanded_formula)
+}
+
 /// Expand CONVERT functions in formulas to Excel-compatible math with conversion factors
 /// Returns the expanded formula and optionally a conversion entry to add to the Conversions sheet
 /// Example: =CONVERT(A1, 1ft) becomes =A1*Conversions!B2 where B2 contains the conversion factor
@@ -852,32 +1215,62 @@ pub fn export_to_excel(workbook: &Workbook, path: impl AsRef<Path>) -> Result<()
                             }
                         }
                     } else {
-                        // Regular formula (no CONVERT) - transform and export
-                        let excel_formula = transform_formula_for_excel(formula);
-                        tracing::debug!(
-                            "Exporting regular formula: {} → {}",
-                            formula,
-                            excel_formula
-                        );
-                        worksheet.write_formula_with_format(
-                            row_num,
-                            col_num as u16,
-                            excel_formula.as_str(),
-                            &formula_format,
-                        )?;
+                        // Regular formula (no CONVERT) - try to expand implicit conversions
+                        if let Some(expanded_formula) =
+                            expand_implicit_conversions(formula, sheet, &mut conversions)
+                        {
+                            let excel_formula = transform_formula_for_excel(&expanded_formula);
+                            tracing::debug!(
+                                "Exporting formula with implicit conversions: {} → {} → {}",
+                                formula,
+                                expanded_formula,
+                                excel_formula
+                            );
+                            worksheet.write_formula_with_format(
+                                row_num,
+                                col_num as u16,
+                                excel_formula.as_str(),
+                                &formula_format,
+                            )?;
 
-                        // Unit in column N*2+1
-                        let unit_str = cell.storage_unit().canonical();
-                        if !unit_str.is_empty() && unit_str != "1" {
-                            worksheet.write_string(row_num, (col_num + 1) as u16, unit_str)?;
+                            // Unit in column N*2+1
+                            let unit_str = cell.storage_unit().canonical();
+                            if !unit_str.is_empty() && unit_str != "1" {
+                                worksheet.write_string(row_num, (col_num + 1) as u16, unit_str)?;
+                                metadata_rows.push((
+                                    sheet.name().to_string(),
+                                    cell_ref.clone(),
+                                    format!(
+                                        "Formula with implicit conversions: {} → {}",
+                                        formula, expanded_formula
+                                    ),
+                                    unit_str.to_string(),
+                                ));
+                            }
+                        } else {
+                            // Expansion failed - fall back to exporting the formula as-is
+                            let excel_formula = transform_formula_for_excel(formula);
+                            tracing::warn!(
+                                "Could not expand implicit conversions, exporting formula as-is: {}",
+                                formula
+                            );
+                            worksheet.write_formula_with_format(
+                                row_num,
+                                col_num as u16,
+                                excel_formula.as_str(),
+                                &formula_format,
+                            )?;
 
-                            // Track metadata
-                            metadata_rows.push((
-                                sheet.name().to_string(),
-                                cell_ref.clone(),
-                                format!("Formula: {}", formula),
-                                unit_str.to_string(),
-                            ));
+                            let unit_str = cell.storage_unit().canonical();
+                            if !unit_str.is_empty() && unit_str != "1" {
+                                worksheet.write_string(row_num, (col_num + 1) as u16, unit_str)?;
+                                metadata_rows.push((
+                                    sheet.name().to_string(),
+                                    cell_ref.clone(),
+                                    format!("Formula: {}", formula),
+                                    unit_str.to_string(),
+                                ));
+                            }
                         }
                     }
                 } else if let Some(value) = cell.as_number() {
