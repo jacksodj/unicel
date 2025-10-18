@@ -180,6 +180,26 @@ else
 fi
 
 # ==========================================
+# 7. Patch Tauri Config for Release Build
+# ==========================================
+echo ""
+echo "Step 7: Patching Tauri config for self-contained release build..."
+
+# In Xcode Cloud, we're building a self-contained iOS app with bundled frontend
+# Remove devUrl from tauri.conf.json to prevent Tauri from looking for a dev server
+echo "  - Removing devUrl from tauri.conf.json..."
+
+# Backup original config
+cp src-tauri/tauri.conf.json src-tauri/tauri.conf.json.backup
+
+# Use sed to remove the devUrl line
+# This makes Tauri use the bundled frontend instead of looking for a dev server
+sed -i '' '/"devUrl":/d' src-tauri/tauri.conf.json
+
+echo "  ✓ Tauri config patched for release build"
+echo "  - Config change: devUrl removed (using bundled frontend)"
+
+# ==========================================
 # Final Status
 # ==========================================
 echo ""
