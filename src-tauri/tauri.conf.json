@@ -51,6 +51,10 @@
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
       "timestampUrl": ""
+    },
+    "iOS": {
+      "minimumSystemVersion": "13.0",
+      "developmentTeam": "Z3L3V842L2"
     }
   }
 }

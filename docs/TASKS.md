@@ -403,14 +403,14 @@
 
 ## Phase 10: iOS Viewer MVP (Weeks 25-29)
 
-### Week 25: iOS Platform Setup
+### Week 25: iOS Platform Setup ⚠️ REQUIRES MANUAL TESTING
 - [x] 10.1: Run `npm run tauri ios init` to create iOS project structure
 - [x] 10.2: Configure Xcode project settings and bundle identifiers
 - [x] 10.3: Set up Info.plist with file associations for .usheet files
-- [ ] 10.4: Configure code signing and provisioning profiles (REQUIRES XCODE)
-- [ ] 10.5: Test basic build in iOS simulator (iPhone and iPad) (REQUIRES XCODE)
+- [ ] 10.4: Configure code signing and provisioning profiles (MANUAL - See docs/ios/CODE_SIGNING_GUIDE.md)
+- [ ] 10.5: Test basic build in iOS simulator (iPhone and iPad) (MANUAL - Run scripts/test-ios-simulator.sh)
 - [x] 10.6: Add iOS-specific dependencies (@use-gesture/react, react-responsive)
-- [ ] 10.7: Verify Tauri commands work on iOS (load_workbook, get_cell_value) (REQUIRES XCODE)
+- [ ] 10.7: Verify Tauri commands work on iOS (MANUAL - After 10.5, see docs/ios/WEEK_25_iOS_PLATFORM_SETUP.md)
 
 ### Week 26: Mobile UI Adaptation ✅ COMPLETE
 - [x] 10.8: Create platform detection hook (useMobile.ts)

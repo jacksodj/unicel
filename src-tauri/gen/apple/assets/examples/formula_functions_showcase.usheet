@@ -1,0 +1,1900 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "created_at": "2025-10-16T22:01:56.547818+00:00",
+    "modified_at": "2025-10-16T22:01:56.547818+00:00",
+    "app_version": "0.2.0"
+  },
+  "workbook": {
+    "name": "Formula Functions Showcase",
+    "settings": {
+      "display_preference": "AsEntered",
+      "auto_recalculate": true,
+      "show_warnings": true
+    },
+    "sheets": [
+      {
+        "name": "Mathematical Functions",
+        "cells": {
+          "A1": {
+            "value": {
+              "type": "Text",
+              "text": "MATHEMATICAL FUNCTIONS"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B10": {
+            "value": {
+              "type": "Number",
+              "value": 100.0
+            },
+            "storage_unit": "km",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D13": {
+            "value": {
+              "type": "Number",
+              "value": -1.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=SIGN(B13)",
+            "warning": null
+          },
+          "A5": {
+            "value": {
+              "type": "Text",
+              "text": "SQRT"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D5": {
+            "value": {
+              "type": "Number",
+              "value": 12.0
+            },
+            "storage_unit": "m",
+            "display_unit": null,
+            "formula": "=SQRT(B5)",
+            "warning": null
+          },
+          "C10": {
+            "value": {
+              "type": "Text",
+              "text": "=MOD(B10, F10)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A12": {
+            "value": {
+              "type": "Text",
+              "text": "TRUNC"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C3": {
+            "value": {
+              "type": "Text",
+              "text": "Formula"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C5": {
+            "value": {
+              "type": "Text",
+              "text": "=SQRT(B5)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E8": {
+            "value": {
+              "type": "Text",
+              "text": "Round up billable hours"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D8": {
+            "value": {
+              "type": "Error",
+              "message": "Evaluation error: Function not implemented: CEILING"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=CEILING(B8)",
+            "warning": null
+          },
+          "C7": {
+            "value": {
+              "type": "Text",
+              "text": "=ROUND(B7, 2)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B11": {
+            "value": {
+              "type": "Number",
+              "value": 5.0
+            },
+            "storage_unit": "m",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E7": {
+            "value": {
+              "type": "Text",
+              "text": "Currency to cents"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B13": {
+            "value": {
+              "type": "Number",
+              "value": -42.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B3": {
+            "value": {
+              "type": "Text",
+              "text": "Input"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D6": {
+            "value": {
+              "type": "Number",
+              "value": 15.5
+            },
+            "storage_unit": "degC",
+            "display_unit": null,
+            "formula": "=ABS(B6)",
+            "warning": null
+          },
+          "D11": {
+            "value": {
+              "type": "Number",
+              "value": 125.0
+            },
+            "storage_unit": "m^3",
+            "display_unit": null,
+            "formula": "=POWER(B11, 3)",
+            "warning": null
+          },
+          "B5": {
+            "value": {
+              "type": "Number",
+              "value": 144.0
+            },
+            "storage_unit": "m^2",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B9": {
+            "value": {
+              "type": "Number",
+              "value": 8.9
+            },
+            "storage_unit": "liters",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E9": {
+            "value": {
+              "type": "Text",
+              "text": "Full containers only"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B7": {
+            "value": {
+              "type": "Number",
+              "value": 123.456
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B8": {
+            "value": {
+              "type": "Number",
+              "value": 2.3
+            },
+            "storage_unit": "hours",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D10": {
+            "value": {
+              "type": "Number",
+              "value": 10.0
+            },
+            "storage_unit": "km",
+            "display_unit": null,
+            "formula": "=MOD(B10, F10)",
+            "warning": null
+          },
+          "D3": {
+            "value": {
+              "type": "Text",
+              "text": "Result"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "F10": {
+            "value": {
+              "type": "Number",
+              "value": 30.0
+            },
+            "storage_unit": "km",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C11": {
+            "value": {
+              "type": "Text",
+              "text": "=POWER(B11, 3)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E12": {
+            "value": {
+              "type": "Text",
+              "text": "Truncate to integer"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A3": {
+            "value": {
+              "type": "Text",
+              "text": "Function"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C8": {
+            "value": {
+              "type": "Text",
+              "text": "=CEILING(B8)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C9": {
+            "value": {
+              "type": "Text",
+              "text": "=FLOOR(B9)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A6": {
+            "value": {
+              "type": "Text",
+              "text": "ABS"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C6": {
+            "value": {
+              "type": "Text",
+              "text": "=ABS(B6)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A10": {
+            "value": {
+              "type": "Text",
+              "text": "MOD"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E10": {
+            "value": {
+              "type": "Text",
+              "text": "Remainder distance"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A7": {
+            "value": {
+              "type": "Text",
+              "text": "ROUND"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A8": {
+            "value": {
+              "type": "Text",
+              "text": "CEILING"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D7": {
+            "value": {
+              "type": "Number",
+              "value": 123.46
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=ROUND(B7, 2)",
+            "warning": null
+          },
+          "C12": {
+            "value": {
+              "type": "Text",
+              "text": "=TRUNC(B12)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A11": {
+            "value": {
+              "type": "Text",
+              "text": "POWER"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E11": {
+            "value": {
+              "type": "Text",
+              "text": "Volume of cube"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A13": {
+            "value": {
+              "type": "Text",
+              "text": "SIGN"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D9": {
+            "value": {
+              "type": "Number",
+              "value": 8.0
+            },
+            "storage_unit": "liters",
+            "display_unit": null,
+            "formula": "=FLOOR(B9)",
+            "warning": null
+          },
+          "A9": {
+            "value": {
+              "type": "Text",
+              "text": "FLOOR"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E5": {
+            "value": {
+              "type": "Text",
+              "text": "Side length from area"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B6": {
+            "value": {
+              "type": "Number",
+              "value": -15.5
+            },
+            "storage_unit": "degC",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E6": {
+            "value": {
+              "type": "Text",
+              "text": "Temperature magnitude"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B12": {
+            "value": {
+              "type": "Number",
+              "value": 123.789
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E3": {
+            "value": {
+              "type": "Text",
+              "text": "Use Case"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D12": {
+            "value": {
+              "type": "Number",
+              "value": 123.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=TRUNC(B12)",
+            "warning": null
+          },
+          "E13": {
+            "value": {
+              "type": "Text",
+              "text": "Profit/loss indicator"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C13": {
+            "value": {
+              "type": "Text",
+              "text": "=SIGN(B13)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          }
+        }
+      },
+      {
+        "name": "Aggregation Functions",
+        "cells": {
+          "C13": {
+            "value": {
+              "type": "Text",
+              "text": "=AVERAGE(B6:B10)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A13": {
+            "value": {
+              "type": "Text",
+              "text": "AVERAGE"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E17": {
+            "value": {
+              "type": "Text",
+              "text": "Middle value"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B10": {
+            "value": {
+              "type": "Number",
+              "value": 50.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A1": {
+            "value": {
+              "type": "Text",
+              "text": "AGGREGATION FUNCTIONS"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D16": {
+            "value": {
+              "type": "Number",
+              "value": 50.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=MAX(B6:B10)",
+            "warning": null
+          },
+          "D17": {
+            "value": {
+              "type": "Number",
+              "value": 30.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=MEDIAN(B6:B10)",
+            "warning": null
+          },
+          "E12": {
+            "value": {
+              "type": "Text",
+              "text": "Sum all values"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B3": {
+            "value": {
+              "type": "Text",
+              "text": "Data Range"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C12": {
+            "value": {
+              "type": "Text",
+              "text": "=SUM(B6:B10)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E3": {
+            "value": {
+              "type": "Text",
+              "text": "Description"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D14": {
+            "value": {
+              "type": "Number",
+              "value": 5.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=COUNT(B6:B10)",
+            "warning": null
+          },
+          "E15": {
+            "value": {
+              "type": "Text",
+              "text": "Minimum value"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A3": {
+            "value": {
+              "type": "Text",
+              "text": "Function"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B13": {
+            "value": {
+              "type": "Text",
+              "text": "B6:B10"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B8": {
+            "value": {
+              "type": "Number",
+              "value": 30.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B6": {
+            "value": {
+              "type": "Number",
+              "value": 10.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D15": {
+            "value": {
+              "type": "Number",
+              "value": 10.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=MIN(B6:B10)",
+            "warning": null
+          },
+          "B17": {
+            "value": {
+              "type": "Text",
+              "text": "B6:B10"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B14": {
+            "value": {
+              "type": "Text",
+              "text": "B6:B10"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E13": {
+            "value": {
+              "type": "Text",
+              "text": "Mean value"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A15": {
+            "value": {
+              "type": "Text",
+              "text": "MIN"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A5": {
+            "value": {
+              "type": "Text",
+              "text": "Sample Data:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B9": {
+            "value": {
+              "type": "Number",
+              "value": 40.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A17": {
+            "value": {
+              "type": "Text",
+              "text": "MEDIAN"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D12": {
+            "value": {
+              "type": "Number",
+              "value": 150.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=SUM(B6:B10)",
+            "warning": null
+          },
+          "C17": {
+            "value": {
+              "type": "Text",
+              "text": "=MEDIAN(B6:B10)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E16": {
+            "value": {
+              "type": "Text",
+              "text": "Maximum value"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B7": {
+            "value": {
+              "type": "Number",
+              "value": 20.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D3": {
+            "value": {
+              "type": "Text",
+              "text": "Result"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A16": {
+            "value": {
+              "type": "Text",
+              "text": "MAX"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E14": {
+            "value": {
+              "type": "Text",
+              "text": "Count non-empty cells"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B16": {
+            "value": {
+              "type": "Text",
+              "text": "B6:B10"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D13": {
+            "value": {
+              "type": "Number",
+              "value": 30.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=AVERAGE(B6:B10)",
+            "warning": null
+          },
+          "A12": {
+            "value": {
+              "type": "Text",
+              "text": "SUM"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C16": {
+            "value": {
+              "type": "Text",
+              "text": "=MAX(B6:B10)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B15": {
+            "value": {
+              "type": "Text",
+              "text": "B6:B10"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C14": {
+            "value": {
+              "type": "Text",
+              "text": "=COUNT(B6:B10)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C3": {
+            "value": {
+              "type": "Text",
+              "text": "Formula"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B12": {
+            "value": {
+              "type": "Text",
+              "text": "B6:B10"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A14": {
+            "value": {
+              "type": "Text",
+              "text": "COUNT"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C15": {
+            "value": {
+              "type": "Text",
+              "text": "=MIN(B6:B10)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          }
+        }
+      },
+      {
+        "name": "Logic Functions",
+        "cells": {
+          "D11": {
+            "value": {
+              "type": "Number",
+              "value": 1.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=IF(GT(B5, C5), 1, 0)",
+            "warning": null
+          },
+          "D14": {
+            "value": {
+              "type": "Number",
+              "value": 1.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=NOT(GT(B5, D5))",
+            "warning": null
+          },
+          "D8": {
+            "value": {
+              "type": "Number",
+              "value": 1.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=LT(B5, D5)",
+            "warning": null
+          },
+          "A13": {
+            "value": {
+              "type": "Text",
+              "text": "OR"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C5": {
+            "value": {
+              "type": "Number",
+              "value": 75.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E8": {
+            "value": {
+              "type": "Text",
+              "text": "Less than: 100 < 150"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A9": {
+            "value": {
+              "type": "Text",
+              "text": "EQ"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A1": {
+            "value": {
+              "type": "Text",
+              "text": "LOGIC & COMPARISON FUNCTIONS"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E13": {
+            "value": {
+              "type": "Text",
+              "text": "100>150 OR 100<150"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D12": {
+            "value": {
+              "type": "Number",
+              "value": 1.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=AND(GT(B5, C5), LT(B5, D5))",
+            "warning": null
+          },
+          "B13": {
+            "value": {
+              "type": "Text",
+              "text": "Either true"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A3": {
+            "value": {
+              "type": "Text",
+              "text": "Function"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C11": {
+            "value": {
+              "type": "Text",
+              "text": "=IF(GT(B5, C5), 1, 0)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E12": {
+            "value": {
+              "type": "Text",
+              "text": "100>75 AND 100<150"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B3": {
+            "value": {
+              "type": "Text",
+              "text": "Input"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A11": {
+            "value": {
+              "type": "Text",
+              "text": "IF"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B11": {
+            "value": {
+              "type": "Text",
+              "text": "Conditional"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A5": {
+            "value": {
+              "type": "Text",
+              "text": "Test Values:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A12": {
+            "value": {
+              "type": "Text",
+              "text": "AND"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E11": {
+            "value": {
+              "type": "Text",
+              "text": "If 100>75 then 1 else 0"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D9": {
+            "value": {
+              "type": "Number",
+              "value": 1.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=EQ(B5, B5)",
+            "warning": null
+          },
+          "D3": {
+            "value": {
+              "type": "Text",
+              "text": "Result"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B5": {
+            "value": {
+              "type": "Number",
+              "value": 100.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E14": {
+            "value": {
+              "type": "Text",
+              "text": "NOT(100>150) = true"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C8": {
+            "value": {
+              "type": "Text",
+              "text": "=LT(B5, D5)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E3": {
+            "value": {
+              "type": "Text",
+              "text": "Description"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B9": {
+            "value": {
+              "type": "Text",
+              "text": "B5 vs B5"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B14": {
+            "value": {
+              "type": "Text",
+              "text": "Negation"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B8": {
+            "value": {
+              "type": "Text",
+              "text": "B5 vs D5"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C3": {
+            "value": {
+              "type": "Text",
+              "text": "Formula"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A14": {
+            "value": {
+              "type": "Text",
+              "text": "NOT"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E9": {
+            "value": {
+              "type": "Text",
+              "text": "Equal: 100 = 100"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C7": {
+            "value": {
+              "type": "Text",
+              "text": "=GT(B5, C5)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C14": {
+            "value": {
+              "type": "Text",
+              "text": "=NOT(GT(B5, D5))"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "E7": {
+            "value": {
+              "type": "Text",
+              "text": "Greater than: 100 > 75"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B7": {
+            "value": {
+              "type": "Text",
+              "text": "B5 vs C5"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C9": {
+            "value": {
+              "type": "Text",
+              "text": "=EQ(B5, B5)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D7": {
+            "value": {
+              "type": "Number",
+              "value": 1.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=GT(B5, C5)",
+            "warning": null
+          },
+          "B12": {
+            "value": {
+              "type": "Text",
+              "text": "Both true"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A7": {
+            "value": {
+              "type": "Text",
+              "text": "GT"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A8": {
+            "value": {
+              "type": "Text",
+              "text": "LT"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D13": {
+            "value": {
+              "type": "Number",
+              "value": 1.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=OR(GT(B5, D5), LT(B5, D5))",
+            "warning": null
+          },
+          "C13": {
+            "value": {
+              "type": "Text",
+              "text": "=OR(GT(B5, D5), LT(B5, D5))"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C12": {
+            "value": {
+              "type": "Text",
+              "text": "=AND(GT(B5, C5), LT(B5, D5))"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "D5": {
+            "value": {
+              "type": "Number",
+              "value": 150.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          }
+        }
+      },
+      {
+        "name": "Real-World Examples",
+        "cells": {
+          "A26": {
+            "value": {
+              "type": "Text",
+              "text": "Quantity:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B7": {
+            "value": {
+              "type": "Number",
+              "value": 5500.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=SUM(B4:B6)",
+            "warning": null
+          },
+          "B6": {
+            "value": {
+              "type": "Number",
+              "value": 1800.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A6": {
+            "value": {
+              "type": "Text",
+              "text": "March:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A12": {
+            "value": {
+              "type": "Text",
+              "text": "Discount (20%):"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B11": {
+            "value": {
+              "type": "Number",
+              "value": 150.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B5": {
+            "value": {
+              "type": "Number",
+              "value": 2200.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A7": {
+            "value": {
+              "type": "Text",
+              "text": "Total Sales:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A11": {
+            "value": {
+              "type": "Text",
+              "text": "Original Price:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B22": {
+            "value": {
+              "type": "Number",
+              "value": 4.0
+            },
+            "storage_unit": "m",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A3": {
+            "value": {
+              "type": "Text",
+              "text": "Example 1: Sales Data Analysis"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A17": {
+            "value": {
+              "type": "Text",
+              "text": "Rounded (2 decimals):"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A20": {
+            "value": {
+              "type": "Text",
+              "text": "Example 4: Pythagorean Theorem"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A21": {
+            "value": {
+              "type": "Text",
+              "text": "Side A:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B18": {
+            "value": {
+              "type": "Number",
+              "value": 23.0
+            },
+            "storage_unit": "degC",
+            "display_unit": null,
+            "formula": "=TRUNC(B16)",
+            "warning": null
+          },
+          "A10": {
+            "value": {
+              "type": "Text",
+              "text": "Example 2: Price with Discount"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A5": {
+            "value": {
+              "type": "Text",
+              "text": "February:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B27": {
+            "value": {
+              "type": "Number",
+              "value": 10.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A25": {
+            "value": {
+              "type": "Text",
+              "text": "Example 5: Bulk Discount Logic"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B16": {
+            "value": {
+              "type": "Number",
+              "value": 23.456789
+            },
+            "storage_unit": "degC",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B26": {
+            "value": {
+              "type": "Number",
+              "value": 150.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A23": {
+            "value": {
+              "type": "Text",
+              "text": "Hypotenuse:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C17": {
+            "value": {
+              "type": "Text",
+              "text": "=ROUND(B16, 2)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B21": {
+            "value": {
+              "type": "Number",
+              "value": 3.0
+            },
+            "storage_unit": "m",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A27": {
+            "value": {
+              "type": "Text",
+              "text": "Unit Price:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A16": {
+            "value": {
+              "type": "Text",
+              "text": "Raw Temp:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A15": {
+            "value": {
+              "type": "Text",
+              "text": "Example 3: Temperature Rounding"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C8": {
+            "value": {
+              "type": "Text",
+              "text": "=AVERAGE(B4:B6)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B17": {
+            "value": {
+              "type": "Number",
+              "value": 23.46
+            },
+            "storage_unit": "degC",
+            "display_unit": null,
+            "formula": "=ROUND(B16, 2)",
+            "warning": null
+          },
+          "B12": {
+            "value": {
+              "type": "Number",
+              "value": 0.2
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C13": {
+            "value": {
+              "type": "Text",
+              "text": "=B11 - (B11 * B12)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B4": {
+            "value": {
+              "type": "Number",
+              "value": 1500.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A13": {
+            "value": {
+              "type": "Text",
+              "text": "Final Price:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A22": {
+            "value": {
+              "type": "Text",
+              "text": "Side B:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B8": {
+            "value": {
+              "type": "Number",
+              "value": 1833.3333333333333
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=AVERAGE(B4:B6)",
+            "warning": null
+          },
+          "A4": {
+            "value": {
+              "type": "Text",
+              "text": "January:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A8": {
+            "value": {
+              "type": "Text",
+              "text": "Average:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A28": {
+            "value": {
+              "type": "Text",
+              "text": "Gets Discount (>100):"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C18": {
+            "value": {
+              "type": "Text",
+              "text": "=TRUNC(B16)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "C23": {
+            "value": {
+              "type": "Text",
+              "text": "=SQRT(POWER(B21, 2) + POWER(B22, 2))"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A18": {
+            "value": {
+              "type": "Text",
+              "text": "Truncated:"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B23": {
+            "value": {
+              "type": "Number",
+              "value": 5.0
+            },
+            "storage_unit": "m",
+            "display_unit": null,
+            "formula": "=SQRT(POWER(B21, 2) + POWER(B22, 2))",
+            "warning": null
+          },
+          "B28": {
+            "value": {
+              "type": "Number",
+              "value": 1.0
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": "=IF(GT(B26, 100), 1, 0)",
+            "warning": null
+          },
+          "C7": {
+            "value": {
+              "type": "Text",
+              "text": "=SUM(B4:B6)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "B13": {
+            "value": {
+              "type": "Number",
+              "value": 120.0
+            },
+            "storage_unit": "USD",
+            "display_unit": null,
+            "formula": "=B11 - (B11 * B12)",
+            "warning": null
+          },
+          "C28": {
+            "value": {
+              "type": "Text",
+              "text": "=IF(GT(B26, 100), 1, 0)"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          },
+          "A1": {
+            "value": {
+              "type": "Text",
+              "text": "REAL-WORLD EXAMPLES"
+            },
+            "storage_unit": "",
+            "display_unit": null,
+            "formula": null,
+            "warning": null
+          }
+        }
+      }
+    ],
+    "active_sheet": 0,
+    "named_ranges": {}
+  }
+}
