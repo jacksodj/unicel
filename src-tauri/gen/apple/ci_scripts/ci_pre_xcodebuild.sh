@@ -12,9 +12,29 @@ export PATH="/usr/local/opt/node@20/bin:$PATH"
 # Add Rust/Cargo to PATH (installed by post-clone script)
 export PATH="$HOME/.cargo/bin:$PATH"
 
-# Force the Tauri CLI socket host to resolve locally for Xcode Cloud builds
+# Start the lightweight options daemon that mimics `tauri-cli` socket hand-off
 APP_IDENTIFIER="com.unicel.app"
 ADDR_FILENAME="${APP_IDENTIFIER}-server-addr"
+WORK_TMP="${CI_WORKSPACE:-/Volumes/workspace}/tmp"
+mkdir -p "$WORK_TMP"
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || (cd "$(dirname "$0")/../../.." && pwd))"
+DAEMON_BIN="$REPO_ROOT/target/release/tauri-options-daemon"
+DAEMON_LOG="$WORK_TMP/tauri-options-daemon.log"
+
+echo "Starting Tauri CLI options daemon..."
+echo "  - Building helper binary (release)..."
+(cd "$REPO_ROOT" && cargo build -p tauri-options-daemon --release)
+
+if [ ! -x "$DAEMON_BIN" ]; then
+    echo "  ✗ Helper binary not found at $DAEMON_BIN"
+    exit 1
+fi
+
+UNICEL_REPO_ROOT="$REPO_ROOT" nohup "$DAEMON_BIN" > "$DAEMON_LOG" 2>&1 &
+DAEMON_PID=$!
+echo "$DAEMON_PID" > "$WORK_TMP/tauri-options-daemon.pid"
+
 SERVER_ADDR_FILE_FOUND=""
 
 # Helper to normalize and patch a candidate addr file
@@ -46,21 +66,33 @@ patch_addr_file() {
     printf '127.0.0.1:%s' "$port" > "$file"
 }
 
-# Known directories that may contain the addr file
+# Wait for the daemon to write the address file
+ADDR_DIRS=""
 if [ -n "${TMPDIR:-}" ]; then
-    patch_addr_file "${TMPDIR%/}/$ADDR_FILENAME"
+    ADDR_DIRS="${ADDR_DIRS} ${TMPDIR%/}"
 fi
 if [ -n "${CI_WORKSPACE:-}" ]; then
-    patch_addr_file "${CI_WORKSPACE%/}/tmp/$ADDR_FILENAME"
+    ADDR_DIRS="${ADDR_DIRS} ${CI_WORKSPACE%/}/tmp"
 fi
-patch_addr_file "/tmp/$ADDR_FILENAME"
+ADDR_DIRS="${ADDR_DIRS} /tmp"
 
-# Fallback: attempt to locate via find if not already patched
-if [ -z "$SERVER_ADDR_FILE_FOUND" ] || ! grep -q '127.0.0.1' "$SERVER_ADDR_FILE_FOUND" 2>/dev/null; then
-    found_file="$(find "${CI_WORKSPACE:-/Volumes/workspace}" -name "$ADDR_FILENAME" 2>/dev/null | head -n 1 || true)"
-    if [ -n "$found_file" ]; then
-        patch_addr_file "$found_file"
-    fi
+for _ in $(seq 1 30); do
+    for dir in $ADDR_DIRS; do
+        patch_addr_file "${dir%/}/$ADDR_FILENAME"
+        if [ -n "$SERVER_ADDR_FILE_FOUND" ]; then
+            break 2
+        fi
+    done
+    sleep 1
+done
+
+if [ -z "$SERVER_ADDR_FILE_FOUND" ]; then
+    echo "  ✗ Failed to detect CLI options daemon address file ($ADDR_FILENAME)"
+    echo "  - Daemon log (tail):"
+    tail -n 20 "$DAEMON_LOG" 2>/dev/null || true
+    exit 1
+else
+    echo "  ✓ CLI options daemon ready ($SERVER_ADDR_FILE_FOUND)"
 fi
 
 # Verify tools are accessible

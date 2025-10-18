@@ -1,5 +1,5 @@
 [workspace]
-members = ["src-tauri"]
+members = ["src-tauri", "tools/tauri-options-daemon"]
 resolver = "2"
 
 [workspace.package]
