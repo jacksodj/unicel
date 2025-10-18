@@ -123,24 +123,41 @@ macro_rules! define_commands {
         fn get_example_workbook_path(app: tauri::AppHandle, filename: String) -> Result<String, String> {
             use std::path::PathBuf;
 
-            // Try to resolve as a bundled resource first (works in production)
-            let resource_path = format!("examples/{}", filename);
-            if let Ok(path) = app
-                .path()
-                .resolve(&resource_path, tauri::path::BaseDirectory::Resource)
+            // For iOS: Try ExampleSpreadsheets folder (bundled resources)
+            #[cfg(target_os = "ios")]
             {
-                if path.exists() {
-                    return Ok(path.to_string_lossy().to_string());
+                let resource_path = format!("ExampleSpreadsheets/{}", filename);
+                if let Ok(path) = app
+                    .path()
+                    .resolve(&resource_path, tauri::path::BaseDirectory::Resource)
+                {
+                    if path.exists() {
+                        return Ok(path.to_string_lossy().to_string());
+                    }
                 }
             }
 
-            // Fallback for development mode: look in src-tauri/examples/
-            let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("examples")
-                .join(&filename);
+            // For desktop: Try examples folder
+            #[cfg(not(target_os = "ios"))]
+            {
+                let resource_path = format!("examples/{}", filename);
+                if let Ok(path) = app
+                    .path()
+                    .resolve(&resource_path, tauri::path::BaseDirectory::Resource)
+                {
+                    if path.exists() {
+                        return Ok(path.to_string_lossy().to_string());
+                    }
+                }
 
-            if dev_path.exists() {
-                return Ok(dev_path.to_string_lossy().to_string());
+                // Fallback for development mode: look in src-tauri/examples/
+                let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("examples")
+                    .join(&filename);
+
+                if dev_path.exists() {
+                    return Ok(dev_path.to_string_lossy().to_string());
+                }
             }
 
             Err(format!("Example file not found: {}", filename))
@@ -148,28 +165,55 @@ macro_rules! define_commands {
 
         #[tauri::command]
         fn list_example_workbooks() -> Vec<(String, String)> {
-            vec![
-                (
-                    "unit_conversion_tutorial.usheet".to_string(),
-                    "Unit Conversion Tutorial".to_string(),
-                ),
-                (
-                    "aws_cost_estimator.usheet".to_string(),
-                    "AWS Cost Estimator".to_string(),
-                ),
-                (
-                    "construction_estimator.usheet".to_string(),
-                    "Construction Estimator".to_string(),
-                ),
-                (
-                    "investment_portfolio.usheet".to_string(),
-                    "Investment Portfolio Tracker".to_string(),
-                ),
-                (
-                    "formula_functions_showcase.usheet".to_string(),
-                    "Formula Functions Showcase".to_string(),
-                ),
-            ]
+            // iOS uses different filenames (with underscores converted to spaces)
+            #[cfg(target_os = "ios")]
+            {
+                vec![
+                    (
+                        "AWS_Cost_Estimator.usheet".to_string(),
+                        "AWS Cost Estimator".to_string(),
+                    ),
+                    (
+                        "Construction_Estimator.usheet".to_string(),
+                        "Construction Estimator".to_string(),
+                    ),
+                    (
+                        "Investment_Portfolio.usheet".to_string(),
+                        "Investment Portfolio Tracker".to_string(),
+                    ),
+                    (
+                        "Formula_Functions_Showcase.usheet".to_string(),
+                        "Formula Functions Showcase".to_string(),
+                    ),
+                ]
+            }
+
+            // Desktop uses original filenames
+            #[cfg(not(target_os = "ios"))]
+            {
+                vec![
+                    (
+                        "unit_conversion_tutorial.usheet".to_string(),
+                        "Unit Conversion Tutorial".to_string(),
+                    ),
+                    (
+                        "aws_cost_estimator.usheet".to_string(),
+                        "AWS Cost Estimator".to_string(),
+                    ),
+                    (
+                        "construction_estimator.usheet".to_string(),
+                        "Construction Estimator".to_string(),
+                    ),
+                    (
+                        "investment_portfolio.usheet".to_string(),
+                        "Investment Portfolio Tracker".to_string(),
+                    ),
+                    (
+                        "formula_functions_showcase.usheet".to_string(),
+                        "Formula Functions Showcase".to_string(),
+                    ),
+                ]
+            }
         }
 
         #[tauri::command]

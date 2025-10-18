@@ -11,9 +11,11 @@ import { MobileGrid } from './MobileGrid';
 import { MobileToolbar } from './MobileToolbar';
 import { MobileStatusBar } from './MobileStatusBar';
 import { FilePicker } from './FilePicker';
+import { ExamplePicker } from './ExamplePicker';
 import { ErrorBoundary } from './ErrorBoundary';
 import { LoadingSpinner } from './LoadingSpinner';
 import { useMobile } from '../../hooks/useMobile';
+import { useFileOpening } from '../../hooks/useFileOpening';
 import { tauriApi, convertCellData } from '../../api/tauri';
 import { haptics } from '../../utils/haptics';
 import { Cell } from '../../types/workbook';
@@ -33,40 +35,10 @@ export function MobileApp(_props: MobileAppProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sheetNames, setSheetNames] = useState<string[]>([]);
+  const [showExamplePicker, setShowExamplePicker] = useState(false);
 
   // Platform detection
   const { isMobile, isTablet } = useMobile();
-
-  // Load cells when sheet changes
-  useEffect(() => {
-    const loadCells = async () => {
-      if (!workbookPath) return;
-
-      try {
-        const cellsData = await tauriApi.getSheetCells();
-        const cellsMap = new Map<string, Cell>();
-
-        cellsData.forEach(([address, cellData]) => {
-          cellsMap.set(address, convertCellData(cellData));
-        });
-
-        setCells(cellsMap);
-      } catch (err) {
-        console.error('Failed to load cells:', err);
-      }
-    };
-
-    loadCells();
-  }, [workbookPath, currentSheet]);
-
-  // Update selected cell data when selection or cells change
-  useEffect(() => {
-    if (selectedCellAddress && cells.has(selectedCellAddress)) {
-      setSelectedCellData(cells.get(selectedCellAddress) || null);
-    } else {
-      setSelectedCellData(null);
-    }
-  }, [selectedCellAddress, cells]);
 
   // Handle file selection
   const handleFileSelected = useCallback(async (path: string) => {
@@ -144,6 +116,42 @@ export function MobileApp(_props: MobileAppProps) {
     setWorkbookName(null);
   }, []);
 
+  // Handle file opening from external sources (Messages, Email, etc.)
+  useFileOpening({
+    onFileOpen: handleFileSelected,
+  });
+
+  // Load cells when sheet changes
+  useEffect(() => {
+    const loadCells = async () => {
+      if (!workbookPath) return;
+
+      try {
+        const cellsData = await tauriApi.getSheetCells();
+        const cellsMap = new Map<string, Cell>();
+
+        cellsData.forEach(([address, cellData]) => {
+          cellsMap.set(address, convertCellData(cellData));
+        });
+
+        setCells(cellsMap);
+      } catch (err) {
+        console.error('Failed to load cells:', err);
+      }
+    };
+
+    loadCells();
+  }, [workbookPath, currentSheet]);
+
+  // Update selected cell data when selection or cells change
+  useEffect(() => {
+    if (selectedCellAddress && cells.has(selectedCellAddress)) {
+      setSelectedCellData(cells.get(selectedCellAddress) || null);
+    } else {
+      setSelectedCellData(null);
+    }
+  }, [selectedCellAddress, cells]);
+
   // Loading state
   if (isLoading) {
     return (
@@ -215,12 +223,46 @@ export function MobileApp(_props: MobileAppProps) {
             </svg>
           </div>
 
-          <FilePicker onFileSelected={handleFileSelected} onError={handleFileError} />
+          <div className="space-y-3">
+            <FilePicker onFileSelected={handleFileSelected} onError={handleFileError} />
+
+            <button
+              onClick={() => setShowExamplePicker(true)}
+              className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              style={{ minHeight: '44px' }}
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                />
+              </svg>
+              <span>Open Example</span>
+            </button>
+          </div>
 
           <p className="mt-6 text-xs text-gray-500">
             {isMobile ? 'iPhone' : isTablet ? 'iPad' : 'Mobile'} • Read-only viewer
           </p>
         </div>
+
+        {/* Example picker modal */}
+        {showExamplePicker && (
+          <ExamplePicker
+            onExampleSelected={async (path) => {
+              await handleFileSelected(path);
+              setShowExamplePicker(false);
+            }}
+            onClose={() => setShowExamplePicker(false)}
+          />
+        )}
       </div>
     );
   }

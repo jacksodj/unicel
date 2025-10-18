@@ -10,8 +10,11 @@
     "core:window:allow-close",
     "core:window:allow-minimize",
     "core:window:allow-maximize",
+    "core:event:default",
+    "core:event:allow-listen",
     "dialog:default",
     "dialog:allow-open",
-    "dialog:allow-save"
+    "dialog:allow-save",
+    "opener:default"
   ]
 }
