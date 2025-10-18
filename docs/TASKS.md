@@ -245,6 +245,20 @@
 
 ## Future Backlog (Beyond MLP)
 
+### Advanced Formula Features (High Priority)
+- **User-defined functions (UDFs)** (High priority - Post iOS MVP)
+  - Define custom functions within spreadsheets
+  - JavaScript/TypeScript formula language (sandboxed execution)
+  - Unit-aware UDFs with dimension checking
+  - Function signature with parameter types and units
+  - Example: `DEFINE FUNCTION markup(cost: USD, rate: %) = cost * (1 + rate)`
+  - Function library per workbook (saved in .usheet file)
+  - Autocomplete for user-defined functions
+  - Error handling and debugging for UDFs
+  - Performance optimization (compiled/cached functions)
+  - Use cases: Industry-specific calculations, custom business logic, reusable formulas
+  - Implementation: Parse UDF definitions, validate units, execute in isolated context
+
 ### Cloud/Enterprise Features (Post-MVP)
 - **Remote web-based backend with subscription model** (High priority - Post iOS MVP)
   - Cloud-hosted Tauri backend for web access
