@@ -200,6 +200,25 @@ echo "  ✓ Tauri config patched for release build"
 echo "  - Config change: devUrl removed (using bundled frontend)"
 
 # ==========================================
+# 8. Create Dummy Dev Server Address File
+# ==========================================
+echo ""
+echo "Step 8: Creating dummy dev server address file..."
+
+# xcode-script has a bug where it tries to read this file even in release builds
+# This is a known issue (GitHub #10191) - we create a dummy file to satisfy it
+# The file content is not used since frontend is bundled, but the file must exist
+WORKSPACE_DIR="${CI_WORKSPACE:-/Volumes/workspace}"
+TMP_DIR="$WORKSPACE_DIR/tmp"
+ADDR_FILE="$TMP_DIR/com.unicel.app-server-addr"
+
+mkdir -p "$TMP_DIR"
+echo "http://localhost:5173" > "$ADDR_FILE"
+
+echo "  ✓ Dummy addr file created at: $ADDR_FILE"
+echo "  - Note: File required by xcode-script bug, content not used (frontend is bundled)"
+
+# ==========================================
 # Final Status
 # ==========================================
 echo ""
