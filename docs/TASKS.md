@@ -245,6 +245,18 @@
 
 ## Future Backlog (Beyond MLP)
 
+### Cloud/Enterprise Features (Post-MVP)
+- **Remote web-based backend with subscription model** (High priority - Post iOS MVP)
+  - Cloud-hosted Tauri backend for web access
+  - Real-time collaboration on spreadsheets
+  - Subscription billing system (Stripe integration)
+  - User authentication and login system
+  - Multi-user access control
+  - Cloud storage for .usheet files
+  - Sync between iOS app and web version
+  - Use cases: Teams, enterprise deployments, cloud backup
+  - Monetization: Monthly/annual subscriptions, team pricing tiers
+
 ### Recent Additions (v0.1.3 - 2025-10-14)
 - [x] **Sheet management UI** - Completed
   - Add, rename, and delete sheets with full UI
