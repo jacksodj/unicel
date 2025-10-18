@@ -219,6 +219,64 @@ echo "  ✓ Dummy addr file created at: $ADDR_FILE"
 echo "  - Note: File required by xcode-script bug, content not used (frontend is bundled)"
 
 # ==========================================
+# 9. Debug: Environment and Network Info
+# ==========================================
+echo ""
+echo "Step 9: Collecting debug information for hostname resolution..."
+echo ""
+
+# Hostname and network information
+echo "--- System Hostname Information ---"
+echo "  hostname command: $(hostname 2>&1 || echo 'FAILED')"
+echo "  uname -n: $(uname -n 2>&1 || echo 'FAILED')"
+echo "  scutil --get ComputerName: $(scutil --get ComputerName 2>&1 || echo 'FAILED')"
+echo "  scutil --get LocalHostName: $(scutil --get LocalHostName 2>&1 || echo 'FAILED')"
+echo ""
+
+# Environment variables that might affect hostname resolution
+echo "--- Environment Variables ---"
+echo "  HOSTNAME: ${HOSTNAME:-not set}"
+echo "  HOST: ${HOST:-not set}"
+echo "  COMPUTERNAME: ${COMPUTERNAME:-not set}"
+echo "  CI: ${CI:-not set}"
+echo "  CI_WORKSPACE: ${CI_WORKSPACE:-not set}"
+echo "  CI_XCODE_PROJECT: ${CI_XCODE_PROJECT:-not set}"
+echo "  CI_XCODEBUILD_ACTION: ${CI_XCODEBUILD_ACTION:-not set}"
+echo "  TAURI_DEV_HOST: ${TAURI_DEV_HOST:-not set}"
+echo "  TAURI_CLI_NO_DEV_SERVER: ${TAURI_CLI_NO_DEV_SERVER:-not set}"
+echo ""
+
+# Network interface information
+echo "--- Network Interfaces ---"
+ifconfig | grep -E "^[a-z]|inet " | head -20 || echo "  ifconfig failed"
+echo ""
+
+# DNS configuration
+echo "--- DNS Configuration ---"
+echo "  /etc/resolv.conf:"
+cat /etc/resolv.conf 2>&1 | head -10 || echo "  Cannot read /etc/resolv.conf"
+echo ""
+echo "  /etc/hosts (first 20 lines):"
+cat /etc/hosts 2>&1 | head -20 || echo "  Cannot read /etc/hosts"
+echo ""
+
+# Test hostname resolution
+echo "--- Hostname Resolution Tests ---"
+echo "  Can resolve localhost: $(ping -c 1 -t 1 localhost 2>&1 | head -1 || echo 'FAILED')"
+echo "  Can resolve 127.0.0.1: $(ping -c 1 -t 1 127.0.0.1 2>&1 | head -1 || echo 'FAILED')"
+echo ""
+
+# Dev server addr file contents
+echo "--- Dev Server Address File ---"
+echo "  File path: $ADDR_FILE"
+echo "  File exists: $(test -f "$ADDR_FILE" && echo 'YES' || echo 'NO')"
+echo "  File contents: $(cat "$ADDR_FILE" 2>&1 || echo 'Cannot read file')"
+echo "  File permissions: $(ls -la "$ADDR_FILE" 2>&1 || echo 'Cannot stat file')"
+echo ""
+
+echo "  ✓ Debug information collected"
+
+# ==========================================
 # Final Status
 # ==========================================
 echo ""
