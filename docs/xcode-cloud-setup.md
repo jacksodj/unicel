@@ -23,16 +23,32 @@ This guide explains how to configure Xcode Cloud for automated iOS builds and Te
 The Xcode Cloud scripts are located in:
 ```
 src-tauri/gen/apple/ci_scripts/
-└── ci_post_clone.sh          # Installs Node.js, Rust, and dependencies
+├── ci_post_clone.sh          # Installs Node.js, Rust, and dependencies
+└── ci_pre_xcodebuild.sh      # Sets PATH for build environment
 ```
 
-**What the script does:**
-1. Installs Node.js 20 (LTS) via Homebrew
-2. Installs npm dependencies (`npm ci`)
-3. Installs Rust toolchain
-4. Adds iOS compilation targets (`aarch64-apple-ios`)
-5. Builds frontend assets (`npm run build`)
-6. Verifies all tools are installed correctly
+### Script Purposes
+
+**Why two scripts are needed:**
+
+Xcode Cloud runs build phases in separate shell sessions. Environment variables set in one phase don't automatically persist to the next. This requires a two-script approach:
+
+**1. ci_post_clone.sh (Dependency Installation)**
+- Runs after repository is cloned
+- Installs Node.js 20 (LTS) via Homebrew
+- Installs npm dependencies (`npm ci`)
+- Installs Rust toolchain
+- Adds iOS compilation targets (`aarch64-apple-ios`)
+- Builds frontend assets (`npm run build`)
+- Verifies all tools are installed correctly
+
+**2. ci_pre_xcodebuild.sh (Environment Configuration)**
+- Runs before Xcode build phase starts
+- Exports PATH to include Node.js and Rust binaries
+- Ensures build scripts can find `npm`, `cargo`, and `rustc`
+- Verifies tools are accessible before build begins
+
+**Key insight:** Homebrew installs Node.js 20 as "keg-only" (not symlinked into `/usr/local/bin`), so it requires explicit PATH configuration. The `ci_post_clone.sh` script installs the tools, but the `ci_pre_xcodebuild.sh` script ensures they're in PATH when the build phase runs.
 
 ## Initial Setup in App Store Connect
 
@@ -97,11 +113,13 @@ Xcode Cloud workflows define when and how to build your app.
 ### 4. Verify Custom Scripts Are Detected
 
 Xcode Cloud automatically detects scripts in `ci_scripts/`:
-- `ci_post_clone.sh` - Runs after cloning repository
-- `ci_pre_xcodebuild.sh` - Runs before xcodebuild (optional, not used)
+- `ci_post_clone.sh` - Runs after cloning repository (installs dependencies)
+- `ci_pre_xcodebuild.sh` - Runs before xcodebuild (sets PATH)
 - `ci_post_xcodebuild.sh` - Runs after xcodebuild (optional, not used)
 
 You should see a confirmation that custom scripts were found.
+
+**Important:** Both `ci_post_clone.sh` and `ci_pre_xcodebuild.sh` are required for successful builds. The first installs tools, the second ensures they're accessible during the build phase.
 
 ## Triggering a Build
 
@@ -153,60 +171,67 @@ Typical Xcode Cloud build takes **15-25 minutes**:
    - Checks out code from Git
 
 2. **Post-Clone Script** (5-8 min)
+   - Runs `ci_post_clone.sh`
    - Installs Node.js (~2 min)
    - Installs npm dependencies (~2 min)
    - Installs Rust (~2 min)
    - Adds iOS targets (~30 sec)
    - Builds frontend (~1 min)
 
-3. **Xcode Build** (8-12 min)
+3. **Pre-Xcodebuild Script** (<10 sec)
+   - Runs `ci_pre_xcodebuild.sh`
+   - Sets PATH environment variables
+   - Verifies tools are accessible
+
+4. **Xcode Build** (8-12 min)
    - Pre-build script runs `tauri ios xcode-script`
    - Compiles Rust to ARM64 library (~5 min)
    - Compiles Swift wrapper (~1 min)
    - Links binary (~1 min)
    - Creates IPA (~1 min)
 
-4. **Archive & Export** (1-2 min)
+5. **Archive & Export** (1-2 min)
    - Signs IPA with distribution certificate
    - Creates dSYM for crash reporting
 
-5. **TestFlight Upload** (2-3 min)
+6. **TestFlight Upload** (2-3 min)
    - Uploads IPA to App Store Connect
    - Starts TestFlight processing
 
-6. **Post-Build** (1 min)
+7. **Post-Build** (1 min)
    - Cleanup and artifact storage
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### 1. "npm: command not found"
+#### 1. "npm: command not found" or "rustc: command not found"
 
 **Symptom:**
 ```
 /Volumes/workspace/.../Script-XXX.sh: line 2: npm: command not found
+Command PhaseScriptExecution failed with a nonzero exit code
 ```
+
+**Root Cause:**
+- `ci_post_clone.sh` successfully installs Node.js and Rust
+- But PATH modifications don't persist to the build phase
+- Build phase runs in a fresh shell without the tools in PATH
 
 **Solution:**
-- Ensure `ci_post_clone.sh` exists in `src-tauri/gen/apple/ci_scripts/`
-- Ensure script is executable (`chmod +x`)
-- Verify script is committed to Git
-- Check logs to see if post-clone script ran
+1. Ensure **both scripts exist** in `src-tauri/gen/apple/ci_scripts/`:
+   - `ci_post_clone.sh` (installs dependencies)
+   - `ci_pre_xcodebuild.sh` (sets PATH for build)
+2. Ensure **both are executable**: `chmod +x ci_*.sh`
+3. Verify **both are committed to Git** and pushed to remote
+4. Check logs to confirm:
+   - Post-clone script shows "✓ Xcode Cloud Setup Complete!"
+   - Pre-xcodebuild script shows "✓ Build environment configured"
 
-#### 2. "rustc: command not found"
+**Why two scripts:**
+Homebrew installs Node.js 20 as "keg-only" (not symlinked), requiring explicit PATH configuration. The pre-xcodebuild script exports PATH before the build phase starts.
 
-**Symptom:**
-```
-error: cannot find `rustc` in PATH
-```
-
-**Solution:**
-- Ensure `ci_post_clone.sh` installs Rust
-- Check if Rust installation succeeded in logs
-- Verify `$HOME/.cargo/env` is sourced
-
-#### 3. "Frontend dist/ directory not found"
+#### 2. "Frontend dist/ directory not found"
 
 **Symptom:**
 ```
@@ -218,7 +243,7 @@ Error: Frontend dist directory not found
 - Check Vite build logs for errors
 - Verify `dist/` directory exists after frontend build
 
-#### 4. Build Times Out (>120 minutes)
+#### 3. Build Times Out (>120 minutes)
 
 **Symptom:**
 ```
@@ -230,7 +255,7 @@ Build exceeded maximum duration
 - Reduce frontend bundle size
 - Use `npm ci` instead of `npm install` for faster installs
 
-#### 5. Code Signing Failed
+#### 4. Code Signing Failed
 
 **Symptom:**
 ```
@@ -261,19 +286,27 @@ You can simulate the Xcode Cloud environment locally:
 ```bash
 cd /path/to/unicel
 
-# Run post-clone script
+# Run post-clone script (installs dependencies)
 src-tauri/gen/apple/ci_scripts/ci_post_clone.sh
 
 # Check if it succeeds
 echo $?  # Should print 0
 
+# Run pre-xcodebuild script (sets PATH)
+src-tauri/gen/apple/ci_scripts/ci_pre_xcodebuild.sh
+
+# Verify tools are accessible
+which node npm rustc cargo
+
 # Build iOS manually
-npm run tauri:ios:build
+npm run tauri ios build
 ```
 
 ## Environment Variables
 
-Currently, **no custom environment variables are required**. The `ci_post_clone.sh` script handles all setup.
+Currently, **no custom environment variables are required**. The build scripts handle all setup:
+- `ci_post_clone.sh` installs dependencies
+- `ci_pre_xcodebuild.sh` sets PATH for build phase
 
 **Optional variables** (if needed in future):
 - `NODE_VERSION` - Override Node.js version (default: 20)
@@ -379,7 +412,8 @@ See [TestFlight Deployment Guide](./testflight-deployment.md) for details.
 **Project Files:**
 - `src-tauri/tauri.conf.json` - Tauri configuration
 - `src-tauri/gen/apple/project.yml` - Xcode project configuration
-- `src-tauri/gen/apple/ci_scripts/ci_post_clone.sh` - Build script
+- `src-tauri/gen/apple/ci_scripts/ci_post_clone.sh` - Dependency installation script
+- `src-tauri/gen/apple/ci_scripts/ci_pre_xcodebuild.sh` - PATH configuration script
 
 ## Troubleshooting Contacts
 
