@@ -41,6 +41,30 @@ To complete Week 25 iOS platform setup:
   - Task 10.7 checklist (Tauri commands)
   - Screenshot requirements
 
+### Week 29: App Store Deployment (Manual Tasks)
+- **HUMAN_TASK_ICLOUD_SETUP.md** - iCloud container setup
+  - Apple Developer Portal configuration
+  - iCloud container creation
+  - App ID association
+  - Xcode project setup
+  - Testing iCloud integration
+  - Time: 20-30 minutes
+
+- **HUMAN_TASK_TESTFLIGHT.md** - TestFlight beta distribution
+  - App Store Connect configuration
+  - Building release IPA
+  - Uploading to TestFlight
+  - Adding beta testers
+  - Collecting feedback
+  - Time: 30-60 minutes
+
+- **HUMAN_TASK_FILE_ASSOCIATIONS.md** - Testing file associations
+  - Why production builds required
+  - Testing from Files/Messages/Mail
+  - Verification procedures
+  - Troubleshooting guide
+  - Time: 15-20 minutes
+
 ### Previous Weeks
 - **iOS_SETUP_COMPLETE.md** - Tasks 10.1-10.3 completion (Oct 17)
 - **WEEK_28_IPAD_OPTIMIZATION_COMPLETE.md** - iPad UI optimization (Oct 17)
@@ -48,6 +72,7 @@ To complete Week 25 iOS platform setup:
 - **PERFORMANCE_TESTING.md** - Performance benchmarks and targets
 - **ACCESSIBILITY.md** - VoiceOver and accessibility features
 - **KEYBOARD_SHORTCUTS.md** - External keyboard support
+- **BUILD_SELF_CONTAINED_APP.md** - Self-contained app bundle setup
 
 ---
 
@@ -67,11 +92,15 @@ To complete Week 25 iOS platform setup:
 - ⚠️ iOS simulator testing (10.5)
 - ⚠️ Tauri command verification (10.7)
 
-### Not Started
-- ⏳ App icons generation (Week 29)
-- ⏳ App Store screenshots (Week 29)
-- ⏳ TestFlight setup (Week 29)
-- ⏳ App Store submission (Week 29)
+### Week 29 Tasks (App Store Deployment)
+- ⏳ iCloud container setup - See `HUMAN_TASK_ICLOUD_SETUP.md`
+- ⏳ TestFlight beta testing - See `HUMAN_TASK_TESTFLIGHT.md`
+- ⏳ File association testing - See `HUMAN_TASK_FILE_ASSOCIATIONS.md`
+- ⏳ App icons generation (all required sizes)
+- ⏳ App Store screenshots (iPhone + iPad)
+- ⏳ Privacy policy creation
+- ⏳ App Store metadata
+- ⏳ Final submission
 
 ---
 
@@ -182,7 +211,8 @@ rustup target add aarch64-apple-ios aarch64-apple-ios-sim
 
 ## Next Steps
 
-1. **Complete Week 25 manual testing:**
+### For Current Testing (Week 25)
+1. **Complete manual testing:**
    - Follow `MANUAL_TESTING_CHECKLIST.md`
    - Run automated testing script
    - Document results
@@ -192,11 +222,33 @@ rustup target add aarch64-apple-ios aarch64-apple-ios-sim
    - Add screenshots to `docs/ios/screenshots/`
    - Note any issues
 
-3. **Prepare for Week 29:**
-   - Generate app icons (all required sizes)
-   - Create App Store screenshots
-   - Write privacy policy
-   - Set up TestFlight
+### For App Store Deployment (Week 29)
+
+**Step 1: iCloud Setup (20-30 minutes)**
+- Follow `HUMAN_TASK_ICLOUD_SETUP.md`
+- Set up iCloud container in Developer Portal
+- Configure Xcode project
+- Test iCloud Drive integration
+
+**Step 2: TestFlight Distribution (30-60 minutes)**
+- Follow `HUMAN_TASK_TESTFLIGHT.md`
+- Create app in App Store Connect
+- Build and upload release IPA
+- Invite beta testers
+- Monitor feedback and crashes
+
+**Step 3: File Association Testing (15-20 minutes)**
+- Follow `HUMAN_TASK_FILE_ASSOCIATIONS.md`
+- Test opening .usheet files from various sources
+- Verify file type registration
+- Test on multiple devices/iOS versions
+
+**Step 4: App Store Preparation**
+- Generate app icons (all required sizes)
+- Create App Store screenshots (iPhone + iPad)
+- Write privacy policy
+- Complete App Store metadata
+- Submit for review
 
 ---
 

@@ -18,26 +18,39 @@ export function FilePicker({ onFileSelected, onError }: FilePickerProps) {
     try {
       setIsSelecting(true);
 
+      console.log('Opening file picker...');
+
       // Open file picker dialog
+      // On iOS, we need to use proper configuration to open document picker
+      // The UTI is defined in Info.plist as com.unicel.usheet
       const selected = await open({
         multiple: false,
         directory: false,
+        // On iOS, filters work with UTI from Info.plist
+        // The extension filter should trigger UIDocumentPickerViewController
         filters: [
           {
             name: 'Unicel Spreadsheets',
             extensions: ['usheet'],
           },
         ],
-        title: 'Open Spreadsheet',
+        title: 'Select Spreadsheet',
+        // Explicitly request document picker behavior
+        defaultPath: undefined,
       });
+
+      console.log('File picker result:', selected);
 
       if (selected) {
         // selected can be string or string[] (for multiple), we specified single file
         const filePath = Array.isArray(selected) ? selected[0] : selected;
 
         if (filePath) {
+          console.log('Selected file:', filePath);
           await onFileSelected(filePath);
         }
+      } else {
+        console.log('No file selected');
       }
     } catch (error) {
       console.error('File picker error:', error);

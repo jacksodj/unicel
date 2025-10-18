@@ -27,7 +27,9 @@ export function ExamplePicker({ onExampleSelected, onClose }: ExamplePickerProps
 
   const loadExamples = async () => {
     try {
+      console.log('Loading example list...');
       const exampleList = await invoke<[string, string][]>('list_example_workbooks');
+      console.log('Example list received:', exampleList);
       setExamples(
         exampleList.map(([filename, displayName]) => ({
           filename,
@@ -45,14 +47,22 @@ export function ExamplePicker({ onExampleSelected, onClose }: ExamplePickerProps
       setIsLoading(true);
       setError(null);
 
+      console.log('Getting path for example:', filename);
+
       // Get the full path to the example file
       const path = await invoke<string>('get_example_workbook_path', { filename });
 
+      console.log('Example path received:', path);
+
       // Load the example
       await onExampleSelected(path);
+
+      console.log('Example loaded successfully');
     } catch (err) {
       console.error('Failed to load example:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load example');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error('Error details:', errorMessage);
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

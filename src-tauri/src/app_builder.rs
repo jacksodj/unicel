@@ -123,17 +123,45 @@ macro_rules! define_commands {
         fn get_example_workbook_path(app: tauri::AppHandle, filename: String) -> Result<String, String> {
             use std::path::PathBuf;
 
+            tracing::info!("get_example_workbook_path called with filename: {}", filename);
+
             // For iOS: Try ExampleSpreadsheets folder (bundled resources)
             #[cfg(target_os = "ios")]
             {
-                let resource_path = format!("ExampleSpreadsheets/{}", filename);
-                if let Ok(path) = app
-                    .path()
-                    .resolve(&resource_path, tauri::path::BaseDirectory::Resource)
-                {
-                    if path.exists() {
-                        return Ok(path.to_string_lossy().to_string());
+                // Try multiple possible locations for iOS
+                let possible_paths = vec![
+                    format!("ExampleSpreadsheets/{}", filename),
+                    format!("assets/ExampleSpreadsheets/{}", filename),
+                    format!("examples/{}", filename),
+                    format!("assets/examples/{}", filename),
+                ];
+
+                for resource_path in possible_paths {
+                    tracing::debug!("Trying iOS resource path: {}", resource_path);
+
+                    if let Ok(path) = app
+                        .path()
+                        .resolve(&resource_path, tauri::path::BaseDirectory::Resource)
+                    {
+                        tracing::debug!("Resolved to: {:?}, exists: {}", path, path.exists());
+                        if path.exists() {
+                            let path_str = path.to_string_lossy().to_string();
+                            tracing::info!("Found iOS example at: {}", path_str);
+                            return Ok(path_str);
+                        }
                     }
+                }
+
+                // Fallback: Try gen/apple/ExampleSpreadsheets for development
+                let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("gen/apple/ExampleSpreadsheets")
+                    .join(&filename);
+
+                tracing::debug!("Trying iOS dev path: {:?}, exists: {}", dev_path, dev_path.exists());
+                if dev_path.exists() {
+                    let path_str = dev_path.to_string_lossy().to_string();
+                    tracing::info!("Found iOS example in dev folder: {}", path_str);
+                    return Ok(path_str);
                 }
             }
 
@@ -141,12 +169,17 @@ macro_rules! define_commands {
             #[cfg(not(target_os = "ios"))]
             {
                 let resource_path = format!("examples/{}", filename);
+                tracing::debug!("Trying desktop resource path: {}", resource_path);
+
                 if let Ok(path) = app
                     .path()
                     .resolve(&resource_path, tauri::path::BaseDirectory::Resource)
                 {
+                    tracing::debug!("Resolved to: {:?}, exists: {}", path, path.exists());
                     if path.exists() {
-                        return Ok(path.to_string_lossy().to_string());
+                        let path_str = path.to_string_lossy().to_string();
+                        tracing::info!("Found desktop example: {}", path_str);
+                        return Ok(path_str);
                     }
                 }
 
@@ -155,12 +188,17 @@ macro_rules! define_commands {
                     .join("examples")
                     .join(&filename);
 
+                tracing::debug!("Trying desktop dev path: {:?}, exists: {}", dev_path, dev_path.exists());
                 if dev_path.exists() {
-                    return Ok(dev_path.to_string_lossy().to_string());
+                    let path_str = dev_path.to_string_lossy().to_string();
+                    tracing::info!("Found desktop example in dev folder: {}", path_str);
+                    return Ok(path_str);
                 }
             }
 
-            Err(format!("Example file not found: {}", filename))
+            let error_msg = format!("Example file not found: {}. Searched all resource locations.", filename);
+            tracing::error!("{}", error_msg);
+            Err(error_msg)
         }
 
         #[tauri::command]

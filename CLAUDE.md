@@ -416,3 +416,4 @@ See `docs/PROJECT_PLAN.md` for full implementation roadmap.
 The TodoWrite tool should only be used for temporary session-level task tracking during active development. All permanent task tracking belongs in `docs/TASKS.md`.
 - Use your agents for anything that touched code: USE YOUR AGENTS!
 - before executing and tasks in reposnse to the user, you need to evaluate your sub agents and use them to take any complex or multi step actions in all cases. you can do basic fact finding needed to determine the correct sub agent, and generate context, but all work is to be done by sub agents. and in parallel whenever possible. you maximize your context window duration by using sub agents. and you can be responsive to the end user if you are not blocked by a sync agent call.
+- pause todo executions if there is a human or physical device todo and wait for user confirmation that everything passes prior to doing the next tasks.
