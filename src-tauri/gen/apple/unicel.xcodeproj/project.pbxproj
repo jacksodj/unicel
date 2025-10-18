@@ -394,7 +394,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "npm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
+			shellScript = "export PATH=\"/usr/local/opt/node@20/bin:$HOME/.cargo/bin:$PATH\"\nnpm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -421,7 +421,7 @@
 				CODE_SIGN_ENTITLEMENTS = unicel_iOS/unicel_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "Z3L3V842L2";
+				DEVELOPMENT_TEAM = Z3L3V842L2;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				INFOPLIST_FILE = unicel_iOS/Info.plist;
@@ -433,7 +433,7 @@
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				OTHER_LDFLAGS = "$(inherited) -lapp";
 				PRODUCT_BUNDLE_IDENTIFIER = com.unicel.app;
-				PRODUCT_NAME = "Unicel";
+				PRODUCT_NAME = Unicel;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
@@ -514,7 +514,7 @@
 				CODE_SIGN_ENTITLEMENTS = unicel_iOS/unicel_iOS.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "Z3L3V842L2";
+				DEVELOPMENT_TEAM = Z3L3V842L2;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				INFOPLIST_FILE = unicel_iOS/Info.plist;
@@ -526,7 +526,7 @@
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				OTHER_LDFLAGS = "$(inherited) -lapp";
 				PRODUCT_BUNDLE_IDENTIFIER = com.unicel.app;
-				PRODUCT_NAME = "Unicel";
+				PRODUCT_NAME = Unicel;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;

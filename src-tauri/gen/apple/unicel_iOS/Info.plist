@@ -66,7 +66,6 @@
 		<dict>
 			<key>UTTypeConformsTo</key>
 			<array>
-				<string>public.json</string>
 				<string>public.data</string>
 				<string>public.content</string>
 			</array>
@@ -79,14 +78,6 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>usheet</string>
-				</array>
-				<key>public.mime-type</key>
-				<array>
-					<string>application/json</string>
-					<string>application/json</string>
-					<string>application/json</string>
-					<string>application/json</string>
-					<string>application/json</string>
 				</array>
 			</dict>
 		</dict>
