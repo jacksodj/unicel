@@ -11,7 +11,7 @@ use anyhow::{Context, Result};
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::server::{ServerBuilder, ServerHandle};
 use jsonrpsee::RpcModule;
-use serde::{Deserialize, Serialize};
+use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 use serde_json::Value;
 use tokio::runtime::Runtime;
 
@@ -35,13 +35,13 @@ struct TargetDevice {
     name: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 struct CliOptions {
     dev: bool,
     features: Option<Vec<String>>,
     args: Vec<String>,
     noise_level: NoiseLevel,
-    vars: HashMap<String, String>,
+    vars: HashMap<String, PlatformString>,
     config: Vec<Value>,
     target_device: Option<TargetDevice>,
 }
@@ -117,9 +117,12 @@ fn resolve_identifier(repo_root: &Path) -> Result<String> {
     Ok(String::from("com.unicel.app"))
 }
 
-fn collect_env_vars() -> HashMap<String, String> {
+fn collect_env_vars() -> HashMap<String, PlatformString> {
     let mut vars = HashMap::new();
-    vars.insert("RUST_LOG_STYLE".into(), "always".into());
+    vars.insert(
+        "RUST_LOG_STYLE".into(),
+        PlatformString::from("always".to_string()),
+    );
 
     for (key, value) in env::vars() {
         if key.starts_with("TAURI")
@@ -129,11 +132,34 @@ fn collect_env_vars() -> HashMap<String, String> {
             || key == "TMPDIR"
             || key == "PATH"
         {
-            vars.insert(key, value);
+            vars.insert(key, PlatformString::from(value));
         }
     }
 
     vars
+}
+
+#[derive(Clone, Debug)]
+struct PlatformString(String);
+
+impl From<String> for PlatformString {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl Serialize for PlatformString {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(1))?;
+        #[cfg(unix)]
+        map.serialize_entry("Unix", &self.0)?;
+        #[cfg(windows)]
+        map.serialize_entry("Windows", &self.0)?;
+        map.end()
+    }
 }
 
 struct ServerLease {
