@@ -155,7 +155,7 @@ impl Serialize for PlatformString {
     {
         let mut map = serializer.serialize_map(Some(1))?;
         #[cfg(unix)]
-        map.serialize_entry("Unix", &self.0)?;
+        map.serialize_entry("Unix", &self.0.as_bytes())?;
         #[cfg(windows)]
         map.serialize_entry("Windows", &self.0)?;
         map.end()
