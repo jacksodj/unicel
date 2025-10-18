@@ -213,7 +213,7 @@ TMP_DIR="$WORKSPACE_DIR/tmp"
 ADDR_FILE="$TMP_DIR/com.unicel.app-server-addr"
 
 mkdir -p "$TMP_DIR"
-echo "http://localhost:5173" > "$ADDR_FILE"
+echo "http://127.0.0.1:5173" > "$ADDR_FILE"
 
 echo "  ✓ Dummy addr file created at: $ADDR_FILE"
 echo "  - Note: File required by xcode-script bug, content not used (frontend is bundled)"
