@@ -7,10 +7,10 @@ use std::{ffi::OsStr, fs};
 
 #[cfg(target_os = "ios")]
 use once_cell::sync::Lazy;
-#[cfg(target_os = "ios")]
-use tauri::{path::BaseDirectory, AppHandle, Manager};
 #[cfg(not(target_os = "ios"))]
 use tauri::AppHandle;
+#[cfg(target_os = "ios")]
+use tauri::{path::BaseDirectory, AppHandle, Manager};
 
 #[cfg(target_os = "ios")]
 static EXAMPLE_FILES: Lazy<Vec<&'static str>> = Lazy::new(|| {
@@ -28,6 +28,22 @@ const APP_FOLDER_NAME: &str = "Unicel";
 const IMPORT_FOLDER_NAME: &str = "Imports";
 #[cfg(target_os = "ios")]
 const EXAMPLES_FOLDER_NAME: &str = "Examples";
+#[cfg(target_os = "ios")]
+const ICLOUD_CONTAINER_ID: &str = "iCloud.com.unicel.app";
+
+#[cfg(target_os = "ios")]
+fn transform_container_id(id: &str) -> String {
+    let mut parts = id.split('.');
+    let mut name = String::new();
+    if let Some(first) = parts.next() {
+        name.push_str(first);
+    }
+    for part in parts {
+        name.push('~');
+        name.push_str(part);
+    }
+    name
+}
 
 #[cfg(target_os = "ios")]
 fn document_root() -> Result<PathBuf, String> {
@@ -39,6 +55,102 @@ fn document_root() -> Result<PathBuf, String> {
 #[cfg(target_os = "ios")]
 fn app_root() -> Result<PathBuf, String> {
     Ok(document_root()?.join(APP_FOLDER_NAME))
+}
+
+#[cfg(target_os = "ios")]
+fn icloud_documents_root() -> Result<Option<PathBuf>, String> {
+    let home = match dirs::home_dir() {
+        Some(path) => path,
+        None => return Ok(None),
+    };
+
+    let relative = transform_container_id(ICLOUD_CONTAINER_ID);
+    let container_path = home
+        .join("Library")
+        .join("Mobile Documents")
+        .join(relative)
+        .join("Documents");
+
+    match fs::create_dir_all(&container_path) {
+        Ok(_) => Ok(Some(container_path)),
+        Err(err) => {
+            tracing::warn!(
+                "iCloud container unavailable ({}): {err}",
+                container_path.display()
+            );
+            Ok(None)
+        }
+    }
+}
+
+#[cfg(target_os = "ios")]
+fn icloud_app_root() -> Result<Option<PathBuf>, String> {
+    if let Some(docs) = icloud_documents_root()? {
+        let app_dir = docs.join(APP_FOLDER_NAME);
+        if let Err(err) = ensure_dir(&app_dir) {
+            tracing::warn!(
+                "Failed to prepare iCloud app directory {}: {err}",
+                app_dir.display()
+            );
+            return Ok(None);
+        }
+        Ok(Some(app_dir))
+    } else {
+        Ok(None)
+    }
+}
+
+#[cfg(target_os = "ios")]
+fn storage_roots() -> Result<Vec<PathBuf>, String> {
+    let mut roots = vec![app_root()?];
+    if let Some(icloud) = icloud_app_root()? {
+        roots.push(icloud);
+    }
+    Ok(roots)
+}
+
+#[cfg(target_os = "ios")]
+fn copy_examples_to_roots(app: &AppHandle, roots: &[PathBuf]) -> Result<(), String> {
+    for filename in EXAMPLE_FILES.iter() {
+        let mut source_path: Option<PathBuf> = None;
+        let resource_candidates = [
+            format!("ExampleSpreadsheets/{filename}"),
+            format!("assets/ExampleSpreadsheets/{filename}"),
+            format!("assets/examples/{filename}"),
+            format!("examples/{filename}"),
+        ];
+
+        for candidate in resource_candidates {
+            if let Ok(path) = app.path().resolve(&candidate, BaseDirectory::Resource) {
+                if path.exists() {
+                    source_path = Some(path);
+                    break;
+                }
+            }
+        }
+
+        let Some(source) = source_path else {
+            tracing::warn!("Failed to locate bundled example {filename}");
+            continue;
+        };
+
+        for root in roots {
+            let dest = root.join(EXAMPLES_FOLDER_NAME).join(filename);
+            if dest.exists() {
+                continue;
+            }
+            tracing::info!("Seeding example {} into {}", filename, dest.display());
+            if let Err(err) = fs::copy(&source, &dest) {
+                tracing::warn!(
+                    "Failed to copy example {} -> {}: {err}",
+                    source.display(),
+                    dest.display()
+                );
+            }
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(target_os = "ios")]
@@ -97,10 +209,14 @@ fn copy_into_app_dir(source: &Path) -> Result<PathBuf, String> {
         .and_then(OsStr::to_str)
         .ok_or_else(|| format!("Invalid filename for {}", source.display()))?;
 
-    let imports_dir = app_root()?.join(IMPORT_FOLDER_NAME);
-    ensure_dir(&imports_dir)?;
+    let roots = storage_roots()?;
+    let primary_imports = roots
+        .first()
+        .ok_or_else(|| "Missing primary storage root".to_string())?
+        .join(IMPORT_FOLDER_NAME);
+    ensure_dir(&primary_imports)?;
 
-    let destination = unique_destination(&imports_dir, filename);
+    let destination = unique_destination(&primary_imports, filename);
 
     tracing::info!(
         "Copying workbook into sandbox: {} -> {}",
@@ -116,6 +232,20 @@ fn copy_into_app_dir(source: &Path) -> Result<PathBuf, String> {
         )
     })?;
 
+    // Mirror into any additional storage roots (iCloud).
+    for root in roots.iter().skip(1) {
+        let mirror_dir = root.join(IMPORT_FOLDER_NAME);
+        if ensure_dir(&mirror_dir).is_ok() {
+            let mirror_dest = unique_destination(&mirror_dir, filename);
+            if let Err(err) = fs::copy(&destination, &mirror_dest) {
+                tracing::warn!(
+                    "Failed to mirror workbook into {}: {err}",
+                    mirror_dest.display()
+                );
+            }
+        }
+    }
+
     Ok(destination)
 }
 
@@ -123,51 +253,14 @@ fn copy_into_app_dir(source: &Path) -> Result<PathBuf, String> {
 pub fn initialize_environment(app: &AppHandle) -> Result<(), String> {
     tracing::info!("Initializing iOS filesystem environment");
 
-    let root = app_root()?;
-    let imports_dir = root.join(IMPORT_FOLDER_NAME);
-    let examples_dir = root.join(EXAMPLES_FOLDER_NAME);
-
-    ensure_dir(&root)?;
-    ensure_dir(&imports_dir)?;
-    ensure_dir(&examples_dir)?;
-
-    // Copy bundled examples into the sandbox for user visibility.
-    for filename in EXAMPLE_FILES.iter() {
-        let resource_paths = [
-            format!("ExampleSpreadsheets/{filename}"),
-            format!("assets/ExampleSpreadsheets/{filename}"),
-            format!("assets/examples/{filename}"),
-            format!("examples/{filename}"),
-        ];
-
-        let dest = examples_dir.join(filename);
-        if dest.exists() {
-            continue;
-        }
-
-        let mut copied = false;
-        for resource in resource_paths {
-            if let Ok(path) = app.path().resolve(&resource, BaseDirectory::Resource) {
-                if path.exists() {
-                    tracing::info!("Copying bundled example {filename} from {}", path.display());
-                    if let Err(err) = fs::copy(&path, &dest) {
-                        tracing::warn!(
-                            "Failed to copy example {} -> {}: {err}",
-                            path.display(),
-                            dest.display()
-                        );
-                    } else {
-                        copied = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if !copied {
-            tracing::warn!("Failed to locate bundled example {filename}");
-        }
+    let roots = storage_roots()?;
+    for root in &roots {
+        ensure_dir(root)?;
+        ensure_dir(&root.join(IMPORT_FOLDER_NAME))?;
+        ensure_dir(&root.join(EXAMPLES_FOLDER_NAME))?;
     }
+
+    copy_examples_to_roots(app, &roots)?;
 
     Ok(())
 }
@@ -226,28 +319,37 @@ pub fn prepare_workbook_path(path: &Path) -> Result<PathBuf, String> {
 
 #[cfg(target_os = "ios")]
 pub fn import_pending_documents() -> Result<Vec<String>, String> {
-    let inbox_dir = document_root()?.join("Inbox");
-    if !inbox_dir.exists() {
-        return Ok(Vec::new());
+    let mut imported = Vec::new();
+    let mut inbox_dirs = Vec::new();
+    inbox_dirs.push(document_root()?.join("Inbox"));
+    if let Some(icloud_docs) = icloud_documents_root()? {
+        inbox_dirs.push(icloud_docs.join("Inbox"));
     }
 
-    let mut imported = Vec::new();
-    for entry in fs::read_dir(&inbox_dir).map_err(|e| {
-        format!(
-            "Failed to read iOS Inbox directory {}: {e}",
-            inbox_dir.display()
-        )
-    })? {
-        let entry = entry.map_err(|e| format!("Failed to iterate inbox entry: {e}"))?;
-        let path = entry.path();
-        if is_usheet(&path) {
-            match prepare_workbook_path(&path) {
-                Ok(dest) => {
-                    tracing::info!("Imported shared workbook: {}", dest.display());
-                    imported.push(dest.to_string_lossy().to_string());
-                }
-                Err(err) => {
-                    tracing::warn!("Failed to import shared workbook {}: {err}", path.display());
+    for inbox_dir in inbox_dirs {
+        if !inbox_dir.exists() {
+            continue;
+        }
+        for entry in fs::read_dir(&inbox_dir).map_err(|e| {
+            format!(
+                "Failed to read iOS Inbox directory {}: {e}",
+                inbox_dir.display()
+            )
+        })? {
+            let entry = entry.map_err(|e| format!("Failed to iterate inbox entry: {e}"))?;
+            let path = entry.path();
+            if is_usheet(&path) {
+                match prepare_workbook_path(&path) {
+                    Ok(dest) => {
+                        tracing::info!("Imported shared workbook: {}", dest.display());
+                        imported.push(dest.to_string_lossy().to_string());
+                    }
+                    Err(err) => {
+                        tracing::warn!(
+                            "Failed to import shared workbook {}: {err}",
+                            path.display()
+                        );
+                    }
                 }
             }
         }
@@ -263,9 +365,12 @@ pub fn import_pending_documents() -> Result<Vec<String>, String> {
 
 #[cfg(target_os = "ios")]
 pub fn example_document_path(filename: &str) -> Result<Option<PathBuf>, String> {
-    let examples_dir = app_root()?.join(EXAMPLES_FOLDER_NAME).join(filename);
-    if examples_dir.exists() {
-        return Ok(Some(examples_dir));
+    let roots = storage_roots()?;
+    for root in roots {
+        let candidate = root.join(EXAMPLES_FOLDER_NAME).join(filename);
+        if candidate.exists() {
+            return Ok(Some(candidate));
+        }
     }
 
     Ok(None)

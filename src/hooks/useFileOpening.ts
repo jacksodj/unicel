@@ -19,8 +19,8 @@ export function useFileOpening({ onFileOpen }: FileOpeningOptions) {
 
     const handleImportedFiles = async (paths: string[]) => {
       for (const file of paths) {
-        if (!file || !file.endsWith('.usheet')) {
-          continue;
+        if (!file || !file.toLowerCase().endsWith('.usheet')) {
+            continue;
         }
         if (processed.has(file)) {
           continue;
@@ -48,15 +48,15 @@ export function useFileOpening({ onFileOpen }: FileOpeningOptions) {
           // Handle dropped or opened files
           const files = event.payload;
 
-          if (files && files.length > 0) {
-            const firstFile = files[0];
+            if (files && files.length > 0) {
+              const firstFile = files[0];
 
-            // Only handle .usheet files
-            if (firstFile?.endsWith('.usheet')) {
-              processed.add(firstFile);
-              await onFileOpen(firstFile);
+              // Only handle .usheet files (case-insensitive)
+              if (firstFile && firstFile.toLowerCase().endsWith('.usheet')) {
+                processed.add(firstFile);
+                await onFileOpen(firstFile);
+              }
             }
-          }
         });
       } catch (error) {
         console.error('Failed to setup file opening listener:', error);

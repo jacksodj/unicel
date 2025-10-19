@@ -54,7 +54,7 @@ export function FilePicker({ onFileSelected, onError }: FilePickerProps) {
         const filePath = Array.isArray(selected) ? selected[0] : selected;
 
         if (filePath) {
-          if (!filePath.endsWith('.usheet')) {
+          if (!filePath.toLowerCase().endsWith('.usheet')) {
             const message = 'Please select a .usheet spreadsheet file';
             console.warn(message);
             onError?.(message);
