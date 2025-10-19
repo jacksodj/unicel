@@ -20,24 +20,32 @@ export function FilePicker({ onFileSelected, onError }: FilePickerProps) {
 
       console.log('Opening file picker...');
 
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
       // Open file picker dialog
       // On iOS, we need to use proper configuration to open document picker
       // The UTI is defined in Info.plist as com.unicel.usheet
-      const selected = await open({
+      const pickerOptions = {
         multiple: false,
         directory: false,
-        // On iOS, filters work with UTI from Info.plist
-        // The extension filter should trigger UIDocumentPickerViewController
-        filters: [
-          {
-            name: 'Unicel Spreadsheets',
-            extensions: ['usheet'],
-          },
-        ],
         title: 'Select Spreadsheet',
         // Explicitly request document picker behavior
         defaultPath: undefined,
-      });
+      } as const;
+
+      const selected = await open(
+        isIOS
+          ? pickerOptions
+          : {
+              ...pickerOptions,
+              filters: [
+                {
+                  name: 'Unicel Spreadsheets',
+                  extensions: ['usheet'],
+                },
+              ],
+            }
+      );
 
       console.log('File picker result:', selected);
 
@@ -46,6 +54,12 @@ export function FilePicker({ onFileSelected, onError }: FilePickerProps) {
         const filePath = Array.isArray(selected) ? selected[0] : selected;
 
         if (filePath) {
+          if (!filePath.endsWith('.usheet')) {
+            const message = 'Please select a .usheet spreadsheet file';
+            console.warn(message);
+            onError?.(message);
+            return;
+          }
           console.log('Selected file:', filePath);
           await onFileSelected(filePath);
         }

@@ -49,13 +49,15 @@ export function MobileApp(_props: MobileAppProps) {
       // Load workbook via Tauri
       await tauriApi.loadWorkbook(path);
 
+      const canonicalPath = (await tauriApi.getCurrentFile()) ?? path;
+
       // Get workbook info
       const info = await tauriApi.getWorkbookInfo();
 
       // Extract filename from path
-      const filename = path.split('/').pop()?.replace('.usheet', '') || 'Untitled';
+      const filename = canonicalPath.split('/').pop()?.replace('.usheet', '') || 'Untitled';
 
-      setWorkbookPath(path);
+      setWorkbookPath(canonicalPath);
       setWorkbookName(filename);
       setSheetNames(info.sheet_names);
       setCurrentSheet(info.sheet_names[info.active_sheet_index] || 'Sheet1');

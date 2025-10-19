@@ -37,7 +37,8 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "examples/*.usheet"
+      "examples/*.usheet",
+      "gen/apple/ExampleSpreadsheets/*.usheet"
     ],
     "externalBin": [],
     "copyright": "",

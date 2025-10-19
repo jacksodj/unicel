@@ -50,6 +50,7 @@ indexmap = "2.7"
 arboard = "3.4"
 rust_xlsxwriter = "0.79"
 statrs = "0.17"
+once_cell = "1.19"
 
 [dev-dependencies]
 proptest = { workspace = true }

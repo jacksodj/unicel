@@ -705,16 +705,19 @@ pub fn save_workbook_impl(state: &AppState, path: String) -> Result<(), String> 
 }
 
 pub fn load_workbook_impl(state: &AppState, path: String) -> Result<(), String> {
-    let file =
-        WorkbookFile::load_from_file(std::path::Path::new(&path)).map_err(|e| e.to_string())?;
+    let source_path = std::path::Path::new(&path);
+
+    let prepared_path = crate::ios_support::prepare_workbook_path(source_path).map_err(|e| {
+        tracing::error!("iOS path preparation failed: {e}");
+        e
+    })?;
+
+    let file = WorkbookFile::load_from_file(&prepared_path).map_err(|e| e.to_string())?;
 
     let mut workbook = file.to_workbook().map_err(|e| e.to_string())?;
 
     // Extract filename from path and set it as the workbook name
-    if let Some(filename) = std::path::Path::new(&path)
-        .file_stem()
-        .and_then(|s| s.to_str())
-    {
+    if let Some(filename) = prepared_path.file_stem().and_then(|s| s.to_str()) {
         workbook.set_name(filename);
     }
 
@@ -753,10 +756,10 @@ pub fn load_workbook_impl(state: &AppState, path: String) -> Result<(), String> 
     workbook.set_active_sheet(original_active).ok();
 
     *state.workbook.lock().unwrap() = Some(workbook);
-    *state.current_file.lock().unwrap() = Some(path.clone());
+    *state.current_file.lock().unwrap() = Some(prepared_path.to_string_lossy().to_string());
 
     // Add to recent files
-    add_to_recent_files_impl(state, path);
+    add_to_recent_files_impl(state, prepared_path.to_string_lossy().to_string());
 
     Ok(())
 }

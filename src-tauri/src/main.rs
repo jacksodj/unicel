@@ -17,6 +17,19 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            #[cfg(target_os = "ios")]
+            {
+                if let Err(err) = unicel_lib::ios_support::initialize_environment(app) {
+                    tracing::warn!("iOS environment setup failed: {err}");
+                }
+            }
+            #[cfg(not(target_os = "ios"))]
+            {
+                let _ = app;
+            }
+            Ok(())
+        })
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             create_workbook,
@@ -38,6 +51,7 @@ pub fn run() {
             get_cells_with_base_unit,
             export_debug_to_clipboard,
             export_to_excel,
+            import_ios_pending_documents,
             get_example_workbook_path,
             list_example_workbooks,
             set_active_sheet,

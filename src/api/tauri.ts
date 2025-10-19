@@ -203,6 +203,10 @@ export const tauriApi = {
     return invoke('get_all_row_heights');
   },
 
+  async importIosPendingDocuments(): Promise<string[]> {
+    return invoke('import_ios_pending_documents');
+  },
+
   // Insert and delete operations
   async insertColumnBefore(col: string): Promise<void> {
     return invoke('insert_column_before', { col });

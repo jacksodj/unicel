@@ -5,6 +5,7 @@ pub mod app_builder;
 pub mod commands;
 pub mod core;
 pub mod formats;
+pub mod ios_support;
 pub mod mcp;
 
 // Re-export main types
@@ -29,6 +30,19 @@ pub fn mobile_main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(commands::AppState::default())
+        .setup(|app| {
+            #[cfg(target_os = "ios")]
+            {
+                if let Err(err) = ios_support::initialize_environment(app) {
+                    tracing::warn!("iOS environment setup failed: {err}");
+                }
+            }
+            #[cfg(not(target_os = "ios"))]
+            {
+                let _ = app;
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             create_workbook,
             get_workbook_info,
@@ -49,6 +63,7 @@ pub fn mobile_main() {
             get_cells_with_base_unit,
             export_debug_to_clipboard,
             export_to_excel,
+            import_ios_pending_documents,
             get_example_workbook_path,
             list_example_workbooks,
             set_active_sheet,

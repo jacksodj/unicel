@@ -5477,6 +5477,7 @@ dependencies = [
  "arboard",
  "chrono",
  "indexmap 2.11.4",
+ "once_cell",
  "pest",
  "pest_derive",
  "proptest",

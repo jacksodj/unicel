@@ -120,6 +120,11 @@ macro_rules! define_commands {
         }
 
         #[tauri::command]
+        fn import_ios_pending_documents() -> Result<Vec<String>, String> {
+            $crate_prefix::ios_support::import_pending_documents()
+        }
+
+        #[tauri::command]
         fn get_example_workbook_path(app: tauri::AppHandle, filename: String) -> Result<String, String> {
             use std::path::PathBuf;
 
@@ -128,6 +133,16 @@ macro_rules! define_commands {
             // For iOS: Try ExampleSpreadsheets folder (bundled resources)
             #[cfg(target_os = "ios")]
             {
+                if let Some(existing) =
+                    $crate_prefix::ios_support::example_document_path(&filename)?
+                {
+                    tracing::info!(
+                        "Using sandboxed example workbook: {}",
+                        existing.display()
+                    );
+                    return Ok(existing.to_string_lossy().to_string());
+                }
+
                 // Try multiple possible locations for iOS
                 let possible_paths = vec![
                     format!("ExampleSpreadsheets/{}", filename),
@@ -145,9 +160,19 @@ macro_rules! define_commands {
                     {
                         tracing::debug!("Resolved to: {:?}, exists: {}", path, path.exists());
                         if path.exists() {
-                            let path_str = path.to_string_lossy().to_string();
-                            tracing::info!("Found iOS example at: {}", path_str);
-                            return Ok(path_str);
+                            match $crate_prefix::ios_support::prepare_workbook_path(&path) {
+                                Ok(imported) => {
+                                    let path_str = imported.to_string_lossy().to_string();
+                                    tracing::info!("Found iOS example at: {}", path_str);
+                                    return Ok(path_str);
+                                }
+                                Err(err) => {
+                                    tracing::warn!(
+                                        "Failed to stage example {}: {err}",
+                                        path.display()
+                                    );
+                                }
+                            }
                         }
                     }
                 }
