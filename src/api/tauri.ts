@@ -207,6 +207,10 @@ export const tauriApi = {
     return invoke('import_ios_pending_documents');
   },
 
+  async prepareBugReport(comment: string): Promise<{ subject: string; body: string }> {
+    return invoke('prepare_bug_report', { comment });
+  },
+
   // Insert and delete operations
   async insertColumnBefore(col: string): Promise<void> {
     return invoke('insert_column_before', { col });

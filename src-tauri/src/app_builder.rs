@@ -401,19 +401,89 @@ macro_rules! define_commands {
         fn delete_row(state: State<AppState>, row: usize) -> Result<(), String> {
             $crate_prefix::commands::delete_row_impl(&state, row)
         }
+
+        #[tauri::command]
+        fn prepare_bug_report(
+            app: tauri::AppHandle,
+            comment: String,
+        ) -> Result<$crate_prefix::app_builder::BugReportPayload, String> {
+            $crate_prefix::app_builder::prepare_bug_report_impl(&app, comment)
+        }
     };
 }
 
+use serde::Serialize;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+#[cfg(target_os = "ios")]
+use crate::ios_support::LogCaptureLayer;
+#[cfg(target_os = "ios")]
+const BUG_REPORT_LOG_LIMIT: usize = 300;
+#[cfg(not(target_os = "ios"))]
+const BUG_REPORT_LOG_LIMIT: usize = 0;
+
 pub fn init_logging() {
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "unicel=debug,tower_http=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| "unicel=debug,tower_http=debug".into());
+    let fmt_layer = tracing_subscriber::fmt::layer();
+
+    let subscriber = tracing_subscriber::registry()
+        .with(env_filter)
+        .with(fmt_layer);
+
+    #[cfg(target_os = "ios")]
+    let subscriber = subscriber.with(LogCaptureLayer::default());
+
+    #[cfg(not(target_os = "ios"))]
+    let subscriber = subscriber;
+
+    subscriber.init();
 
     tracing::info!("Starting Unicel application");
+}
+
+#[derive(Serialize)]
+pub struct BugReportPayload {
+    pub subject: String,
+    pub body: String,
+}
+
+pub fn prepare_bug_report_impl(
+    app: &tauri::AppHandle,
+    comment: String,
+) -> Result<BugReportPayload, String> {
+    let package = app.package_info();
+    let subject = format!("Unicel iOS Bug Report v{}", package.version);
+
+    let trimmed = comment.trim();
+    let mut body = String::new();
+    body.push_str("User Comment:\n");
+    if trimmed.is_empty() {
+        body.push_str("(no comment provided)\n");
+    } else {
+        body.push_str(trimmed);
+        body.push('\n');
+    }
+
+    body.push_str("\nApp Info:\n");
+    body.push_str(&format!(
+        "Version: {}\nIdentifier: {}\n",
+        package.version, package.name
+    ));
+    body.push_str(&format!(
+        "Platform: iOS\nTimestamp: {}\n",
+        chrono::Utc::now().to_rfc3339()
+    ));
+
+    let logs = crate::ios_support::collect_recent_logs(BUG_REPORT_LOG_LIMIT);
+
+    if logs.is_empty() {
+        body.push_str("\nRecent Logs:\n(no logs captured)\n");
+    } else {
+        body.push_str("\nRecent Logs:\n");
+        body.push_str(&logs);
+        body.push('\n');
+    }
+
+    Ok(BugReportPayload { subject, body })
 }

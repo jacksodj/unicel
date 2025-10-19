@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 #[cfg(target_os = "ios")]
-use std::{ffi::OsStr, fs};
+use std::{collections::VecDeque, ffi::OsStr, fs, sync::Mutex};
 
 #[cfg(target_os = "ios")]
 use once_cell::sync::Lazy;
@@ -11,6 +11,14 @@ use once_cell::sync::Lazy;
 use tauri::AppHandle;
 #[cfg(target_os = "ios")]
 use tauri::{path::BaseDirectory, AppHandle, Manager};
+#[cfg(target_os = "ios")]
+use tracing::{Event, Subscriber};
+#[cfg(target_os = "ios")]
+use tracing_subscriber::{
+    fmt::format::{Format, Writer},
+    layer::{Context, Layer},
+    registry::LookupSpan,
+};
 
 #[cfg(target_os = "ios")]
 static EXAMPLE_FILES: Lazy<Vec<&'static str>> = Lazy::new(|| {
@@ -30,6 +38,12 @@ const IMPORT_FOLDER_NAME: &str = "Imports";
 const EXAMPLES_FOLDER_NAME: &str = "Examples";
 #[cfg(target_os = "ios")]
 const ICLOUD_CONTAINER_ID: &str = "iCloud.com.unicel.app";
+#[cfg(target_os = "ios")]
+const LOG_CAPACITY: usize = 500;
+
+#[cfg(target_os = "ios")]
+static LOG_BUFFER: Lazy<Mutex<VecDeque<String>>> =
+    Lazy::new(|| Mutex::new(VecDeque::with_capacity(LOG_CAPACITY)));
 
 #[cfg(target_os = "ios")]
 fn transform_container_id(id: &str) -> String {
@@ -268,6 +282,66 @@ pub fn initialize_environment(app: &AppHandle) -> Result<(), String> {
 #[cfg(not(target_os = "ios"))]
 pub fn initialize_environment(_app: &AppHandle) -> Result<(), String> {
     Ok(())
+}
+
+#[cfg(target_os = "ios")]
+fn push_log_line(line: String) {
+    let mut buffer = LOG_BUFFER.lock().unwrap();
+    if buffer.len() == LOG_CAPACITY {
+        buffer.pop_front();
+    }
+    buffer.push_back(line);
+}
+
+#[cfg(target_os = "ios")]
+fn formatted_event_string<S>(event: &Event<'_>, ctx: Context<'_, S>) -> Option<String>
+where
+    S: Subscriber + for<'a> LookupSpan<'a>,
+{
+    let mut line = String::new();
+    let format = Format::default().compact();
+    let mut writer = Writer::new(&mut line);
+    if format.format_event(&mut writer, &ctx, event).is_ok() {
+        return Some(line.trim_end().to_string());
+    }
+    None
+}
+
+#[cfg(target_os = "ios")]
+#[derive(Default)]
+pub struct LogCaptureLayer;
+
+#[cfg(target_os = "ios")]
+impl<S> Layer<S> for LogCaptureLayer
+where
+    S: Subscriber + for<'a> LookupSpan<'a>,
+{
+    fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
+        if let Some(line) = formatted_event_string(event, ctx) {
+            push_log_line(line);
+        }
+    }
+}
+
+#[cfg(target_os = "ios")]
+pub fn collect_recent_logs(limit: usize) -> String {
+    let buffer = LOG_BUFFER.lock().unwrap();
+    let count = buffer.len().min(limit);
+    buffer
+        .iter()
+        .rev()
+        .take(count)
+        .cloned()
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[cfg(not(target_os = "ios"))]
+pub fn collect_recent_logs(_limit: usize) -> String {
+    String::new()
 }
 
 #[cfg(target_os = "ios")]

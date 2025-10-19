@@ -77,6 +77,7 @@ pub fn run() {
             insert_row_after,
             delete_column,
             delete_row,
+            prepare_bug_report,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

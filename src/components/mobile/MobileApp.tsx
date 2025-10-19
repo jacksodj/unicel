@@ -19,6 +19,8 @@ import { useFileOpening } from '../../hooks/useFileOpening';
 import { tauriApi, convertCellData } from '../../api/tauri';
 import { haptics } from '../../utils/haptics';
 import { Cell } from '../../types/workbook';
+import { ReportBugDialog } from './ReportBugDialog';
+import { openUrl as openExternal } from '@tauri-apps/plugin-opener';
 
 interface MobileAppProps {
   // Props will be defined during implementation
@@ -36,6 +38,10 @@ export function MobileApp(_props: MobileAppProps) {
   const [error, setError] = useState<string | null>(null);
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [showExamplePicker, setShowExamplePicker] = useState(false);
+  const [showBugDialog, setShowBugDialog] = useState(false);
+  const [bugComment, setBugComment] = useState('');
+  const [bugError, setBugError] = useState<string | null>(null);
+  const [isSubmittingBug, setIsSubmittingBug] = useState(false);
 
   // Platform detection
   const { isMobile, isTablet } = useMobile();
@@ -105,6 +111,36 @@ export function MobileApp(_props: MobileAppProps) {
     }
   }, [sheetNames]);
 
+  const handleReportBug = useCallback(() => {
+    setBugComment('');
+    setBugError(null);
+    setShowBugDialog(true);
+    haptics.light();
+  }, []);
+
+  const submitBugReport = useCallback(async () => {
+    try {
+      setIsSubmittingBug(true);
+      setBugError(null);
+
+      const payload = await tauriApi.prepareBugReport(bugComment);
+      const mailto = `mailto:jacksodj@yahoo.com?subject=${encodeURIComponent(payload.subject)}&body=${encodeURIComponent(payload.body)}`;
+      await openExternal(mailto);
+
+      setShowBugDialog(false);
+      setBugComment('');
+      haptics.success();
+    } catch (err) {
+      console.error('Failed to prepare bug report:', err);
+      setBugError(
+        err instanceof Error ? err.message : 'Unable to prepare bug report. Please try again.'
+      );
+      haptics.error();
+    } finally {
+      setIsSubmittingBug(false);
+    }
+  }, [bugComment]);
+
   // Handle file open error
   const handleFileError = useCallback((errorMsg: string) => {
     setError(errorMsg);
@@ -154,6 +190,17 @@ export function MobileApp(_props: MobileAppProps) {
     }
   }, [selectedCellAddress, cells]);
 
+  const bugDialog = showBugDialog ? (
+    <ReportBugDialog
+      comment={bugComment}
+      onCommentChange={setBugComment}
+      onSubmit={submitBugReport}
+      onClose={() => setShowBugDialog(false)}
+      isSubmitting={isSubmittingBug}
+      error={bugError}
+    />
+  ) : null;
+
   // Loading state
   if (isLoading) {
     return (
@@ -200,16 +247,17 @@ export function MobileApp(_props: MobileAppProps) {
   // No file loaded - show file picker
   if (!workbookPath) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 p-4">
-        <div className="text-center max-w-md w-full">
-          <div className="mb-8">
-            <h1 className="text-4xl md:text-5xl font-bold mb-2 text-gray-900">Unicel</h1>
-            <p className="text-gray-600 text-base md:text-lg">
-              Unit-aware spreadsheet viewer
-            </p>
-          </div>
+      <>
+        <div className="flex items-center justify-center h-screen bg-gray-50 p-4">
+          <div className="text-center max-w-md w-full">
+            <div className="mb-8">
+              <h1 className="text-4xl md:text-5xl font-bold mb-2 text-gray-900">Unicel</h1>
+              <p className="text-gray-600 text-base md:text-lg">
+                Unit-aware spreadsheet viewer
+              </p>
+            </div>
 
-          <div className="mb-8">
+            <div className="mb-8">
             <svg
               className="w-24 h-24 mx-auto text-gray-300"
               fill="none"
@@ -225,11 +273,11 @@ export function MobileApp(_props: MobileAppProps) {
             </svg>
           </div>
 
-          <div className="space-y-3">
-            <FilePicker onFileSelected={handleFileSelected} onError={handleFileError} />
+            <div className="space-y-3">
+              <FilePicker onFileSelected={handleFileSelected} onError={handleFileError} />
 
-            <button
-              onClick={() => setShowExamplePicker(true)}
+              <button
+                onClick={() => setShowExamplePicker(true)}
               className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
               style={{ minHeight: '44px' }}
             >
@@ -248,6 +296,22 @@ export function MobileApp(_props: MobileAppProps) {
               </svg>
               <span>Open Example</span>
             </button>
+
+            <button
+              onClick={handleReportBug}
+              className="flex items-center justify-center gap-2 w-full px-4 py-2 border border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50"
+              style={{ minHeight: '44px' }}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M12 18.5A6.5 6.5 0 1118.5 12 6.5 6.5 0 0112 18.5z"
+                />
+              </svg>
+              <span>Report a Problem</span>
+            </button>
           </div>
 
           <p className="mt-6 text-xs text-gray-500">
@@ -265,7 +329,9 @@ export function MobileApp(_props: MobileAppProps) {
             onClose={() => setShowExamplePicker(false)}
           />
         )}
-      </div>
+        </div>
+        {bugDialog}
+      </>
     );
   }
 
@@ -284,6 +350,7 @@ export function MobileApp(_props: MobileAppProps) {
             }
           }}
           onToggleDisplay={handleToggleDisplay}
+          onReportBug={handleReportBug}
           displayPreference={displayPreference}
         />
 
@@ -303,6 +370,7 @@ export function MobileApp(_props: MobileAppProps) {
           selectedCellData={selectedCellData}
           displayPreference={displayPreference}
         />
+        {bugDialog}
       </div>
     </ErrorBoundary>
   );

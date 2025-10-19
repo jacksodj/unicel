@@ -17,6 +17,7 @@ interface MobileToolbarProps {
   currentSheetIndex: number;
   onSheetChange: (index: number) => void;
   onToggleDisplay: () => void;
+  onReportBug: () => void;
   displayPreference: 'Metric' | 'Imperial';
   isLandscape?: boolean;
 }
@@ -27,6 +28,7 @@ export function MobileToolbar({
   currentSheetIndex,
   onSheetChange,
   onToggleDisplay,
+  onReportBug,
   displayPreference,
   isLandscape = false,
 }: MobileToolbarProps) {
@@ -92,17 +94,33 @@ export function MobileToolbar({
           <div className="hidden md:block text-xs text-gray-400 px-4">Unicel</div>
         )}
 
-        {/* Right: Display toggle */}
-        <button
-          onClick={handleDisplayToggle}
-          className={`font-medium bg-blue-500 text-white rounded-lg active:bg-blue-600 transition-colors ${
-            isLandscape ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'
-          }`}
-          style={{ minWidth: 44, minHeight: isLandscape ? 36 : 44 }}
-          aria-label={`Toggle display preference (currently ${displayPreference})`}
-        >
-          {displayPreference}
-        </button>
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              onReportBug();
+              haptics.light();
+            }}
+            className={`px-3 py-1.5 border border-blue-500 text-blue-600 rounded-lg font-medium active:bg-blue-50 transition-colors ${
+              isLandscape ? 'text-xs' : 'text-sm'
+            }`}
+            style={{ minWidth: 44, minHeight: isLandscape ? 36 : 44 }}
+            aria-label="Report a problem"
+          >
+            Report
+          </button>
+
+          <button
+            onClick={handleDisplayToggle}
+            className={`font-medium bg-blue-500 text-white rounded-lg active:bg-blue-600 transition-colors ${
+              isLandscape ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'
+            }`}
+            style={{ minWidth: 44, minHeight: isLandscape ? 36 : 44 }}
+            aria-label={`Toggle display preference (currently ${displayPreference})`}
+          >
+            {displayPreference}
+          </button>
+        </div>
       </div>
 
       {/* Sheet selector dropdown */}
