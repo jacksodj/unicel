@@ -20,7 +20,8 @@ pub fn run() {
         .setup(|app| {
             #[cfg(target_os = "ios")]
             {
-                if let Err(err) = unicel_lib::ios_support::initialize_environment(app) {
+                let handle = app.handle();
+                if let Err(err) = unicel_lib::ios_support::initialize_environment(&handle) {
                     tracing::warn!("iOS environment setup failed: {err}");
                 }
             }

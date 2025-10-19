@@ -8,7 +8,8 @@ use std::{ffi::OsStr, fs};
 #[cfg(target_os = "ios")]
 use once_cell::sync::Lazy;
 #[cfg(target_os = "ios")]
-use tauri::path::BaseDirectory;
+use tauri::{path::BaseDirectory, AppHandle, Manager};
+#[cfg(not(target_os = "ios"))]
 use tauri::AppHandle;
 
 #[cfg(target_os = "ios")]
@@ -30,9 +31,9 @@ const EXAMPLES_FOLDER_NAME: &str = "Examples";
 
 #[cfg(target_os = "ios")]
 fn document_root() -> Result<PathBuf, String> {
-    tauri::api::path::document_dir()
-        .ok_or_else(|| "Failed to resolve iOS documents directory".to_string())
+    dirs::document_dir()
         .map(PathBuf::from)
+        .ok_or_else(|| "Failed to resolve iOS documents directory".to_string())
 }
 
 #[cfg(target_os = "ios")]
