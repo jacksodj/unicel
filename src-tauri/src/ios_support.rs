@@ -15,8 +15,7 @@ use tauri::{path::BaseDirectory, AppHandle, Manager};
 use tracing::{Event, Subscriber};
 #[cfg(target_os = "ios")]
 use tracing_subscriber::{
-    fmt::FormatEvent,
-    fmt::format::{Format, Writer},
+    fmt::{format::{Format, Writer}, FmtContext, FormatEvent},
     layer::{Context, Layer},
     registry::LookupSpan,
 };
@@ -302,7 +301,8 @@ where
     let mut line = String::new();
     let format = Format::default().compact();
     let mut writer = Writer::new(&mut line);
-    if format.format_event(&mut writer, &ctx, event).is_ok() {
+    let fmt_ctx = FmtContext::new(&ctx);
+    if format.format_event(&fmt_ctx, &mut writer, event).is_ok() {
         return Some(line.trim_end().to_string());
     }
     None
