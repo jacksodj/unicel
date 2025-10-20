@@ -15,6 +15,7 @@ use tauri::{path::BaseDirectory, AppHandle, Manager};
 use tracing::{Event, Subscriber};
 #[cfg(target_os = "ios")]
 use tracing_subscriber::{
+    fmt::FormatEvent,
     fmt::format::{Format, Writer},
     layer::{Context, Layer},
     registry::LookupSpan,
