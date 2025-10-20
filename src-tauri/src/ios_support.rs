@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 #[cfg(target_os = "ios")]
-use std::{collections::VecDeque, ffi::OsStr, fs, sync::Mutex};
+use std::{collections::VecDeque, ffi::OsStr, fmt, fs, sync::Mutex};
 
 #[cfg(target_os = "ios")]
 use once_cell::sync::Lazy;
@@ -12,10 +12,12 @@ use tauri::AppHandle;
 #[cfg(target_os = "ios")]
 use tauri::{path::BaseDirectory, AppHandle, Manager};
 #[cfg(target_os = "ios")]
-use tracing::{Event, Subscriber};
+use tracing::{
+    field::{Field, Visit},
+    Event, Subscriber,
+};
 #[cfg(target_os = "ios")]
 use tracing_subscriber::{
-    fmt::{format::{Format, Writer}, FmtContext, FormatEvent},
     layer::{Context, Layer},
     registry::LookupSpan,
 };
@@ -294,18 +296,97 @@ fn push_log_line(line: String) {
 }
 
 #[cfg(target_os = "ios")]
+#[derive(Default)]
+struct EventFieldCollector {
+    message: Option<String>,
+    fields: Vec<String>,
+}
+
+#[cfg(target_os = "ios")]
+impl EventFieldCollector {
+    fn push_formatted(&mut self, field: &Field, value: String) {
+        if field.name() == "message" {
+            if self.message.is_none() {
+                self.message = Some(value);
+            } else {
+                // Preserve additional message-like fields alongside other key-value pairs.
+                self.fields.push(format!("{}={value}", field.name()));
+            }
+        } else {
+            self.fields.push(format!("{}={value}", field.name()));
+        }
+    }
+}
+
+#[cfg(target_os = "ios")]
+impl Visit for EventFieldCollector {
+    fn record_str(&mut self, field: &Field, value: &str) {
+        if field.name() == "message" {
+            self.message = Some(value.to_string());
+        } else {
+            self.push_formatted(field, format!("\"{value}\""));
+        }
+    }
+
+    fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
+        self.push_formatted(field, format!("{value:?}"));
+    }
+}
+
+#[cfg(target_os = "ios")]
 fn formatted_event_string<S>(event: &Event<'_>, ctx: Context<'_, S>) -> Option<String>
 where
     S: Subscriber + for<'a> LookupSpan<'a>,
 {
+    let metadata = event.metadata();
+    let mut collector = EventFieldCollector::default();
+    event.record(&mut collector);
+
     let mut line = String::new();
-    let format = Format::default().compact();
-    let mut writer = Writer::new(&mut line);
-    let fmt_ctx = FmtContext::new(&ctx);
-    if format.format_event(&fmt_ctx, &mut writer, event).is_ok() {
-        return Some(line.trim_end().to_string());
+    line.push_str(metadata.level().as_str());
+    line.push(' ');
+    line.push_str(metadata.target());
+    line.push(':');
+
+    if let Some(scope) = ctx.event_scope(event) {
+        let mut first = true;
+        line.push(' ');
+        for span in scope.from_root() {
+            if !first {
+                line.push_str("::");
+            }
+            first = false;
+            line.push_str(span.name());
+        }
+        if first {
+            // No spans were written, remove the extra space.
+            line.pop();
+        } else {
+            line.push(' ');
+        }
+    } else {
+        line.push(' ');
     }
-    None
+
+    let message = collector.message;
+    if let Some(message_text) = &message {
+        line.push_str(message_text);
+    }
+
+    let had_message = message.is_some();
+    if !collector.fields.is_empty() {
+        if had_message {
+            line.push(' ');
+        }
+        line.push_str(&collector.fields.join(" "));
+    }
+
+    let trimmed = line.trim_end().to_string();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
 }
 
 #[cfg(target_os = "ios")]
