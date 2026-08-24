@@ -207,6 +207,8 @@ This project is dual-licensed under MIT OR Apache-2.0. See [LICENSE-MIT](./LICEN
 
 ## Documentation
 
+Start with the [Documentation Hub](./docs/README.md) for a guided index of user, developer, and MCP references.
+
 **Planning & Tracking:**
 - [PROJECT_PLAN.md](./docs/PROJECT_PLAN.md) - 24-week implementation plan with phases and deliverables
 - [TASKS.md](./docs/TASKS.md) - Detailed task checklist for tracking progress
