@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Secret scan of exactly the commits being pushed. Blocks the push on a finding.
+# Enabled by `git config core.hooksPath .githooks` (scripts/setup-hooks.sh).
+#
+# git passes one line per ref on stdin:
+#   <local ref> <local sha> <remote ref> <remote sha>
+# Scanned per ref: commits reachable from <local sha> that are neither on the
+# remote's current tip of that ref nor on any remote-tracking ref (a new
+# branch scans only what no remote already has). Deletions are skipped.
+set -uo pipefail
+
+root="$(git rev-parse --show-toplevel)" || exit 1
+# shellcheck source=SCRIPTDIR/gitleaks-env.sh
+. "$root/.githooks/gitleaks-env.sh"
+
+if ! gitleaks="$(find_gitleaks)"; then
+  gitleaks_missing_msg
+  exit 1
+fi
+gitleaks_repo_args "$root"
+
+zero="$(git hash-object --stdin </dev/null | tr '0-9a-f' '0')"
+status=0
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -n "${local_sha:-}" ] || continue
+  if [ "$local_sha" = "$zero" ]; then
+    continue  # branch/tag deletion: nothing to scan
+  fi
+
+  revs="$local_sha"
+  if [ "$remote_sha" != "$zero" ] && git cat-file -e "${remote_sha}^{commit}" 2>/dev/null; then
+    revs="$revs ^$remote_sha"
+  fi
+  revs="$revs --not --remotes"
+
+  # shellcheck disable=SC2086  # revs is SHAs and fixed flags, split on purpose
+  count="$(git rev-list --count $revs)" || { status=1; break; }
+  if [ "$count" -eq 0 ]; then
+    continue
+  fi
+
+  echo "secret scan: $local_ref -> $remote_ref ($count commit(s))" >&2
+  if ! "$gitleaks" git --log-opts="$revs" --redact --verbose --no-banner \
+    --exit-code 1 ${GITLEAKS_REPO_ARGS[@]+"${GITLEAKS_REPO_ARGS[@]}"} "$root"; then
+    echo "secret scan: push blocked: a commit going to $remote_ref contains a secret. Rewrite that commit to remove it (amend/rebase), then push again." >&2
+    status=1
+  fi
+done
+
+exit "$status"

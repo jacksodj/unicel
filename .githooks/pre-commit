@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Secret scan of the staged changes. Blocks the commit on a finding.
+# Enabled by `git config core.hooksPath .githooks` (scripts/setup-hooks.sh).
+set -uo pipefail
+
+root="$(git rev-parse --show-toplevel)" || exit 1
+# shellcheck source=SCRIPTDIR/gitleaks-env.sh
+. "$root/.githooks/gitleaks-env.sh"
+
+if ! gitleaks="$(find_gitleaks)"; then
+  gitleaks_missing_msg
+  exit 1
+fi
+gitleaks_repo_args "$root"
+
+if ! "$gitleaks" git --pre-commit --staged --redact --verbose --no-banner \
+  --exit-code 1 ${GITLEAKS_REPO_ARGS[@]+"${GITLEAKS_REPO_ARGS[@]}"} "$root"; then
+  echo "secret scan: commit blocked. Remove the secret from the staged changes (or, if it is a false positive, allowlist it the way CI does) and commit again." >&2
+  exit 1
+fi

@@ -36,6 +36,19 @@ Units are data, not formatting. Values stored as `(number, unit)` tuples enable 
 - **File Format**: JSON (MVP), SQLite hybrid (future)
 - **Testing**: cargo test, proptest, vitest
 
+## Architecture
+
+Unicel is a Tauri 2 desktop app. All of the spreadsheet logic lives in one Rust library (`src-tauri/`), and the React frontend (`src/`) is a thin view that calls it through Tauri commands.
+
+- **Units** (`src-tauri/src/core/units/`): the built-in unit library, unit parsing, and the dimensions used for compatibility checks and conversion.
+- **Formulas** (`src-tauri/src/core/formula/`): a pest grammar, a parser that builds an AST, and an evaluator that carries units through every operation, cancelling matching units and producing compound ones.
+- **Cells, sheets and workbooks** (`src-tauri/src/core/`): a cell holds its value, its storage unit and its formula. The storage unit is what the user typed; the display unit (As Entered, Metric or Imperial) is applied on top without changing the stored value, so toggling it never recalculates anything. Incompatible operations produce a warning on the cell rather than an error.
+- **File formats** (`src-tauri/src/formats/`): workbooks save as human- and LLM-readable JSON (`.usheet`); Excel export is one-way and adds metadata sheets that record each cell's unit.
+- **Tauri commands** (`src-tauri/src/commands/`): the API the frontend calls, wrapped on the TypeScript side in `src/api/tauri.ts`.
+- **MCP** (`src-tauri/src/mcp/`): a Model Context Protocol server that lets AI tools read and write workbooks (see [docs/MCP_SERVER.md](./docs/MCP_SERVER.md)).
+
+The full design, including features not built yet, is in the [Design Document](./requirements/Unit%20Aware%20Spreadsheet%20Design.md).
+
 ## Getting Started
 
 ### Prerequisites
@@ -60,6 +73,8 @@ npm run tauri:dev
 # Build for production
 npm run tauri:build
 ```
+
+After cloning, run `scripts/setup-hooks.sh` to turn on the secret-scanning git hooks.
 
 ### Quick Start
 
@@ -106,11 +121,9 @@ A4: =A3*1.5        # Result: 37.5 mi/hr (scaled)
 
 ### Task Tracking
 
-All tasks are tracked in `docs/TASKS.md` - this is the single source of truth for project progress.
+New work is tracked in [GitHub Issues](https://github.com/jacksodj/unicel/issues). `docs/TASKS.md` records the original phased plan and its completed tasks.
 
-- Mark tasks complete by changing `[ ]` to `[x]` in TASKS.md
-- Add future ideas to the "Future Backlog" section
-- Do not create TODO files in other locations
+- Do not create TODO files in the repo; open an issue instead
 
 ### Project Structure
 
@@ -118,35 +131,40 @@ All tasks are tracked in `docs/TASKS.md` - this is the single source of truth fo
 unicel/
 ├── src/                    # Frontend React/TypeScript
 │   ├── components/         # UI components
-│   ├── hooks/              # React hooks
-│   ├── store/              # Zustand state management
-│   └── utils/              # Utility functions
+│   ├── api/                # Wrappers for the Tauri commands
+│   └── types/              # Shared TypeScript types
 ├── src-tauri/              # Rust backend
-│   └── src/
-│       ├── core/           # Calculation engine
-│       │   ├── units/      # Unit system
-│       │   ├── formula/    # Formula parser/evaluator
-│       │   ├── table/      # Table system
-│       │   └── workbook/   # Workbook management
-│       ├── formats/        # File I/O (JSON, Excel)
-│       └── mcp/            # MCP integration
-├── tests/                  # Rust tests
+│   ├── src/
+│   │   ├── core/           # Calculation engine
+│   │   │   ├── units/      # Unit system
+│   │   │   ├── formula/    # Formula parser/evaluator
+│   │   │   ├── table/      # Sheets
+│   │   │   └── workbook/   # Workbook management
+│   │   ├── commands/       # Tauri commands
+│   │   ├── formats/        # File I/O (JSON, Excel)
+│   │   └── mcp/            # MCP integration
+│   ├── tests/              # Rust integration tests
+│   └── examples/           # Rust examples that build the sample workbooks
 ├── docs/                   # Documentation
+├── requirements/           # Design document and use cases
+├── scripts/                # Repo setup scripts (git hooks)
 └── examples/               # Example workbooks
 ```
 
 ### Running Tests
 
 ```bash
+# Build the frontend first: the Rust build embeds dist/
+npm run build
+
 # Rust tests
 cargo test
 
-# Frontend tests
-npm run test
-
 # Specific test file
-cargo test --test unit_conversions
+cargo test --test long_unit_names
 ```
+
+Pull requests must pass the `PR checks` workflow (`tests`, `secrets` and `vulnerabilities`) before they merge.
 
 ### Code Style
 
@@ -199,7 +217,7 @@ See detailed tracking in:
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+We welcome contributions! Please see [CONTRIBUTING.md](./docs/CONTRIBUTING.md) for guidelines.
 
 ## License
 
@@ -212,9 +230,10 @@ Start with the [Documentation Hub](./docs/README.md) for a guided index of user,
 **Planning & Tracking:**
 - [PROJECT_PLAN.md](./docs/PROJECT_PLAN.md) - 24-week implementation plan with phases and deliverables
 - [TASKS.md](./docs/TASKS.md) - Detailed task checklist for tracking progress
+- [CHANGELOG.md](./docs/CHANGELOG.md) - Version history
 
 **Architecture & Design:**
-- [CLAUDE.md](./CLAUDE.md) - Development guidance for Claude Code
+- [AGENTS.md](./AGENTS.md) - Development guidance for coding agents
 - [Design Document](./requirements/Unit%20Aware%20Spreadsheet%20Design.md) - Complete technical specification
 - [MLP Requirements](./requirements/MLP%20Requirements%20-%20Unit%20Conversion.pdf) - Original requirements
 

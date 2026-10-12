@@ -7,7 +7,7 @@ Investigate and fix performance issues in Unicel.
 I will help you:
 1. Ask what performance issue you're experiencing (slow calculations, UI lag, etc.)
 2. Profile the issue (frontend or backend?)
-3. Check against performance targets from CLAUDE.md:
+3. Check against performance targets from AGENTS.md:
    - 10,000 cells load: <1 second
    - Formula recalculation (1,000 cells): <200ms
    - Display toggle: <100ms

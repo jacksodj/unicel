@@ -22,5 +22,15 @@ Use this directory as the starting point for project documentation.
 ## Contributing
 
 - [Repository README](../README.md) - Project overview and quick start
-- [Contributing Guide](../CONTRIBUTING.md) - Contribution workflow and expectations
-- [Claude Guidance](../CLAUDE.md) - Repository-specific development guidance
+- [Contributing Guide](./CONTRIBUTING.md) - Contribution workflow and expectations
+- [Agent Guidance](../AGENTS.md) - Repository-specific development guidance for coding agents
+
+## Release History
+
+- [Changelog](./CHANGELOG.md) - Version-by-version changes
+- [Release Notes](./RELEASE_NOTES.md) - Notes for the current release
+
+## Fix Notes
+
+- [Long Unit Names Fix](./BUGFIX_LONG_UNIT_NAMES.md) - Bug fix write-up for long unit names
+- [CEILING Implementation](./CEILING_IMPLEMENTATION_SUMMARY.md) - Implementation summary for the CEILING function
