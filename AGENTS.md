@@ -63,7 +63,7 @@ The standalone MCP server binary is deliberately not declared in `src-tauri/Carg
 
 - `pr-checks.yml` is the merge gate: `tests` (shellcheck on the hook scripts, then the frontend build, `cargo test` and `cargo fmt --check` on Ubuntu), `secrets` (gitleaks), and `vulnerabilities`.
 - `ci.yml` runs the build, tests, `cargo fmt --check` and `cargo clippy -- -D warnings` on Ubuntu, macOS and Windows for pushes and PRs to `main`. Clippy follows the latest stable toolchain, so new lints can turn it red without a code change.
-- `release.yml` runs on a `v*` tag: it builds macOS (Apple Silicon and Intel) and Windows bundles with `tauri-action`, using the Apple signing secrets, and publishes a GitHub release. Change it only when Dennis asks.
+- `release.yml` runs on a `v*` tag: it builds macOS (Apple Silicon and Intel) and Windows bundles with `tauri-action`, using the Apple signing secrets, and publishes a GitHub release. Change it only when the owner asks.
 
 ## Conventions
 
@@ -83,13 +83,13 @@ The standalone MCP server binary is deliberately not declared in `src-tauri/Carg
 
 ## Guardrails
 
-The same controls as Dennis's other repos. Work with them, not around them.
+The same controls as the owner's other repos. Work with them, not around them.
 
 - After cloning, run `scripts/setup-hooks.sh`. It points git at `.githooks/` (gitleaks scans every commit and push) and installs the pinned gitleaks. The Claude Code hook in `.claude/settings.json` runs it automatically before any commit or push.
 - For a gitleaks false positive, add a targeted allowlist entry to `.gitleaks.toml`; commits always go through the hooks (no `--no-verify`).
 - Work in a worktree. The main checkout stays on `main`, clean, and read-only for sessions. Before your first edit, call `EnterWorktree` with a name for the work: it cuts a branch from `origin/main` under `.claude/worktrees/` (gitignored). Push that branch and open the PR from it; to rename the branch, use `git branch -m`, never `git switch -c`, which leaves an orphaned branch behind. After the merge, GitHub deletes the remote branch, the Code tab's auto-archive removes a session's worktree, and the next session in the repo sweeps the merged local branch; never use `--force`, `-D`, `reset --hard` or `clean -f` to tidy up.
 - `main` is protected: the `tests`, `secrets`, and `vulnerabilities` jobs in `.github/workflows/pr-checks.yml` must pass. Push a branch, open a PR, and merge with `gh pr merge --auto --squash`, including tracker and docs edits. No `--admin`, no force-push to `main`.
 - The workflow uses no repository secrets and never `pull_request_target`. Keep the three job names stable; add the project's build and test steps to `tests` with the first build work. The vulnerability steps switch on by themselves when Python requirements, Python code, or npm lockfiles appear; add an audit for any other package manager the project adopts.
-- OpenTofu/Terraform: CI runs `tofu fmt`, `tofu validate`, and tflint on any `.tf` files. Destroys and state surgery (`destroy`, `-destroy`, `state rm/push`) never run locally; stateful resources carry `prevent_destroy = true`; real infrastructure with state adopts the standard `tofu-deploy-reusable.yml` workflow (plan, destroy-guard, and the `allow-destroy` label that only Dennis adds).
-- Anything Dennis must do is a `needs-human` issue with a `**Next:**` line, filed when it comes up rather than left in a reply, and closed or rewritten when the Next goes stale (see `docs/agents/issue-tracker.md`). If the effort spans repos, every repo is linked to the effort's private GitHub Project so the band shows the siblings' items. Give each one a Priority (`scripts/issue-field.sh <n> Priority High`). Decisions go to him one at a time through AskUserQuestion.
+- OpenTofu/Terraform: CI runs `tofu fmt`, `tofu validate`, and tflint on any `.tf` files. Destroys and state surgery (`destroy`, `-destroy`, `state rm/push`) never run locally; stateful resources carry `prevent_destroy = true`; real infrastructure with state adopts the standard `tofu-deploy-reusable.yml` workflow (plan, destroy-guard, and the `allow-destroy` label that only the owner adds).
+- Anything the owner must do is a `needs-human` issue with a `**Next:**` line, filed when it comes up rather than left in a reply, and closed or rewritten when the Next goes stale (see `docs/agents/issue-tracker.md`). If the effort spans repos, every repo is linked to the effort's private GitHub Project so the band shows the siblings' items. Give each one a Priority (`scripts/issue-field.sh <n> Priority High`). Decisions go to the owner one at a time through AskUserQuestion.
 - Roadmap data lives on each issue as organization issue fields: set Horizon (`scripts/issue-field.sh <n> Horizon Now`) when charting a map or triaging a report, file tickets with `--parent` and `--blocked-by`, and leave Start date and Target date to the `roadmap-dates` workflow (see `docs/agents/issue-tracker.md`).

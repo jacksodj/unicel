@@ -10,4 +10,4 @@ The skills speak in terms of five canonical triage roles. With the GitHub tracke
 | `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
 | `wontfix`                  | `wontfix`            | Will not be actioned                     |
 
-`needs-human` is separate from triage: it marks something Dennis must do, and the owner-questions mod shows it above the prompt (see `issue-tracker.md`).
+`needs-human` is separate from triage: it marks something the owner must do, and the owner-questions mod shows it above the prompt (see `issue-tracker.md`).
