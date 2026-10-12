@@ -415,7 +415,7 @@ On load:
 
 ## Further Reading
 
-- `docs/CLAUDE.md`: Comprehensive project overview
+- `AGENTS.md`: Comprehensive project overview
 - `docs/PROJECT_PLAN.md`: 24-week implementation timeline
 - `docs/TASKS.md`: Current progress and backlog
 - `examples/cloud-cost-analysis.usheet`: Golden workbook example

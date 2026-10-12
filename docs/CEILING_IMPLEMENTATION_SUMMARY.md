@@ -156,7 +156,7 @@ test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ### Documentation
 
 **Created:**
-- `/Users/dennisjackson/Code/unicel/examples/ceiling_function_examples.md` - Comprehensive usage examples and documentation
+- `examples/ceiling_function_examples.md` - Comprehensive usage examples and documentation
 
 **Includes:**
 - Syntax reference

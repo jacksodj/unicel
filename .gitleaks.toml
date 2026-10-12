@@ -1,0 +1,14 @@
+# Gitleaks config, shared by the local hooks (.githooks/) and CI (pr-checks.yml).
+# Defaults catch most cases; add a targeted allowlist entry here when a
+# legitimate value looks like a secret. Never bypass the hooks with --no-verify.
+#
+# Full default rules: https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml
+#
+#   [allowlist]
+#   description = "Why this value is not a secret"
+#   regexes = [
+#     '''exact-value-or-pattern''',
+#   ]
+
+[extend]
+useDefault = true

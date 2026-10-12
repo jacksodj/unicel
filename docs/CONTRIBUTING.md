@@ -34,7 +34,7 @@ Be respectful, inclusive, and constructive in all interactions.
 
 ## Development Setup
 
-See [README.md](./README.md) for installation instructions.
+See [README.md](../README.md) for installation instructions.
 
 ## Code Style
 

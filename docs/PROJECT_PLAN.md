@@ -546,6 +546,6 @@ Try This:
 
 - Commit after every completed task
 - Write tests BEFORE marking task complete
-- Update CLAUDE.md if architecture changes
+- Update AGENTS.md if architecture changes
 - Ask for help when stuck >2 hours
 - Celebrate small wins!

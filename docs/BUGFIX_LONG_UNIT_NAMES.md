@@ -2,7 +2,7 @@
 
 ## Problem
 
-The `get_base_dimension` function in `/Users/dennisjackson/Code/unicel/src-tauri/src/commands/workbook.rs` only recognized short unit names like "mi" but not long forms like "miles". This prevented display conversion from working when users entered long-form unit names.
+The `get_base_dimension` function in `src-tauri/src/commands/workbook.rs` only recognized short unit names like "mi" but not long forms like "miles". This prevented display conversion from working when users entered long-form unit names.
 
 **Example failure:**
 - User enters: "60 miles"
@@ -18,7 +18,7 @@ The `get_base_dimension` function in `/Users/dennisjackson/Code/unicel/src-tauri
 
 Updated both the `get_base_dimension` function and the `UnitLibrary` to recognize long-form unit names (both singular and plural):
 
-### Changes to `/Users/dennisjackson/Code/unicel/src-tauri/src/commands/workbook.rs`
+### Changes to `src-tauri/src/commands/workbook.rs`
 
 Enhanced `get_base_dimension` function to recognize:
 
@@ -42,7 +42,7 @@ Enhanced `get_base_dimension` function to recognize:
 - Short forms: B, KB, MB, GB, TB, etc.
 - Long forms: byte(s), kilobyte(s), megabyte(s), gigabyte(s), terabyte(s), petabyte(s)
 
-### Changes to `/Users/dennisjackson/Code/unicel/src-tauri/src/core/units/library.rs`
+### Changes to `src-tauri/src/core/units/library.rs`
 
 Added long-form unit definitions to `UnitLibrary`:
 - Added unit entries for all long forms (meter, meters, mile, miles, etc.)
@@ -51,7 +51,7 @@ Added long-form unit definitions to `UnitLibrary`:
 
 ## Tests Added
 
-Created comprehensive test suite in `/Users/dennisjackson/Code/unicel/src-tauri/tests/long_unit_names.rs`:
+Created comprehensive test suite in `src-tauri/tests/long_unit_names.rs`:
 
 1. **test_long_unit_name_recognition** - Verifies all long-form units are recognized
 2. **test_miles_to_km_conversion** - Tests "60 miles" → "96.56 km" in Metric mode
@@ -88,19 +88,19 @@ cargo run --example test_long_unit_names
 
 ## Files Modified
 
-1. `/Users/dennisjackson/Code/unicel/src-tauri/src/commands/workbook.rs`
+1. `src-tauri/src/commands/workbook.rs`
    - Updated `get_base_dimension()` function (lines 537-583)
 
-2. `/Users/dennisjackson/Code/unicel/src-tauri/src/core/units/library.rs`
+2. `src-tauri/src/core/units/library.rs`
    - Added long-form unit definitions in `add_length_units()` (lines 265-346)
    - Added long-form unit definitions in `add_mass_units()` (lines 348-403)
    - Added long-form unit definitions in `add_time_units()` (lines 405-465)
    - Added long-form unit definitions in `add_temperature_units()` (lines 467-517)
 
-3. `/Users/dennisjackson/Code/unicel/src-tauri/tests/long_unit_names.rs`
+3. `src-tauri/tests/long_unit_names.rs`
    - New test file with comprehensive test coverage
 
-4. `/Users/dennisjackson/Code/unicel/src-tauri/examples/test_long_unit_names.rs`
+4. `src-tauri/examples/test_long_unit_names.rs`
    - New example demonstrating the fix
 
 ## Success Criteria

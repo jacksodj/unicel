@@ -39,3 +39,7 @@ coverage/
 # Temporary files
 *.tmp
 .cache/
+
+# Claude Code (per-user settings and session worktrees)
+.claude/settings.local.json
+.claude/worktrees/
